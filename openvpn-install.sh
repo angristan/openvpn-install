@@ -195,12 +195,12 @@ else
 	read -p "Port: " -e -i 1194 PORT
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
-	echo "   1) Current system resolvers"
-	echo "   2) FDN"
+	echo "   1) Current system resolvers (/etc/resolv.conf)"
+	echo "   2) FDN (France)"
 	echo "   3) OpenNIC"
-	echo "   4) DNS.WATCH"
-	echo "   5) OpenDNS"
-	echo "   6) Google"
+	echo "   4) DNS.WATCH (Germany)"
+	echo "   5) OpenDNS (Anycast : worldwide)"
+	echo "   6) Google (Anycast : worldwide)"
 	read -p "DNS [1-6]: " -e -i 2 DNS
 	echo ""
 	echo "Some setups (e.g. Amazon Web Services), require use of MASQUERADE rather than SNAT"
