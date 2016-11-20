@@ -89,6 +89,6 @@ You can get a cheap VPS for 3€/month at [PulseHeberg](https://goo.gl/oBhgaj).
 
 ## Licence
 
-Based on the work of [Nyr](https://github.com/Nyr/openvpn-install)
+Thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors)
 
-[MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install-nyr/master/LICENSE)
+[MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
