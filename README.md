@@ -87,8 +87,10 @@ Once it ends, you can run it again to add more users, remove some of them or eve
 
 You can get a cheap VPS for 3€/month at [PulseHeberg](https://goo.gl/oBhgaj).
 
-## Licence
+## Credits & Licence
 
 Thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors)
+
+[Old repo](https://github.com/Angristan/OpenVPN-install-fork-old)
 
 [MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
