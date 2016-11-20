@@ -27,7 +27,16 @@ if [[ -e /etc/debian_version ]]; then
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
-		exit 4
+		echo ""
+		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,
+		echo "then you can continue, a recent version of OpenVPN is available on these."
+		echo "Keep in mind they are not supported, though."
+		while [[ $CONTINUE != "y" && $CONITNUE != "n" ]]; do
+			read -p "Continue ? [y/n]: " -e CONTINUE
+		done
+		if [[ "$CONTINUE" = "n" ]]; then
+			exit 4
+		fi
 	fi
 elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
 	OS=centos
@@ -245,7 +254,7 @@ else
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
-		# Ubuntu >= 16.04 have OpenVPN > 2.3.3 without the need of a third party repository.
+		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 		# The we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
 	else
