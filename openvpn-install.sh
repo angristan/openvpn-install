@@ -1,11 +1,7 @@
 #!/bin/bash
-# OpenVPN road warrior installer for Debian, Ubuntu and CentOS
 
-# This script will work on Debian, Ubuntu, CentOS and probably other distros
-# of the same families, although no support is offered for them. It isn't
-# bulletproof but it will probably work if you simply want to setup a VPN on
-# your Debian/Ubuntu/CentOS box. It has been designed to be as unobtrusive and
-# universal as possible.
+# Secure OpenVPN server installer for Debian, Ubuntu and CentOS.
+# https://github.com/Angristan/OpenVPN-install
 
 
 if [[ "$EUID" -ne 0 ]]; then
@@ -13,12 +9,10 @@ if [[ "$EUID" -ne 0 ]]; then
 	exit 1
 fi
 
-
 if [[ ! -e /dev/net/tun ]]; then
 	echo "TUN is not available"
 	exit 2
 fi
-
 
 if grep -qs "CentOS release 5" "/etc/redhat-release"; then
 	echo "CentOS 5 is too old and not supported"
@@ -27,11 +21,12 @@ fi
 
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
-	#We get the version number, to verify we can get a recent version of OpenVPN
+	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(cat /etc/*-release | grep "VERSION_ID")
 	RCLOCAL='/etc/rc.local'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]]; then
-		echo "Your version of Debian/Ubuntu is not supported. Please look at the documentation."
+		echo "Your version of Debian/Ubuntu is not supported."
+		echo "I can't install a recent version of OpenVPN on your system."
 		exit 4
 	fi
 elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
@@ -62,7 +57,6 @@ newclient () {
 	echo "</tls-auth>" >> ~/$1.ovpn
 }
 
-
 # Try to get our IP from the system and fallback to the Internet.
 # I do this to make the script compatible with NATed servers (LowEndSpirit/Scaleway)
 # and to avoid getting an IPv6.
@@ -70,7 +64,6 @@ IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,
 if [[ "$IP" = "" ]]; then
 	IP=$(wget -qO- ipv4.icanhazip.com)
 fi
-
 
 if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
@@ -99,8 +92,6 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			exit
 			;;
 			2)
-			# This option could be documented a bit better and maybe even be simplimplified
-			# ...but what can I say, I want some sleep too
 			NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
 			if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
 				echo ""
@@ -180,23 +171,23 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 	done
 else
 	clear
-	echo 'Welcome to this quick OpenVPN "road warrior" installer'
+	echo 'Welcome to the secure OpenVPN installer'
 	echo ""
 	# OpenVPN setup and first user creation
 	echo "I need to ask you a few questions before starting the setup"
 	echo "You can leave the default options and just press enter if you are ok with them"
 	echo ""
 	echo "First, choose which variant of the script you want to use."
-	echo '"Fast" is secure, but "slow" is the best encryption you can get, at the cost of speed (not that slow though)'
+	echo '"Fast" is secure, but "slow" provides you the best encryption you can get,'
+	echo "at the cost of some speed (not that slow though)"
 	echo "   1) Fast (2048 bits RSA and DH, 128 bits AES)"
 	echo "   2) Slow (4096 bits RSA and DH, 256 bits AES)"
 	while [[ $VARIANT !=  "1" && $VARIANT != "2" ]]; do
 		read -p "Variant [1-2]: " -e -i 1 VARIANT
 	done
-
 	echo ""
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
-	echo "If you server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP adress as it is. (local/private IP"
+	echo "If you server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP adress as it is. (local/private IP)"
 	echo "Otherwise, it sould be your public IPv4 address."
 	read -p "IP address: " -e -i $IP IP
 	echo ""
@@ -205,7 +196,7 @@ else
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
 	echo "   1) Current system resolvers"
-	echo "   2) FDN (recommended)"
+	echo "   2) FDN"
 	echo "   3) OpenNIC"
 	echo "   4) DNS.WATCH"
 	echo "   5) OpenDNS"
@@ -220,7 +211,7 @@ else
 		read -p "Forwarding type: " -e -i 1 FORWARD_TYPE
 	done
 	echo ""
-	echo "Finally, tell me your name for the client cert"
+	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
 		echo "Please, use one word only, no special characters"
 		read -p "Client name: " -e -i client CLIENT
@@ -255,15 +246,15 @@ else
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
-		# The repo, is not available for Ubuntu 15.10 and 16.04, but it has OpenVPN > 2.3.3, so we do nothing.
-		# The we install OpnVPN
+		# Ubuntu >= 16.04 have OpenVPN > 2.3.3 without the need of a third party repository.
+		# The we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
 	else
 		# Else, the distro is CentOS
 		yum install epel-release -y
 		yum install openvpn iptables openssl wget ca-certificates curl -y
 	fi
-	# find out if the machine uses nogroup or nobody for the permissionless group
+	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
 	        NOGROUP=nogroup
 	else
@@ -301,7 +292,7 @@ set_var EASYRSA_DIGEST "sha384"" > vars
 	./easyrsa gen-crl
 	# generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
-	# Move the stuff we need
+	# Move all the generated files
 	cp pki/ca.crt pki/private/ca.key pki/dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
@@ -325,11 +316,11 @@ tls-version-min 1.2" > /etc/openvpn/server.conf
 		# If the user selected the fast, less hardened version
 		echo "tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256" >> /etc/openvpn/server.conf
 	elif [[ "$VARIANT" = '2' ]]; then
-		# If the user selected the relatively slow, ultra hardened version
+		# If the user selected the relatively slow, hardened version
 		echo "tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384" >> /etc/openvpn/server.conf
 	fi
 	echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
-	# DNS
+	# DNS resolvers
 	case $DNS in
 		1)
 		# Obtain the resolvers from resolv.conf and use them for OpenVPN
@@ -473,10 +464,10 @@ tls-client" > /etc/openvpn/client-common.txt
 		# If the user selected the fast, less hardened version
 		echo "tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256" >> /etc/openvpn/client-common.txt
 	elif [[ "$VARIANT" = '2' ]]; then
-		# If the user selected the relatively slow, ultra hardened version
+		# If the user selected the relatively slow, hardened version
 		echo "tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384" >> /etc/openvpn/client-common.txt
 	fi
-	# Generates the custom client.ovpn
+	# Generate the custom client.ovpn
 	newclient "$CLIENT"
 	echo ""
 	echo "Finished!"
