@@ -34,6 +34,7 @@ This fork includes the following features :
 - [DNS.WATCH DNS Servers](https://dns.watch/index)
 - Up-to-date OpenVPN (2.3.11) thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos)
 - Support for either SNAT or MASQUERADE for forwarding
+
 ## Variants
 
 When you lauch the script you will be asked to choose a mode. Both will work the same way, but *slow* has higher encryption settings, so it may slow down your connection and take more time to install.
