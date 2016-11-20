@@ -28,13 +28,14 @@ if [[ -e /etc/debian_version ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
 		echo ""
-		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,
+		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
 		echo "then you can continue, a recent version of OpenVPN is available on these."
 		echo "Keep in mind they are not supported, though."
-		while [[ $CONTINUE != "y" && $CONITNUE != "n" ]]; do
+		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
 			read -p "Continue ? [y/n]: " -e CONTINUE
 		done
 		if [[ "$CONTINUE" = "n" ]]; then
+			echo "Ok, bye !"
 			exit 4
 		fi
 	fi
