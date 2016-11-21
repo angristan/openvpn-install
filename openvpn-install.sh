@@ -204,12 +204,18 @@ else
 	echo "What port do you want for OpenVPN?"
 	read -p "Port: " -e -i 1194 PORT
 	echo ""
+	echo "What protocol do you want for OpenVPN?"
+	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
+	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
+		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
+	done
+	echo ""
 	echo "What DNS do you want to use with the VPN?"
 	echo "   1) Current system resolvers (/etc/resolv.conf)"
 	echo "   2) FDN (France)"
 	echo "   3) DNS.WATCH (Germany)"
-	echo "   4) OpenDNS (Anycast : worldwide)"
-	echo "   5) Google (Anycast : worldwide)"
+	echo "   4) OpenDNS (Anycast: worldwide)"
+	echo "   5) Google (Anycast: worldwide)"
 	read -p "DNS [1-6]: " -e -i 2 DNS
 	echo ""
 	echo "Some setups (e.g. Amazon Web Services), require use of MASQUERADE rather than SNAT"
@@ -306,9 +312,13 @@ set_var EASYRSA_DIGEST "sha384"" > vars
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 	# Generate server.conf
-	echo "port $PORT
-proto udp
-dev tun
+	echo "port $PORT" > /etc/openvpn/server.conf
+	if [[ "$PROTOCOL" = 'UDP' ]]; then
+		echo "proto udp" >> /etc/openvpn/server.conf
+	elif [[ "$PROTOCOL" = 'TCP' ]]; then
+		echo "proto tcp" >> /etc/openvpn/server.conf
+	fi
+	echo "dev tun
 ca ca.crt
 cert server.crt
 key server.key
@@ -320,7 +330,7 @@ server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt
 cipher AES-256-CBC
 auth SHA512
-tls-version-min 1.2" > /etc/openvpn/server.conf
+tls-version-min 1.2" >> /etc/openvpn/server.conf
 	if [[ "$VARIANT" = '1' ]]; then
 		# If the user selected the fast, less hardened version
 		echo "tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256" >> /etc/openvpn/server.conf
@@ -379,9 +389,14 @@ tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
 		# We don't use --add-service=openvpn because that would only work with
 		# the default port. Using both permanent and not permanent rules to
 		# avoid a firewalld reload.
-		firewall-cmd --zone=public --add-port=$PORT/udp
+		if [[ "$PROTOCOL" = 'UDP' ]]; then
+			firewall-cmd --zone=public --add-port=$PORT/udp
+			firewall-cmd --permanent --zone=public --add-port=$PORT/udp
+		elif [[ "$PROTOCOL" = 'TCP' ]]; then
+			firewall-cmd --zone=public --add-port=$PORT/tcp
+			firewall-cmd --permanent --zone=public --add-port=$PORT/tcp
+		fi
 		firewall-cmd --zone=trusted --add-source=10.8.0.0/24
-		firewall-cmd --permanent --zone=public --add-port=$PORT/udp
 		firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
 		if [[ "$FORWARD_TYPE" = '1' ]]; then
 			firewall-cmd --zone=trusted --add-masquerade
@@ -398,10 +413,18 @@ tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
 		# If iptables has at least one REJECT rule, we asume this is needed.
 		# Not the best approach but I can't think of other and this shouldn't
 		# cause problems.
-		iptables -I INPUT -p udp --dport $PORT -j ACCEPT
+		if [[ "$PROTOCOL" = 'UDP' ]]; then
+			iptables -I INPUT -p udp --dport $PORT -j ACCEPT
+		elif [[ "$PROTOCOL" = 'TCP' ]]; then
+			iptables -I INPUT -p tcp --dport $PORT -j ACCEPT
+		fi
 		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
 		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-		sed -i "1 a\iptables -I INPUT -p udp --dport $PORT -j ACCEPT" $RCLOCAL
+		if [[ "$PROTOCOL" = 'UDP' ]]; then
+			sed -i "1 a\iptables -I INPUT -p udp --dport $PORT -j ACCEPT" $RCLOCAL
+		elif [[ "$PROTOCOL" = 'TCP' ]]; then
+			sed -i "1 a\iptables -I INPUT -p tcp --dport $PORT -j ACCEPT" $RCLOCAL
+		fi
 		sed -i "1 a\iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT" $RCLOCAL
 		sed -i "1 a\iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT" $RCLOCAL
 	fi
@@ -413,7 +436,11 @@ tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
 				if ! hash semanage 2>/dev/null; then
 					yum install policycoreutils-python -y
 				fi
-				semanage port -a -t openvpn_port_t -p udp $PORT
+				if [[ "$PROTOCOL" = 'UDP' ]]; then
+					semanage port -a -t openvpn_port_t -p udp $PORT
+				elif [[ "$PROTOCOL" = 'TCP' ]]; then
+					semanage port -a -t openvpn_port_t -p tcp $PORT
+				fi
 			fi
 		fi
 	fi
@@ -449,10 +476,14 @@ tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
 		fi
 	fi
 	# client-common.txt is created so we have a template to add further users later
-	echo "client
+	echo "client" > /etc/openvpn/client-common.txt
+	if [[ "$PROTOCOL" = 'UDP' ]]; then
+		echo "proto udp" >> /etc/openvpn/client-common.txt
+	elif [[ "$PROTOCOL" = 'TCP' ]]; then
+		echo "proto tcp-client" >> /etc/openvpn/client-common.txt
+	fi
+	echo "remote $IP $PORT
 dev tun
-proto udp
-remote $IP $PORT
 resolv-retry infinite
 nobind
 persist-key
@@ -462,7 +493,7 @@ cipher AES-256-CBC
 auth SHA512
 setenv opt block-outside-dns
 tls-version-min 1.2
-tls-client" > /etc/openvpn/client-common.txt
+tls-client" >> /etc/openvpn/client-common.txt
 	if [[ "$VARIANT" = '1' ]]; then
 		# If the user selected the fast, less hardened version
 		echo "tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256" >> /etc/openvpn/client-common.txt
