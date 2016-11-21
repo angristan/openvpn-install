@@ -44,8 +44,24 @@ elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
 	RCLOCAL='/etc/rc.d/rc.local'
 	# Needed for CentOS 7
 	chmod +x /etc/rc.d/rc.local
+elif [[ -e /etc/arch-release ]]; then
+	OS=arch
+	RCLOCAL='/etc/rc.local'
+	# Needed for rc.local support on ArchLinux
+	echo "[Unit]
+Description=/etc/rc.local compatibility
+
+[Service]
+Type=oneshot
+ExecStart=/etc/rc.local
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
+	systemctl enable rc-local.service
+	touch /etc/rc.local
 else
-	echo "Looks like you aren't running this installer on a Debian, Ubuntu or CentOS system"
+	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
 	exit 4
 fi
 
@@ -163,6 +179,8 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				if [[ "$OS" = 'debian' ]]; then
 					apt-get remove --purge -y openvpn openvpn-blacklist
+				elif [[ "$OS" = 'arch' ]]; then
+					pacman -R openvpn --noconfirm
 				else
 					yum remove openvpn -y
 				fi
@@ -264,10 +282,25 @@ else
 		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 		# The we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
-	else
-		# Else, the distro is CentOS
+	elif [[ "$OS" = 'centos' ]]; then
 		yum install epel-release -y
 		yum install openvpn iptables openssl wget ca-certificates curl -y
+	else
+		# Else, the distro is ArchLinux
+		echo ""
+		echo ""
+		echo "As you're using ArchLinux, I need to update the packages on your system to install whose I need."
+		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
+		echo ""
+		echo "Continuing will update your installed packages and install needed ones."
+		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+			read -p "Continue ? [y/n]: " -e CONTINUE
+		done
+		if [[ "$CONTINUE" = "n" ]]; then
+			echo "Ok, bye !"
+			exit 4
+		fi
+		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
 	fi
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
