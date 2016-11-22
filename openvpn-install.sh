@@ -301,6 +301,11 @@ else
 			exit 4
 		fi
 		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
+		if [[ "$OS" = 'arch' ]]; then
+			touch /etc/iptables/iptables.rules # iptables won't start if this file does not exist
+			systemctl enable iptables
+			systemctl start iptables
+		fi
 	fi
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
