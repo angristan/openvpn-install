@@ -34,6 +34,7 @@ This fork includes the following features :
 - [DNS.WATCH DNS Servers](https://dns.watch/index)
 - Up-to-date OpenVPN (2.3.11) thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos)
 - Support for either SNAT or MASQUERADE for forwarding
+- Choice for UDP or TCP
 
 ## Variants
 
