@@ -23,7 +23,7 @@ This fork includes the following features :
 - Every feature of the [original script](https://github.com/Nyr/openvpn-install)
 - No comp-lzo [compression is a vector for oracle attacks, e.g. CRIME or BREACH](https://github.com/BetterCrypto/Applied-Crypto-Hardening/pull/91#issuecomment-75388575)
 - Better encryption (see below)
-- Avoid DNS leak
+- [Avoid DNS leak on Windows 10](https://community.openvpn.net/openvpn/ticket/605)
 - UFW support
 - TLS 1.2 only
 - Strong ciphers, DH keys and certificates. (see variants)
