@@ -243,28 +243,6 @@ else
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
 	read -n1 -r -p "Press any key to continue..."
 
-	if [[ "$OS" = 'arch' ]]; then
-		# Needed for rc.local support on ArchLinux
-		echo "[Unit]
-	Description=/etc/rc.local compatibility
-
-	[Service]
-	Type=oneshot
-	ExecStart=/etc/rc.local
-	RemainAfterExit=yes
-
-	[Install]
-	WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
-		systemctl enable rc-local.service
-		if ! grep '#!' $RCLOCAL; then
-			echo "#!/bin/bash" > $RCLOCAL
-		fi
-	fi
-
-	if [[ ! -e $SYSCTL ]]; then
-		touch $SYSCTL
-	fi
-
 	if [[ "$OS" = 'debian' ]]; then
 		apt-get install ca-certificates -y
 		# We add the OpenVPN repo to get the latest version.
@@ -302,17 +280,37 @@ else
 		# Else, the distro is ArchLinux
 		echo ""
 		echo ""
-		echo "As you're using ArchLinux, I need to update the packages on your system to install whose I need."
+		echo "As you're using ArchLinux, I need to update the packages on your system to install those I need."
 		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
 		echo ""
 		echo "Continuing will update your installed packages and install needed ones."
 		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -p "Continue ? [y/n]: " -e CONTINUE
+			read -p "Continue ? [y/n]: " -e -i y CONTINUE
 		done
 		if [[ "$CONTINUE" = "n" ]]; then
 			echo "Ok, bye !"
 			exit 4
 		fi
+		
+		if [[ "$OS" = 'arch' ]]; then
+		# Install rc.local
+		echo "[Unit]
+Description=/etc/rc.local compatibility
+
+[Service]
+Type=oneshot
+ExecStart=/etc/rc.local
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
+			systemctl enable rc-local.service
+			if ! grep '#!' $RCLOCAL; then
+				echo "#!/bin/bash" > $RCLOCAL
+			fi
+		fi
+		
+		# Install dependencies
 		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
 		if [[ "$OS" = 'arch' ]]; then
 			touch /etc/iptables/iptables.rules # iptables won't start if this file does not exist
@@ -421,6 +419,11 @@ persist-tun
 crl-verify crl.pem
 tls-server
 tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
+
+	# Create the sysctl configuration file if needed (mainly for Arch Linux)
+	if [[ ! -e $SYSCTL ]]; then
+		touch $SYSCTL
+	fi
 	# Enable net.ipv4.ip_forward for the system
 	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
 	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
