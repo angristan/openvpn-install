@@ -59,10 +59,16 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	systemctl enable rc-local.service
-	touch /etc/rc.local
+	if ! grep '#!' $RCLOCAL; then
+		echo "#!/bin/bash" > $RCLOCAL
+	fi
 else
 	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
 	exit 4
+fi
+
+if [[ ! -e /etc/sysctl.conf ]]; then
+	touch /etc/sysctl.conf
 fi
 
 newclient () {
