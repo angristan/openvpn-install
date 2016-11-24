@@ -369,7 +369,9 @@ persist-key
 persist-tun
 crl-verify crl.pem
 tls-server
-tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
+tls-auth tls-auth.key 0
+status openvpn-status.log
+verb 3" >> /etc/openvpn/server.conf
 	# Enable net.ipv4.ip_forward for the system
 	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' /etc/sysctl.conf
 	if ! grep -q "\<net.ipv4.ip_forward\>" /etc/sysctl.conf; then
@@ -488,10 +490,11 @@ resolv-retry infinite
 nobind
 persist-key
 persist-tun
+setenv opt block-outside-dns
+verb 3
 remote-cert-tls server
 cipher AES-256-CBC
 auth SHA512
-setenv opt block-outside-dns
 tls-version-min 1.2
 tls-client" >> /etc/openvpn/client-common.txt
 	if [[ "$VARIANT" = '1' ]]; then
