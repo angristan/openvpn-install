@@ -135,25 +135,19 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 			if [[ "$REMOVE" = 'y' ]]; then
 				PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
-				if hash ufw 2>/dev/null && ufw status | grep -qw active; then
-					ufw delete allow $PORT/udp
-					sed -i '/^##OPENVPN_START/,/^##OPENVPN_END/d' /etc/ufw/before.rules
-					sed -i '/^DEFAULT_FORWARD/{N;s/DEFAULT_FORWARD_POLICY="ACCEPT"\n#before openvpn: /DEFAULT_FORWARD_POLICY=/}' /etc/default/ufw
-				elif pgrep firewalld; then
+				if pgrep firewalld; then
 					# Using both permanent and not permanent rules to avoid a firewalld reload.
 					firewall-cmd --zone=public --remove-port=$PORT/udp
 					firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
 					firewall-cmd --permanent --zone=public --remove-port=$PORT/udp
 					firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
-					firewall-cmd --zone=trusted --remove-masquerade
-					firewall-cmd --permanent --zone=trusted --remove-masquerade
 				fi
 				if iptables -L -n | grep -qE 'REJECT|DROP'; then
 					sed -i "/iptables -I INPUT -p udp --dport $PORT -j ACCEPT/d" $RCLOCAL
 					sed -i "/iptables -I FORWARD -s 10.8.0.0\/24 -j ACCEPT/d" $RCLOCAL
 					sed -i "/iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT/d" $RCLOCAL
 				fi
-				sed -i '/iptables -t nat -A POSTROUTING -s 10.8.0.0\/24 /d' $RCLOCAL
+				sed -i '/iptables -t nat -A POSTROUTING -s 10.8.0.0\/24 -j SNAT --to /d' $RCLOCAL
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 						if [[ "$PORT" != '1194' ]]; then
@@ -217,14 +211,6 @@ else
 	echo "   4) OpenDNS (Anycast: worldwide)"
 	echo "   5) Google (Anycast: worldwide)"
 	read -p "DNS [1-6]: " -e -i 2 DNS
-	echo ""
-	echo "Some setups (e.g. Amazon Web Services), require use of MASQUERADE rather than SNAT"
-	echo "Which forwarding method do you want to use [if unsure, leave as default]?"
-	echo "   1) SNAT (default)"
-	echo "   2) MASQUERADE"
-	while [[ $FORWARD_TYPE !=  "1" && $FORWARD_TYPE != "2" ]]; do
-		read -p "Forwarding type: " -e -i 1 FORWARD_TYPE
-	done
 	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
@@ -380,13 +366,8 @@ verb 3" >> /etc/openvpn/server.conf
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
 	# Set NAT for the VPN subnet
-	if [[ "$FORWARD_TYPE" = '1' ]]; then
-		iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
-		sed -i "1 a\iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP" $RCLOCAL
-	else
-		iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
-		sed -i "1 a\iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE" $RCLOCAL
-	fi
+	iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
+	sed -i "1 a\iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP" $RCLOCAL
 	if pgrep firewalld; then
 		# We don't use --add-service=openvpn because that would only work with
 		# the default port. Using both permanent and not permanent rules to
@@ -400,16 +381,6 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 		firewall-cmd --zone=trusted --add-source=10.8.0.0/24
 		firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
-		if [[ "$FORWARD_TYPE" = '1' ]]; then
-			firewall-cmd --zone=trusted --add-masquerade
-			firewall-cmd --permanent --zone=trusted --add-masquerade
-		fi
-	elif hash ufw 2>/dev/null && ufw status | grep -qw active; then
-		ufw allow $PORT/udp
-		if [[ "$FORWARD_TYPE" = '1' ]]; then
-			sed -i '1s/^/##OPENVPN_START\n*nat\n:POSTROUTING ACCEPT [0:0]\n-A POSTROUTING -s 10.8.0.0\/24 -o eth0 -j MASQUERADE\nCOMMIT\n##OPENVPN_END\n\n/' /etc/ufw/before.rules
-			sed -ie 's/^DEFAULT_FORWARD_POLICY\s*=\s*/DEFAULT_FORWARD_POLICY="ACCEPT"\n#before openvpn: /' /etc/default/ufw
-		fi
 	fi
 	if iptables -L -n | grep -qE 'REJECT|DROP'; then
 		# If iptables has at least one REJECT rule, we asume this is needed.
