@@ -304,6 +304,7 @@ RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
+			chmod +x /etc/rc.local
 			systemctl enable rc-local.service
 			if ! grep '#!' $RCLOCAL; then
 				echo "#!/bin/bash" > $RCLOCAL
