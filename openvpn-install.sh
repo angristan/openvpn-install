@@ -24,6 +24,7 @@ if [[ -e /etc/debian_version ]]; then
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
 	RCLOCAL='/etc/rc.local'
+	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
@@ -42,10 +43,15 @@ if [[ -e /etc/debian_version ]]; then
 elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
 	OS=centos
 	RCLOCAL='/etc/rc.d/rc.local'
+	SYSCTL='/etc/sysctl.conf'
 	# Needed for CentOS 7
 	chmod +x /etc/rc.d/rc.local
+elif [[ -e /etc/arch-release ]]; then
+	OS=arch
+	RCLOCAL='/etc/rc.local'
+	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
-	echo "Looks like you aren't running this installer on a Debian, Ubuntu or CentOS system"
+	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
 	exit 4
 fi
 
@@ -157,6 +163,8 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				if [[ "$OS" = 'debian' ]]; then
 					apt-get remove --purge -y openvpn openvpn-blacklist
+				elif [[ "$OS" = 'arch' ]]; then
+					pacman -R openvpn --noconfirm
 				else
 					yum remove openvpn -y
 				fi
@@ -220,6 +228,7 @@ else
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
 	read -n1 -r -p "Press any key to continue..."
+
 	if [[ "$OS" = 'debian' ]]; then
 		apt-get install ca-certificates -y
 		# We add the OpenVPN repo to get the latest version.
@@ -250,10 +259,51 @@ else
 		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 		# The we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
-	else
-		# Else, the distro is CentOS
+	elif [[ "$OS" = 'centos' ]]; then
 		yum install epel-release -y
 		yum install openvpn iptables openssl wget ca-certificates curl -y
+	else
+		# Else, the distro is ArchLinux
+		echo ""
+		echo ""
+		echo "As you're using ArchLinux, I need to update the packages on your system to install those I need."
+		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
+		echo ""
+		echo "Continuing will update your installed packages and install needed ones."
+		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+			read -p "Continue ? [y/n]: " -e -i y CONTINUE
+		done
+		if [[ "$CONTINUE" = "n" ]]; then
+			echo "Ok, bye !"
+			exit 4
+		fi
+		
+		if [[ "$OS" = 'arch' ]]; then
+		# Install rc.local
+		echo "[Unit]
+Description=/etc/rc.local compatibility
+
+[Service]
+Type=oneshot
+ExecStart=/etc/rc.local
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
+			chmod +x /etc/rc.local
+			systemctl enable rc-local.service
+			if ! grep '#!' $RCLOCAL; then
+				echo "#!/bin/bash" > $RCLOCAL
+			fi
+		fi
+		
+		# Install dependencies
+		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
+		if [[ "$OS" = 'arch' ]]; then
+			touch /etc/iptables/iptables.rules # iptables won't start if this file does not exist
+			systemctl enable iptables
+			systemctl start iptables
+		fi
 	fi
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
@@ -358,10 +408,16 @@ tls-server
 tls-auth tls-auth.key 0
 status openvpn-status.log
 verb 3" >> /etc/openvpn/server.conf
+
+	# Create the sysctl configuration file if needed (mainly for Arch Linux)
+	if [[ ! -e $SYSCTL ]]; then
+		touch $SYSCTL
+	fi
+
 	# Enable net.ipv4.ip_forward for the system
-	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' /etc/sysctl.conf
-	if ! grep -q "\<net.ipv4.ip_forward\>" /etc/sysctl.conf; then
-		echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
+	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
+		echo 'net.ipv4.ip_forward=1' >> $SYSCTL
 	fi
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
