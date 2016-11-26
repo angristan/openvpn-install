@@ -21,18 +21,18 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 
 This fork includes the following features :
 - Every feature of the [original script](https://github.com/Nyr/openvpn-install)
-- No comp-lzo [compression is a vector for oracle attacks, e.g. CRIME or BREACH](https://github.com/BetterCrypto/Applied-Crypto-Hardening/pull/91#issuecomment-75388575)
-- [Avoid DNS leak on Windows 10](https://community.openvpn.net/openvpn/ticket/605)
-- Better encryption (see below)
+- Choice for UDP or TCP (UDP is still recommended)
 - TLS 1.2 only
-- Strong ciphers, DH keys and certificates. (see variants)
-- AES-256-CBC and SHA-512 for HMAC (instead of BF-128-CBC and SHA1)
-- TLS-auth to help [thwart DoS attacks](https://openvpn.net/index.php/open-source/documentation/howto.html#security) and provide a 2nd line of defense to the TLS channel.
+- Strong ciphers, DH keys and certificates keys. (see [variants](#variants)
+- AES-256-CBC and SHA-512 encryption (instead of BF-128-CBC and SHA1)
+- TLS-auth support : it adds an additional HMAC signature to all SSL/TLS handshake packets for integrity verification thus allowing an additional level of security above and beyond that provided by SSL/TLS. [source](https://openvpn.net/index.php/open-source/documentation/howto.html#security)
 - Run server in unprivileged mode, reducing risks to the system
+- [Avoid DNS leak on Windows 10](https://community.openvpn.net/openvpn/ticket/605)
+- No comp-lzo [compression is a vector for oracle attacks, e.g. CRIME or BREACH](https://github.com/BetterCrypto/Applied-Crypto-Hardening/pull/91#issuecomment-75388575)
+- [Arch Linux support](
 - [FDN's DNS Servers](http://www.fdn.fr/actions/dns/)
 - [DNS.WATCH DNS Servers](https://dns.watch/index)
 - Up-to-date OpenVPN (2.3.11) thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos)
-- Choice for UDP or TCP
 - Other improvements
 
 ## Variants
@@ -66,9 +66,9 @@ The script is made to work on these OS :
 - Ubuntu 14.04 LTS
 - Ubuntu 16.04 LTS
 - Ubuntu 16.10
-- ArchLinux
 - CentOS 6
 - CentOS 7
+- Arch Linux
 
 ##Installation
 
