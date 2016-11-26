@@ -1,5 +1,5 @@
 ##openvpn-install
-Secure OpenVPN installer for Debian, Ubuntu and CentOS.
+Secure OpenVPN installer for Debian, Ubuntu, ArchLinux and CentOS.
 
 This script will let you setup your own secure VPN server in no more than a minute.
 
@@ -66,6 +66,7 @@ The script is made to work on these OS :
 - Ubuntu 14.04 LTS
 - Ubuntu 16.04 LTS
 - Ubuntu 16.10
+- ArchLinux
 - CentOS 6
 - CentOS 7
 
