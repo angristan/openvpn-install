@@ -218,7 +218,9 @@ else
 	echo "   3) DNS.WATCH (Germany)"
 	echo "   4) OpenDNS (Anycast: worldwide)"
 	echo "   5) Google (Anycast: worldwide)"
-	read -p "DNS [1-6]: " -e -i 2 DNS
+	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" ]]; do
+		read -p "DNS [1-5]: " -e -i 2 DNS
+	done
 	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
