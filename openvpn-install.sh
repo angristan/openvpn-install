@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Secure OpenVPN server installer for Debian, Ubuntu and CentOS.
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Arch Linux
 # https://github.com/Angristan/OpenVPN-install
 
 
@@ -57,7 +57,7 @@ fi
 
 newclient () {
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-common.txt ~/$1.ovpn
+	cp /etc/openvpn/client-template.txt ~/$1.ovpn
 	echo "<ca>" >> ~/$1.ovpn
 	cat /etc/openvpn/easy-rsa/pki/ca.crt >> ~/$1.ovpn
 	echo "</ca>" >> ~/$1.ovpn
@@ -85,6 +85,8 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
 	do
 	clear
+		echo "OpenVPN-install (github.com/Angristan/OpenVPN-install)"
+		echo ""
 		echo "Looks like OpenVPN is already installed"
 		echo ""
 		echo "What do you want to do?"
@@ -183,20 +185,11 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 	done
 else
 	clear
-	echo 'Welcome to the secure OpenVPN installer'
+	echo "Welcome to the secure OpenVPN installer (github.com/Angristan/OpenVPN-install)"
 	echo ""
 	# OpenVPN setup and first user creation
 	echo "I need to ask you a few questions before starting the setup"
 	echo "You can leave the default options and just press enter if you are ok with them"
-	echo ""
-	echo "First, choose which variant of the script you want to use."
-	echo '"Fast" is secure, but "slow" provides you the best encryption you can get,'
-	echo "at the cost of some speed (not that slow though)"
-	echo "   1) Fast (2048 bits RSA and DH, 128 bits AES)"
-	echo "   2) Slow (4096 bits RSA and DH, 256 bits AES)"
-	while [[ $VARIANT !=  "1" && $VARIANT != "2" ]]; do
-		read -p "Variant [1-2]: " -e -i 1 VARIANT
-	done
 	echo ""
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "If you server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP adress as it is. (local/private IP)"
@@ -221,6 +214,86 @@ else
 	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" ]]; do
 		read -p "DNS [1-5]: " -e -i 2 DNS
 	done
+	echo ""
+	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
+	echo "the encryption in OpenVPN and the choices I made in this script."
+	echo "Please note that all the choices proposed are secure (to a different degree)"
+	echo "and are still viable to date, unlike some default OpenVPN options"
+	echo ''
+	echo "Choose which cipher you want to use for the data channel:"
+	echo "   1) AES-128-CBC (fastest, recommended)"
+	echo "   2) AES-192-CBC"
+	echo "   3) AES-256-CBC (most secure)"
+	echo "Alternatives to AES, use them only if you know what you're doing."
+	echo "They are relatively slower but as secure as AES."
+	echo "   4) CAMELLIA-128-CBC"
+	echo "   5) CAMELLIA-192-CBC"
+	echo "   6) CAMELLIA-256-CBC"
+	echo "   7) SEED-CBC"
+	while [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" && $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" && $CIPHER != "7" ]]; do
+		read -p "Cipher [1-7]: " -e -i 1 CIPHER
+	done
+	case $CIPHER in
+		1)
+		CIPHER="cipher AES-128-CBC"
+		;;
+		2)
+		CIPHER="cipher AES-192-CBC"
+		;;
+		3)
+		CIPHER="cipher AES-256-CBC"
+		;;
+		4)
+		CIPHER="cipher CAMELLIA-128-CBC"
+		;;
+		5)
+		CIPHER="cipher CAMELLIA-192-CBC"
+		;;
+		6)
+		CIPHER="cipher CAMELLIA-256-CBC"
+		;;
+		5)
+		CIPHER="cipher SEED-CBC"
+		;;
+	esac
+	echo ""
+	echo "Choose what size of Diffie-Hellman key you want to use:"
+	echo "   1) 2048 bits (fastest)"
+	echo "   2) 3072 bits (recommended, best compromise)"
+	echo "   3) 4096 bits (most secure)"
+	while [[ $DH_KEY_SIZE != "1" && $DH_KEY_SIZE != "2" && $DH_KEY_SIZE != "3" ]]; do
+		read -p "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE
+	done
+	case $DH_KEY_SIZE in
+		1)
+		DH_KEY_SIZE="2048"
+		;;
+		2)
+		DH_KEY_SIZE="3072"
+		;;
+		3)
+		DH_KEY_SIZE="4096"
+		;;
+	esac
+	echo ""
+	echo "Choose what size of RSA key you want to use:"
+	echo "   1) 2048 bits (fastest)"
+	echo "   2) 3072 bits (recommended, best compromise)"
+	echo "   3) 4096 bits (most secure)"
+	while [[ $RSA_KEY_SIZE != "1" && $RSA_KEY_SIZE != "2" && $RSA_KEY_SIZE != "3" ]]; do
+		read -p "DH key size [1-3]: " -e -i 2 RSA_KEY_SIZE
+	done
+	case $RSA_KEY_SIZE in
+		1)
+		RSA_KEY_SIZE="2048"
+		;;
+		2)
+		RSA_KEY_SIZE="3072"
+		;;
+		3)
+		RSA_KEY_SIZE="4096"
+		;;
+	esac
 	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
@@ -326,29 +399,22 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -rf ~/EasyRSA-3.0.1.tgz
 	cd /etc/openvpn/easy-rsa/
-	# If the user selected the fast, less hardened version
-	if [[ "$VARIANT" = '1' ]]; then
-		echo "set_var EASYRSA_KEY_SIZE 2048
-set_var EASYRSA_DIGEST "sha256"" > vars
-	fi
-	# If the user selected the relatively slow, ultra hardened version
-	if [[ "$VARIANT" = '2' ]]; then
-		echo "set_var EASYRSA_KEY_SIZE 4096
-set_var EASYRSA_DIGEST "sha384"" > vars
-	fi
+	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
+	echo 'set_var EASYRSA_DIGEST "sha384"' >> vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
-	./easyrsa gen-dh
+	openssl dhparam $DH_KEY_SIZE -out dh.pem
 	./easyrsa build-server-full server nopass
 	./easyrsa build-client-full $CLIENT nopass
 	./easyrsa gen-crl
 	# generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key pki/dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
+	
 	# Generate server.conf
 	echo "port $PORT" > /etc/openvpn/server.conf
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
@@ -357,26 +423,14 @@ set_var EASYRSA_DIGEST "sha384"" > vars
 		echo "proto tcp" >> /etc/openvpn/server.conf
 	fi
 	echo "dev tun
-ca ca.crt
-cert server.crt
-key server.key
-dh dh.pem
 user nobody
 group $NOGROUP
+persist-key
+persist-tun
+keepalive 10 120
 topology subnet
 server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist ipp.txt
-cipher AES-256-CBC
-auth SHA512
-tls-version-min 1.2" >> /etc/openvpn/server.conf
-	if [[ "$VARIANT" = '1' ]]; then
-		# If the user selected the fast, less hardened version
-		echo "tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256" >> /etc/openvpn/server.conf
-	elif [[ "$VARIANT" = '2' ]]; then
-		# If the user selected the relatively slow, hardened version
-		echo "tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384" >> /etc/openvpn/server.conf
-	fi
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
+ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 	# DNS resolvers
 	case $DNS in
 		1)
@@ -402,13 +456,19 @@ tls-version-min 1.2" >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
 		;;
 	esac
-	echo "keepalive 10 120
-persist-key
-persist-tun
-crl-verify crl.pem
-tls-server
+echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
+echo "crl-verify crl.pem
+ca ca.crt
+cert server.crt
+key server.key
 tls-auth tls-auth.key 0
-status openvpn-status.log
+dh dh.pem
+auth SHA384 
+$CIPHER
+tls-server
+tls-version-min 1.2
+tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
 	# Create the sysctl configuration file if needed (mainly for Arch Linux)
@@ -506,12 +566,12 @@ verb 3" >> /etc/openvpn/server.conf
 			IP=$USEREXTERNALIP
 		fi
 	fi
-	# client-common.txt is created so we have a template to add further users later
-	echo "client" > /etc/openvpn/client-common.txt
+	# client-template.txt is created so we have a template to add further users later
+	echo "client" > /etc/openvpn/client-template.txt
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "proto udp" >> /etc/openvpn/client-common.txt
+		echo "proto udp" >> /etc/openvpn/client-template.txt
 	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "proto tcp-client" >> /etc/openvpn/client-common.txt
+		echo "proto tcp-client" >> /etc/openvpn/client-template.txt
 	fi
 	echo "remote $IP $PORT
 dev tun
@@ -519,20 +579,15 @@ resolv-retry infinite
 nobind
 persist-key
 persist-tun
-setenv opt block-outside-dns
-verb 3
 remote-cert-tls server
-cipher AES-256-CBC
-auth SHA512
+auth SHA384
+$CIPHER
+tls-client
 tls-version-min 1.2
-tls-client" >> /etc/openvpn/client-common.txt
-	if [[ "$VARIANT" = '1' ]]; then
-		# If the user selected the fast, less hardened version
-		echo "tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256" >> /etc/openvpn/client-common.txt
-	elif [[ "$VARIANT" = '2' ]]; then
-		# If the user selected the relatively slow, hardened version
-		echo "tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384" >> /etc/openvpn/client-common.txt
-	fi
+tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+setenv opt block-outside-dns
+verb 3" >> /etc/openvpn/client-template.txt
+
 	# Generate the custom client.ovpn
 	newclient "$CLIENT"
 	echo ""
