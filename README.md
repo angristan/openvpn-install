@@ -104,7 +104,7 @@ However I'm far from a crypto expert, so don't hesitate to doubt what I say (I p
 
 OpenVPN 2.4 will be a great update on the encryption part, because we'll be able to use elliptic curves, so ECDSA and ECDH (as well for the control channel), and AES GCM. They are faster and more secure. I will, of course, update the script when it will be available.
 
-**Note:** With OpenVPN's default parameters, you have a relatively weak encryption. Nonetheless, it's you trafic is still encrypted, so unless you're under surveillance, probably no one will try to decrypt it. Yet it's not a reason to use old and weak algorithm when there are much better ones available. 😉 
+**Note:** With OpenVPN's default parameters, you have a relatively weak encryption. Nonetheless, your trafic is still encrypted, so unless you're under surveillance, probably no one will try to decrypt it. Yet it's not a reason to use old and weak algorithm when there are much better ones available. 😉 
 
 ### TLS version
 
