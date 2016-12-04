@@ -156,7 +156,7 @@ Using BF-CBC is no longer recommended, because of its 64-bit block size. This sm
 
 Convinced ?
 
-The SWEET32 vulnerability page from OpenVPN's documentation says :
+The [SWEET32 vulnerability page](https://community.openvpn.net/openvpn/wiki/SWEET32) from OpenVPN's documentation says :
 >The following ciphers are affected, and should no longer be used:
 - BF-*
 - DES* (including 3DES variants)
