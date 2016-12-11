@@ -130,7 +130,7 @@ In OpenVPN 2.4, we will be able to use an ECDSA certificate. This algorithm uses
 
 OpenVPN uses SHA-256 [by default](https://github.com/OpenVPN/easy-rsa/blob/master/easyrsa3/vars.example#L192).
 
-However SHA-256 is vulnerable to the [Length extension attack](https://en.wikipedia.org/wiki/Length_extension_attack). OpenVPN supports MD5 and SHA-1, but they're also vulnerable. This leaves us with SHA-384 and SHA-512. I didn't find any reason to use SHA-512 over SHA-384, so I've chosen SHA-384.
+It also supports SHA1 and MD5, which are unsafe, and all the SHA2 family. I didn't find any reason to use something other than SHA-256 in the SHA2 group, so the script still uses the default hash algorithm.
 
 ### Data channel's cipher
 
@@ -205,9 +205,9 @@ According to the [Hardening](https://community.openvpn.net/openvpn/wiki/Hardenin
 - TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 - TLS-DHE-RSA-WITH-AES-128-CBC-SHA256
 
-AES GCM is more secure than AES CBC, and AES 128 is secure enough today. However, the AES-256-GCM cipher uses SHA-384 and the AES-128-GCM one uses SHA-256, however SHA-256 is vulnerable to the [Length extension attack](https://en.wikipedia.org/wiki/Length_extension_attack). Also, the control channel is a low-bandwidth channel so the ~40% speed difference between AES 128 and 256 bits is nigligible.
+AES GCM is more secure than AES CBC, and AES 128 is secure enough today. I didn't find any security difference between SHA-256 and SHA-384 so we're going to use SHA-256.
 
-Thus, I have chosen `TLS-DHE-RSA-WITH-AES-256-GCM-SHA384` as the control channel cipher.
+Thus, I have chosen `TLS-DHE-RSA-WITH-AES-128-GCM-SHA256` as the control channel cipher.
 
 ### Diffie-Hellman key
 
@@ -224,9 +224,7 @@ To quote the OpenVPN wiki :
 >Authenticate packets with HMAC using message digest algorithm alg. (The default is SHA1 ). HMAC is a commonly used message authentication algorithm (MAC) that uses a data string, a secure hash algorithm, and a key, to produce a digital signature.
 OpenVPN's usage of HMAC is to first encrypt a packet, then HMAC the resulting ciphertext.
 
-As said before, anything lower than SHA-256 is weak, and SHA-256 itself is vulnerable.
-
-Thus I have chosen SHA-384 for the HMAC authentication digest algorithm.
+SHA-1 is not safe anymore, so I use SHA-256 which is safe and widely used.
 
 ### TLS-Auth
 
