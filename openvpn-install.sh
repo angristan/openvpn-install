@@ -400,7 +400,6 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	rm -rf ~/EasyRSA-3.0.1.tgz
 	cd /etc/openvpn/easy-rsa/
 	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
-	echo 'set_var EASYRSA_DIGEST "sha384"' >> vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
@@ -463,11 +462,11 @@ cert server.crt
 key server.key
 tls-auth tls-auth.key 0
 dh dh.pem
-auth SHA384 
+auth SHA256
 $CIPHER
 tls-server
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
@@ -580,11 +579,11 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-auth SHA384
+auth SHA256
 $CIPHER
 tls-client
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 setenv opt block-outside-dns
 verb 3" >> /etc/openvpn/client-template.txt
 
