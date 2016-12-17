@@ -192,8 +192,8 @@ else
 	echo "You can leave the default options and just press enter if you are ok with them"
 	echo ""
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
-	echo "If you server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP adress as it is. (local/private IP)"
-	echo "Otherwise, it sould be your public IPv4 address."
+	echo "If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)"
+	echo "Otherwise, it should be your public IPv4 address."
 	read -p "IP address: " -e -i $IP IP
 	echo ""
 	echo "What port do you want for OpenVPN?"
