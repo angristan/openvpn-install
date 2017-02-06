@@ -177,7 +177,7 @@ To quote the [OpenVPN documentation](https://community.openvpn.net/openvpn/wiki/
 
 >Of the currently supported ciphers, OpenVPN currently recommends using AES-256-CBC or AES-128-CBC. OpenVPN 2.4 and newer will also support GCM. For 2.4+, we recommend using AES-256-GCM or AES-128-GCM.
 
-Of course I will update the script to add AES-GCM mode (as weel as ECDH and ECDSA) as soon as OpenVPN 2.4 is released.
+Of course I will update the script to add AES-GCM mode (as well as ECDH and ECDSA) as soon as OpenVPN 2.4 is released.
 
 For now, these cipher are available in the setup :
 
