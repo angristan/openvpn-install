@@ -221,9 +221,9 @@ else
 	echo "and are still viable to date, unlike some default OpenVPN options"
 	echo ''
 	echo "Choose which cipher you want to use for the data channel:"
-	echo "   1) AES-128-CBC (fastest and sufficiently secure for everyone, recommended)"
-	echo "   2) AES-192-CBC"
-	echo "   3) AES-256-CBC"
+	echo "   1) AES-128-GCM (fastest and sufficiently secure for everyone, recommended)"
+	echo "   2) AES-192-GCM"
+	echo "   3) AES-256-GCM"
 	echo "Alternatives to AES, use them only if you know what you're doing."
 	echo "They are relatively slower but as secure as AES."
 	echo "   4) CAMELLIA-128-CBC"
@@ -235,13 +235,13 @@ else
 	done
 	case $CIPHER in
 		1)
-		CIPHER="cipher AES-128-CBC"
+		CIPHER="cipher AES-128-GCM"
 		;;
 		2)
-		CIPHER="cipher AES-192-CBC"
+		CIPHER="cipher AES-192-GCM"
 		;;
 		3)
-		CIPHER="cipher AES-256-CBC"
+		CIPHER="cipher AES-256-GCM"
 		;;
 		4)
 		CIPHER="cipher CAMELLIA-128-CBC"
