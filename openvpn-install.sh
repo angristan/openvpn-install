@@ -216,25 +216,6 @@ else
 		read -p "DNS [1-5]: " -e -i 2 DNS
 	done
 	echo ""
-	echo "Choose what size of RSA key you want to use:"
-	echo "   1) 2048 bits (fastest)"
-	echo "   2) 3072 bits (recommended, best compromise)"
-	echo "   3) 4096 bits (most secure)"
-	while [[ $RSA_KEY_SIZE != "1" && $RSA_KEY_SIZE != "2" && $RSA_KEY_SIZE != "3" ]]; do
-		read -p "DH key size [1-3]: " -e -i 2 RSA_KEY_SIZE
-	done
-	case $RSA_KEY_SIZE in
-		1)
-		RSA_KEY_SIZE="2048"
-		;;
-		2)
-		RSA_KEY_SIZE="3072"
-		;;
-		3)
-		RSA_KEY_SIZE="4096"
-		;;
-	esac
-	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
 		echo "Please, use one word only, no special characters"
