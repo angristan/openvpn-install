@@ -201,7 +201,7 @@ else
 	read -p "Port: " -e -i 1194 PORT
 	echo ""
 	echo "What protocol do you want for OpenVPN?"
-	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
+	echo "Unless UDP is blocked, you should not use TCP (slower)"
 	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
 		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
 	done
@@ -215,67 +215,6 @@ else
 	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" ]]; do
 		read -p "DNS [1-5]: " -e -i 2 DNS
 	done
-	echo ""
-	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
-	echo "the encryption in OpenVPN and the choices I made in this script."
-	echo "Please note that all the choices proposed are secure (to a different degree)"
-	echo "and are still viable to date, unlike some default OpenVPN options"
-	echo ''
-	echo "Choose which cipher you want to use for the data channel:"
-	echo "   1) AES-128-GCM (fastest and sufficiently secure for everyone, recommended)"
-	echo "   2) AES-192-GCM"
-	echo "   3) AES-256-GCM"
-	echo "Alternatives to AES, use them only if you know what you're doing."
-	echo "They are relatively slower but as secure as AES."
-	echo "   4) CAMELLIA-128-CBC"
-	echo "   5) CAMELLIA-192-CBC"
-	echo "   6) CAMELLIA-256-CBC"
-	echo "   7) SEED-CBC"
-	while [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" && $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" && $CIPHER != "7" ]]; do
-		read -p "Cipher [1-7]: " -e -i 1 CIPHER
-	done
-	case $CIPHER in
-		1)
-		CIPHER="cipher AES-128-GCM"
-		;;
-		2)
-		CIPHER="cipher AES-192-GCM"
-		;;
-		3)
-		CIPHER="cipher AES-256-GCM"
-		;;
-		4)
-		CIPHER="cipher CAMELLIA-128-CBC"
-		;;
-		5)
-		CIPHER="cipher CAMELLIA-192-CBC"
-		;;
-		6)
-		CIPHER="cipher CAMELLIA-256-CBC"
-		;;
-		5)
-		CIPHER="cipher SEED-CBC"
-		;;
-	esac
-	echo ""
-	echo "Choose what size of Diffie-Hellman key you want to use:"
-	echo "   1) 2048 bits (fastest)"
-	echo "   2) 3072 bits (recommended, best compromise)"
-	echo "   3) 4096 bits (most secure)"
-	while [[ $DH_KEY_SIZE != "1" && $DH_KEY_SIZE != "2" && $DH_KEY_SIZE != "3" ]]; do
-		read -p "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE
-	done
-	case $DH_KEY_SIZE in
-		1)
-		DH_KEY_SIZE="2048"
-		;;
-		2)
-		DH_KEY_SIZE="3072"
-		;;
-		3)
-		DH_KEY_SIZE="4096"
-		;;
-	esac
 	echo ""
 	echo "Choose what size of RSA key you want to use:"
 	echo "   1) 2048 bits (fastest)"
@@ -469,7 +408,7 @@ tls-auth tls-auth.key 0
 dh none
 ecdh-curve
 auth SHA256
-$CIPHER
+cipher cipher AES-128-GCM
 tls-server
 tls-version-min 1.2
 tls-cipher TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256
@@ -586,7 +525,7 @@ persist-key
 persist-tun
 remote-cert-tls server
 auth SHA256
-$CIPHER
+cipher AES-128-GCM
 tls-client
 tls-version-min 1.2
 tls-cipher TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256
