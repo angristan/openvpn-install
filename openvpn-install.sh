@@ -58,6 +58,7 @@ fi
 
 newclient () {
 	# Generates the custom client.ovpn
+	# We put everything in the client file
 	cp /etc/openvpn/client-template.txt ~/$1.ovpn
 	echo "<ca>" >> ~/$1.ovpn
 	cat /etc/openvpn/easy-rsa/pki/ca.crt >> ~/$1.ovpn
@@ -68,10 +69,9 @@ newclient () {
 	echo "<key>" >> ~/$1.ovpn
 	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> ~/$1.ovpn
 	echo "</key>" >> ~/$1.ovpn
-	echo "key-direction 1" >> ~/$1.ovpn
-	echo "<tls-auth>" >> ~/$1.ovpn
-	cat /etc/openvpn/tls-auth.key >> ~/$1.ovpn
-	echo "</tls-auth>" >> ~/$1.ovpn
+	echo "<tls-crypt>" >> ~/$1.ovpn
+	cat /etc/openvpn/tls-crypt.key >> ~/$1.ovpn
+	echo "</tls-crypt>" >> ~/$1.ovpn
 }
 
 # Try to get our IP from the system and fallback to the Internet.
@@ -352,8 +352,8 @@ set_var EASYRSA_CURVE secp384r1" > vars
 	./easyrsa build-server-full server nopass
 	./easyrsa build-client-full $CLIENT nopass
 	./easyrsa gen-crl
-	# generate tls-auth key
-	openvpn --genkey --secret /etc/openvpn/tls-auth.key
+	# Generate tls-crypt key
+	openvpn --genkey --secret /etc/openvpn/tls-crypt.key
 	# Move all the generated files
 	cp pki/ca.crt pki/private/ca.key pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	# Make cert revocation list readable for non-root
@@ -405,7 +405,7 @@ echo "crl-verify crl.pem
 ca ca.crt
 cert server.crt
 key server.key
-tls-auth tls-auth.key 0
+tls-crypt tls-crypt.key 0
 dh none
 ecdh-curve secp256k1 
 auth SHA256
