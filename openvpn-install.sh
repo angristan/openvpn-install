@@ -344,7 +344,8 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -rf ~/EasyRSA-3.0.1.tgz
 	cd /etc/openvpn/easy-rsa/
-	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
+	echo "set_var EASYRSA_ALGO ec
+set_var EASYRSA_CURVE secp384r1" > vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
