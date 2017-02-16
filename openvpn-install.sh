@@ -406,7 +406,7 @@ cert server.crt
 key server.key
 tls-auth tls-auth.key 0
 dh none
-ecdh-curve
+ecdh-curve secp256k1 
 auth SHA256
 cipher cipher AES-128-GCM
 tls-server
