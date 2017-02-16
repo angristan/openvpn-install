@@ -461,6 +461,7 @@ cert server.crt
 key server.key
 tls-auth tls-auth.key 0
 dh none
+ecdh-curve
 auth SHA256
 $CIPHER
 tls-server
