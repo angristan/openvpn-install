@@ -24,7 +24,6 @@ if [[ -e /etc/debian_version ]]; then
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
 	RCLOCAL='/etc/rc.local'
-	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install OpenVPN 2.4 on your system."
@@ -44,15 +43,10 @@ if [[ -e /etc/debian_version ]]; then
 elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
 	OS=centos
 	RCLOCAL='/etc/rc.d/rc.local'
-	SYSCTL='/etc/sysctl.conf'
 	# Needed for CentOS 7
 	chmod +x /etc/rc.d/rc.local
-elif [[ -e /etc/arch-release ]]; then
-	OS=arch
-	RCLOCAL='/etc/rc.local'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
-	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
+	echo "Looks like you aren't running this installer on a Debian, Ubuntu or CentOS system"
 	exit 4
 fi
 
@@ -166,8 +160,6 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				if [[ "$OS" = 'debian' ]]; then
 					apt-get remove --purge -y openvpn openvpn-blacklist
-				elif [[ "$OS" = 'arch' ]]; then
-					pacman -R openvpn --noconfirm
 				else
 					yum remove openvpn -y
 				fi
@@ -260,43 +252,11 @@ else
 		fi
 		# Then we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
-	elif [[ "$OS" = 'centos' ]]; then
+	else
+		# Else, the distro is CentOS
 		yum install epel-release -y
 		yum install openvpn iptables openssl wget ca-certificates curl -y
-	else
-		# Else, the distro is ArchLinux
-		echo ""
-		echo ""
-		echo "As you're using ArchLinux, I need to update the packages on your system to install those I need."
-		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
-		echo ""
-		echo "Continuing will update your installed packages and install needed ones."
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -p "Continue ? [y/n]: " -e -i y CONTINUE
-		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
-			exit 4
-		fi
-		
-		if [[ "$OS" = 'arch' ]]; then
-		# Install rc.local
-		echo "[Unit]
-Description=/etc/rc.local compatibility
-
-[Service]
-Type=oneshot
-ExecStart=/etc/rc.local
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
-			chmod +x /etc/rc.local
-			systemctl enable rc-local.service
-			if ! grep '#!' $RCLOCAL; then
-				echo "#!/bin/bash" > $RCLOCAL
-			fi
-		fi
+	fi
 		
 		# Install dependencies
 		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
@@ -403,9 +363,9 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 
 	# Enable net.ipv4.ip_forward for the system
-	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
-	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
-		echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' /etc/sysctl.conf
+	if ! grep -q "\<net.ipv4.ip_forward\>" /etc/sysctl.conf; then
+		echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 	fi
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
