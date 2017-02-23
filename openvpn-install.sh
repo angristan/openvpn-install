@@ -466,7 +466,7 @@ auth SHA512
 $CIPHER
 tls-server
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
 status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
@@ -583,7 +583,7 @@ auth SHA512
 $CIPHER
 tls-client
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA512
 setenv opt block-outside-dns
 verb 3" >> /etc/openvpn/client-template.txt
 
