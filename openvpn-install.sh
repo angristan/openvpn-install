@@ -462,7 +462,7 @@ cert server.crt
 key server.key
 tls-auth tls-auth.key 0
 dh dh.pem
-auth SHA256
+auth SHA512
 $CIPHER
 tls-server
 tls-version-min 1.2
@@ -579,7 +579,7 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-auth SHA256
+auth SHA512
 $CIPHER
 tls-client
 tls-version-min 1.2
