@@ -350,8 +350,8 @@ status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
 	# Create the sysctl configuration file if needed (mainly for Arch Linux)
-	if [[ ! -e $SYSCTL ]]; then
-		touch $SYSCTL
+	if [[ ! -e /etc/sysctl.conf ]]; then
+		touch /etc/sysctl.conf
 	fi
 
 	# Enable net.ipv4.ip_forward for the system
