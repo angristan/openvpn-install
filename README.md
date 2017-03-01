@@ -12,6 +12,8 @@ Here is a preview of the installer :
 
 **You have to enable the TUN module otherwise OpenVPN won't work.** Ask your host if you don't know how to do it. If the TUN module is not enabled, the script will warn you and exit.
 
+You can get a cheap VPS to run this script for $2.50/month worldwide at [Vultr](https://goo.gl/Xyd1Sc) or 3€/month for unlimited bandwidth in France at [PulseHeberg](https://goo.gl/oBhgaj).
+
 First, get the script and make it executable :
 
 ```
@@ -62,8 +64,6 @@ The script is made to work on these OS :
 (It should also work on Debian unstable/testing and Ubuntu beta).
 
 If your're using an Ubuntu version that is not supported by the script, be aware that it's not supported by Ubuntu either, thus it's insecure.
-
-You can get a cheap VPS to run this script for 3€/month at [PulseHeberg](https://goo.gl/oBhgaj).
 
 ## Features
 
