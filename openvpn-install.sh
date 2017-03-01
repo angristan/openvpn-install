@@ -258,14 +258,6 @@ else
 		yum install openvpn iptables openssl wget ca-certificates curl -y
 	fi
 		
-		# Install dependencies
-		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
-		if [[ "$OS" = 'arch' ]]; then
-			touch /etc/iptables/iptables.rules # iptables won't start if this file does not exist
-			systemctl enable iptables
-			systemctl start iptables
-		fi
-	fi
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
 	        NOGROUP=nogroup
@@ -358,8 +350,8 @@ status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
 	# Create the sysctl configuration file if needed (mainly for Arch Linux)
-	if [[ ! -e $SYSCTL ]]; then
-		touch $SYSCTL
+	if [[ ! -e /etc/sysctl.conf ]]; then
+		touch /etc/sysctl.conf
 	fi
 
 	# Enable net.ipv4.ip_forward for the system
