@@ -277,8 +277,9 @@ else
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -rf ~/EasyRSA-3.0.1.tgz
 	cd /etc/openvpn/easy-rsa/
-	echo "set_var EASYRSA_ALGO ec
-set_var EASYRSA_CURVE secp384r1" > vars
+	echo 'set_var EASYRSA_ALGO ec
+set_var EASYRSA_CURVE sect571r1
+set_var EASYRSA_DIGEST "sha512"' > vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
@@ -340,12 +341,12 @@ cert server.crt
 key server.key
 tls-crypt tls-crypt.key 0
 dh none
-ecdh-curve secp256k1 
-auth SHA256
-cipher AES-128-GCM
+ecdh-curve sect571r1 
+auth SHA512
+cipher AES-256-GCM
 tls-server
 tls-version-min 1.2
-tls-cipher TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256
+tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
 status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
@@ -458,11 +459,11 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-auth SHA256
-cipher AES-128-GCM
+auth SHA512
+cipher AES-256-GCM
 tls-client
 tls-version-min 1.2
-tls-cipher TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256
+tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
 setenv opt block-outside-dns
 verb 3" >> /etc/openvpn/client-template.txt
 
