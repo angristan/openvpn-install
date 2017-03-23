@@ -151,6 +151,10 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					sed -i "/iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT/d" $RCLOCAL
 				fi
 				sed -i '/iptables -t nat -A POSTROUTING -s 10.8.0.0\/24 -j SNAT --to /d' $RCLOCAL
+				# Remove ip6tables
+				sed -i "/ip6tables -I FORWARD -i tun+ -j ACCEPT/d" $RCLOCAL
+				sed -i "/ip6tables -I FORWARD -o tun+ -j ACCEPT/d" $RCLOCAL
+				sed -i "/ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::\/64 -j SNAT --to /d" $RCLOCAL
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 						if [[ "$PORT" != '1194' ]]; then
@@ -160,6 +164,10 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				if [[ "$OS" = 'debian' ]]; then
 					apt-get remove --purge -y openvpn openvpn-blacklist
+					if [[ -e /etc/npd6.conf ]]; then
+						dpkg -P npd6
+						rm -rf /etc/npd6.conf
+					fi
 				else
 					yum remove openvpn -y
 				fi
@@ -188,6 +196,60 @@ else
 	echo "If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)"
 	echo "Otherwise, it should be your public IPv4 address."
 	read -p "IP address: " -e -i $IP IP
+	if [[ "$VERSION_ID" = 'VERSION_ID="8"' || "$VERSION_ID" = 'VERSION_ID="12.04"' || "$VERSION_ID" != 'VERSION_ID="14.04"' || "$VERSION_ID" != 'VERSION_ID="16.04"' ]]; then
+		echo ""
+		echo "I can add IPv6 support inside the tunnel but in order for it to work you need to have either:"
+		echo ""
+		echo "   - At least 1 IPv6 address on main interface + a different subnet (/112 or bigger) routed to it."
+		echo " OR"
+		echo "   - 1 subnet to use on the main interface. Needs to be bigger than /112 as OpenVPN needs at least a /112 for itself."
+		echo "     Does NOT work on Debian 7"
+		echo " OR"
+		echo "   - At least 1 single IPv6 address on the main interface and ip6tables with NAT support."
+		echo "     Minimum kernel 3.9.0 and ip6tables 1.4.18 required."
+		echo ""
+		echo "Do you want to add IPv6 support?"
+		echo "   1) Yes, i have a routed subnet."
+		echo "   2) Yes, i have a subnet on the main interface."
+		echo "   3) Yes, i have a single IPv6 and ip6tables with NAT."
+		echo "   4) No, i dont want IPv6 support."
+		while [[ $IPv6TYPE != "1" && $IPv6TYPE != "2" && $IPv6TYPE != "3" && $IPv6TYPE != "4" ]]; do
+			read -p "IPv6 [1-4]: " -e -i 4 IPv6TYPE
+			if [[ $IPv6TYPE = "2" && "$VERSION_ID" = 'VERSION_ID="7"' ]]; then
+				echo "This option does not work with Debian 7, we continue without IPv6 support..."
+				IPv6TYPE="4"
+				read -n1 -r -p "Press any key to continue..."
+			fi
+		done
+		if [[ $IPv6TYPE != "4" ]]; then
+			# TODO: Input for the subnet should be checked for validity
+			if [[ $IPv6TYPE = "1" || $IPv6TYPE = "2" ]]; then
+				echo ""
+				echo "What is the IPv6 subnet and netmask you want to use (between /64 and /112)?"
+				echo "Needs to be in the format of eg. AAAA:BBBB:CCCC:DDDD::/64"
+				read -p "IPv6 subnet: " -e IPv6
+			fi
+			if [[ $IPv6TYPE = "3" ]]; then
+				echo ""
+				echo "What is your IPv6 address?"
+				read -p "IPv6 address: " -e IPv6
+			fi
+			# We need an interface for ubuntu too not just for npd6
+			if [[ $IPv6TYPE = "2" || "$VERSION_ID" = 'VERSION_ID="12.04"' || "$VERSION_ID" != 'VERSION_ID="14.04"' || "$VERSION_ID" != 'VERSION_ID="16.04"' ]]; then
+				echo ""
+				echo "What is the main interface for IPv6 (eg. eth0)?"
+				INTERFACE=$(ip -6 route ls | grep default | grep -Po '(?<=dev )(\S+)')
+				if [[ $INTERFACE != "" ]]; then
+					echo ""
+					echo "Autodetected: $INTERFACE"
+					echo ""
+				fi
+				read -p "Interface to use: " -e -i $INTERFACE INTERFACE
+			fi
+		fi
+	else
+		IPv6TYPE="4"
+	fi
 	echo ""
 	echo "What port do you want for OpenVPN?"
 	read -p "Port: " -e -i 1194 PORT
@@ -335,6 +397,15 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		;;
 	esac
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
+if [[ $IPv6TYPE != "4" ]]; then
+	if [[ $IPv6TYPE = "1" || $IPv6TYPE = "2" ]]; then
+		echo "server-ipv6 $IPv6" >> /etc/openvpn/server.conf
+	fi
+	if [[ $IPv6TYPE = "3" ]]; then
+		echo "server-ipv6 fd42:42:42:42::/64" >> /etc/openvpn/server.conf
+	fi
+	echo 'push "redirect-gateway ipv6" '>> /etc/openvpn/server.conf
+fi
 echo "crl-verify crl.pem
 ca ca.crt
 cert server.crt
@@ -362,6 +433,51 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
+	if [[ $IPv6TYPE != "4" ]]; then
+		# Enable net.ipv6.conf.all.forwarding
+		sed -i '/\<net.ipv6.conf.all.forwarding\>/c\net.ipv6.conf.all.forwarding=1' /etc/sysctl.conf
+		if ! grep -q "\<net.ipv6.conf.all.forwarding\>" /etc/sysctl.conf; then
+			echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.conf
+		fi
+		if [[ $IPv6TYPE = "2" ]]; then
+			sed -i '/\<net.ipv6.conf.all.proxy_ndp\>/c\net.ipv6.conf.all.proxy_ndp=1' /etc/sysctl.conf
+			if ! grep -q "\<net.ipv6.conf.all.proxy_ndp\>" /etc/sysctl.conf; then
+				echo 'net.ipv6.conf.all.proxy_ndp=1' >> /etc/sysctl.conf
+			fi
+			echo 1 > /proc/sys/net/ipv6/conf/all/proxy_ndp
+			# Ubuntu is special and needs special stuff
+			if [[ "$VERSION_ID" = 'VERSION_ID="12.04"' || "$VERSION_ID" != 'VERSION_ID="14.04"' || "$VERSION_ID" != 'VERSION_ID="16.04"' ]]; then
+				sed -i '/\<net.ipv6.conf.all.accept_ra\>/c\net.ipv6.conf.all.accept_ra=2' /etc/sysctl.conf
+				if ! grep -q "\<net.ipv6.conf.all.accept_ra\>" /etc/sysctl.conf; then
+					echo 'net.ipv6.conf.all.accept_ra=2' >> /etc/sysctl.conf
+				fi
+				sed -i "/\<net.ipv6.conf.$INTERFACE.accept_ra\>/c\net.ipv6.conf.$INTERFACE.accept_ra=2" /etc/sysctl.conf
+				if ! grep -q "\<net.ipv6.conf.$INTERFACE.accept_ra\>" /etc/sysctl.conf; then
+					echo "net.ipv6.conf.$INTERFACE.accept_ra=2" >> /etc/sysctl.conf
+				fi
+				echo 2 > /proc/sys/net/ipv6/conf/$INTERFACE/accept_ra
+				echo 2 > /proc/sys/net/ipv6/conf/all/accept_ra
+			fi
+			# We need to install npd6 for this to work
+			if [[ -e /etc/npd6.conf ]]; then
+				rm -rf /etc/npd6.conf
+			fi
+			PREFIX=$(echo $IPv6 | cut -d / -f 1 | rev | cut -c 2- | rev)
+			echo "prefix=$PREFIX" >> /etc/npd6.conf
+			echo "interface = $INTERFACE" >> /etc/npd6.conf
+			PF=$(uname -m)
+			if [[ $PF = "i686" ]]; then
+				wget -O ~/npd6_1.1.0_i386.deb https://github.com/npd6/npd6/releases/download/1.1.0/npd6_1.1.0_i386.deb
+				dpkg -i ~/npd6_1.1.0_i386.deb
+				rm -rf ~/npd6_1.1.0_i386.deb
+			elif [[ $PF = "x86_64" ]]; then
+				wget -O ~/npd6_1.1.0_amd64.deb https://github.com/npd6/npd6/releases/download/1.1.0/npd6_1.1.0_amd64.deb
+				dpkg -i ~/npd6_1.1.0_amd64.deb
+				rm -rf ~/npd6_1.1.0_amd64.deb
+			fi
+		fi
+		echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
+	fi
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
 	sed -i "1 a\iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP" $RCLOCAL
@@ -398,6 +514,17 @@ verb 3" >> /etc/openvpn/server.conf
 		sed -i "1 a\iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT" $RCLOCAL
 		sed -i "1 a\iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT" $RCLOCAL
 	fi
+	# ip6tables rules
+	if [[ $IPv6TYPE != "4" ]]; then
+		ip6tables -I FORWARD -i tun+ -j ACCEPT
+		ip6tables -I FORWARD -o tun+ -j ACCEPT
+		sed -i "1 a\ip6tables -I FORWARD -i tun+ -j ACCEPT" $RCLOCAL
+		sed -i "1 a\ip6tables -I FORWARD -o tun+ -j ACCEPT" $RCLOCAL
+		if [[ $IPv6TYPE = "3" ]]; then
+			ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::/64 -j SNAT --to $IPv6
+			sed -i "1 a\ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::/64 -j SNAT --to $IPv6" $RCLOCAL
+		fi
+	fi
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
 		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
@@ -419,8 +546,16 @@ verb 3" >> /etc/openvpn/server.conf
 		# Little hack to check for systemd
 		if pgrep systemd-journal; then
 			systemctl restart openvpn@server.service
+			# Restart npd6 if option 2 was chosen
+			if [[ $IPv6TYPE = "2" ]]; then
+				systemctl restart npd6
+			fi
 		else
 			/etc/init.d/openvpn restart
+			# Restart npd6 if option 2 was chosen
+			if [[ $IPv6TYPE = "2" ]]; then
+				/etc/init.d/npd6 restart
+			fi
 		fi
 	else
 		if pgrep systemd-journal; then
