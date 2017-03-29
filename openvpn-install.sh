@@ -81,6 +81,13 @@ if [[ "$IP" = "" ]]; then
 	IP=$(wget -qO- ipv4.icanhazip.com)
 fi
 
+# Find out if the machine uses nogroup or nobody for the permissionless group
+if grep -qs "^nogroup:" /etc/group; then
+	NOGROUP=nogroup
+else
+	NOGROUP=nobody
+fi
+
 if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
 	do
@@ -133,7 +140,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			rm -rf pki/issued/$CLIENT.crt
 			rm -rf /etc/openvpn/crl.pem
 			cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-			chmod nobody:nobody /etc/openvpn/crl.pem
+			chown nobody:$NOGROUP /etc/openvpn/crl.pem
 			echo ""
 			echo "Certificate for client $CLIENT revoked"
 			echo "Exiting..."
@@ -381,13 +388,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 			systemctl start iptables
 		fi
 	fi
-	# Find out if the machine uses nogroup or nobody for the permissionless group
-	if grep -qs "^nogroup:" /etc/group; then
-	        NOGROUP=nogroup
-	else
-        	NOGROUP=nobody
-	fi
-
+	
 	# An old version of easy-rsa was available by default in some openvpn packages
 	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
 		rm -rf /etc/openvpn/easy-rsa/
