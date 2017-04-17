@@ -24,14 +24,14 @@ if [[ -e /etc/debian_version ]]; then
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
 	RCLOCAL='/etc/rc.local'
-	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
-		echo "I can't install a recent version of OpenVPN on your system."
+		echo "I can't install OpenVPN 2.4 on your system."
 		echo ""
 		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
-		echo "then you can continue, a recent version of OpenVPN is available on these."
-		echo "Keep in mind they are not supported, though."
+		echo "then you can continue, this version of OpenVPN is available on these."
+		echo "Keep in mind these releases are not supported, though."
+		
 		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
 			read -p "Continue ? [y/n]: " -e CONTINUE
 		done
@@ -43,20 +43,16 @@ if [[ -e /etc/debian_version ]]; then
 elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
 	OS=centos
 	RCLOCAL='/etc/rc.d/rc.local'
-	SYSCTL='/etc/sysctl.conf'
 	# Needed for CentOS 7
 	chmod +x /etc/rc.d/rc.local
-elif [[ -e /etc/arch-release ]]; then
-	OS=arch
-	RCLOCAL='/etc/rc.local'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
-	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
+	echo "Looks like you aren't running this installer on a Debian, Ubuntu or CentOS system"
 	exit 4
 fi
 
 newclient () {
 	# Generates the custom client.ovpn
+	# We put everything in the client file
 	cp /etc/openvpn/client-template.txt ~/$1.ovpn
 	echo "<ca>" >> ~/$1.ovpn
 	cat /etc/openvpn/easy-rsa/pki/ca.crt >> ~/$1.ovpn
@@ -67,10 +63,9 @@ newclient () {
 	echo "<key>" >> ~/$1.ovpn
 	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> ~/$1.ovpn
 	echo "</key>" >> ~/$1.ovpn
-	echo "key-direction 1" >> ~/$1.ovpn
-	echo "<tls-auth>" >> ~/$1.ovpn
-	cat /etc/openvpn/tls-auth.key >> ~/$1.ovpn
-	echo "</tls-auth>" >> ~/$1.ovpn
+	echo "<tls-crypt>" >> ~/$1.ovpn
+	cat /etc/openvpn/tls-crypt.key >> ~/$1.ovpn
+	echo "</tls-crypt>" >> ~/$1.ovpn
 }
 
 # Try to get our IP from the system and fallback to the Internet.
@@ -165,8 +160,6 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				if [[ "$OS" = 'debian' ]]; then
 					apt-get remove --purge -y openvpn openvpn-blacklist
-				elif [[ "$OS" = 'arch' ]]; then
-					pacman -R openvpn --noconfirm
 				else
 					yum remove openvpn -y
 				fi
@@ -200,7 +193,7 @@ else
 	read -p "Port: " -e -i 1194 PORT
 	echo ""
 	echo "What protocol do you want for OpenVPN?"
-	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
+	echo "Unless UDP is blocked, you should not use TCP (slower)"
 	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
 		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
 	done
@@ -214,86 +207,6 @@ else
 	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" ]]; do
 		read -p "DNS [1-5]: " -e -i 2 DNS
 	done
-	echo ""
-	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
-	echo "the encryption in OpenVPN and the choices I made in this script."
-	echo "Please note that all the choices proposed are secure (to a different degree)"
-	echo "and are still viable to date, unlike some default OpenVPN options"
-	echo ''
-	echo "Choose which cipher you want to use for the data channel:"
-	echo "   1) AES-128-CBC (fastest and sufficiently secure for everyone, recommended)"
-	echo "   2) AES-192-CBC"
-	echo "   3) AES-256-CBC"
-	echo "Alternatives to AES, use them only if you know what you're doing."
-	echo "They are relatively slower but as secure as AES."
-	echo "   4) CAMELLIA-128-CBC"
-	echo "   5) CAMELLIA-192-CBC"
-	echo "   6) CAMELLIA-256-CBC"
-	echo "   7) SEED-CBC"
-	while [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" && $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" && $CIPHER != "7" ]]; do
-		read -p "Cipher [1-7]: " -e -i 1 CIPHER
-	done
-	case $CIPHER in
-		1)
-		CIPHER="cipher AES-128-CBC"
-		;;
-		2)
-		CIPHER="cipher AES-192-CBC"
-		;;
-		3)
-		CIPHER="cipher AES-256-CBC"
-		;;
-		4)
-		CIPHER="cipher CAMELLIA-128-CBC"
-		;;
-		5)
-		CIPHER="cipher CAMELLIA-192-CBC"
-		;;
-		6)
-		CIPHER="cipher CAMELLIA-256-CBC"
-		;;
-		5)
-		CIPHER="cipher SEED-CBC"
-		;;
-	esac
-	echo ""
-	echo "Choose what size of Diffie-Hellman key you want to use:"
-	echo "   1) 2048 bits (fastest)"
-	echo "   2) 3072 bits (recommended, best compromise)"
-	echo "   3) 4096 bits (most secure)"
-	while [[ $DH_KEY_SIZE != "1" && $DH_KEY_SIZE != "2" && $DH_KEY_SIZE != "3" ]]; do
-		read -p "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE
-	done
-	case $DH_KEY_SIZE in
-		1)
-		DH_KEY_SIZE="2048"
-		;;
-		2)
-		DH_KEY_SIZE="3072"
-		;;
-		3)
-		DH_KEY_SIZE="4096"
-		;;
-	esac
-	echo ""
-	echo "Choose what size of RSA key you want to use:"
-	echo "   1) 2048 bits (fastest)"
-	echo "   2) 3072 bits (recommended, best compromise)"
-	echo "   3) 4096 bits (most secure)"
-	while [[ $RSA_KEY_SIZE != "1" && $RSA_KEY_SIZE != "2" && $RSA_KEY_SIZE != "3" ]]; do
-		read -p "DH key size [1-3]: " -e -i 2 RSA_KEY_SIZE
-	done
-	case $RSA_KEY_SIZE in
-		1)
-		RSA_KEY_SIZE="2048"
-		;;
-		2)
-		RSA_KEY_SIZE="3072"
-		;;
-		3)
-		RSA_KEY_SIZE="4096"
-		;;
-	esac
 	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
@@ -309,77 +222,42 @@ else
 		# We add the OpenVPN repo to get the latest version.
 		# Debian 7
 		if [[ "$VERSION_ID" = 'VERSION_ID="7"' ]]; then
-			echo "deb http://swupdate.openvpn.net/apt wheezy main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/release/2.4 wheezy main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
 		# Debian 8
 		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
-			echo "deb http://swupdate.openvpn.net/apt jessie main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/release/2.4 jessie main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt update
 		fi
 		# Ubuntu 12.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="12.04"' ]]; then
-			echo "deb http://swupdate.openvpn.net/apt precise main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/release/2.4 precise main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
 		# Ubuntu 14.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
-			echo "deb http://swupdate.openvpn.net/apt trusty main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/release/2.4 trusty main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
-		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
-		# The we install OpenVPN
+		# Ubuntu 16.04
+		if [[ "$VERSION_ID" = 'VERSION_ID="16.04"' ]]; then
+			echo "deb http://build.openvpn.net/debian/openvpn/release/2.4 xenial main" > /etc/apt/sources.list.d/openvpn.list
+			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+			apt-get update
+		fi
+		# Then we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
-	elif [[ "$OS" = 'centos' ]]; then
+	else
+		# Else, the distro is CentOS
 		yum install epel-release -y
 		yum install openvpn iptables openssl wget ca-certificates curl -y
-	else
-		# Else, the distro is ArchLinux
-		echo ""
-		echo ""
-		echo "As you're using ArchLinux, I need to update the packages on your system to install those I need."
-		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
-		echo ""
-		echo "Continuing will update your installed packages and install needed ones."
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -p "Continue ? [y/n]: " -e -i y CONTINUE
-		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
-			exit 4
-		fi
-		
-		if [[ "$OS" = 'arch' ]]; then
-		# Install rc.local
-		echo "[Unit]
-Description=/etc/rc.local compatibility
-
-[Service]
-Type=oneshot
-ExecStart=/etc/rc.local
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
-			chmod +x /etc/rc.local
-			systemctl enable rc-local.service
-			if ! grep '#!' $RCLOCAL; then
-				echo "#!/bin/bash" > $RCLOCAL
-			fi
-		fi
-		
-		# Install dependencies
-		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
-		if [[ "$OS" = 'arch' ]]; then
-			touch /etc/iptables/iptables.rules # iptables won't start if this file does not exist
-			systemctl enable iptables
-			systemctl start iptables
-		fi
 	fi
+		
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
 	        NOGROUP=nogroup
@@ -399,18 +277,19 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -rf ~/EasyRSA-3.0.1.tgz
 	cd /etc/openvpn/easy-rsa/
-	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
+	echo 'set_var EASYRSA_ALGO ec
+set_var EASYRSA_CURVE sect571r1
+set_var EASYRSA_DIGEST "sha512"' > vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
-	openssl dhparam $DH_KEY_SIZE -out dh.pem
 	./easyrsa build-server-full server nopass
 	./easyrsa build-client-full $CLIENT nopass
 	./easyrsa gen-crl
-	# generate tls-auth key
-	openvpn --genkey --secret /etc/openvpn/tls-auth.key
+	# Generate tls-crypt key
+	openvpn --genkey --secret /etc/openvpn/tls-crypt.key
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 	
@@ -460,25 +339,26 @@ echo "crl-verify crl.pem
 ca ca.crt
 cert server.crt
 key server.key
-tls-auth tls-auth.key 0
-dh dh.pem
-auth SHA256
-$CIPHER
+tls-crypt tls-crypt.key 0
+dh none
+ecdh-curve sect571r1 
+auth SHA512
+cipher AES-256-GCM
 tls-server
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
 status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
 	# Create the sysctl configuration file if needed (mainly for Arch Linux)
-	if [[ ! -e $SYSCTL ]]; then
-		touch $SYSCTL
+	if [[ ! -e /etc/sysctl.conf ]]; then
+		touch /etc/sysctl.conf
 	fi
 
 	# Enable net.ipv4.ip_forward for the system
-	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
-	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
-		echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' /etc/sysctl.conf
+	if ! grep -q "\<net.ipv4.ip_forward\>" /etc/sysctl.conf; then
+		echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 	fi
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
@@ -579,11 +459,11 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-auth SHA256
-$CIPHER
+auth SHA512
+cipher AES-256-GCM
 tls-client
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+tls-cipher TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384
 setenv opt block-outside-dns
 verb 3" >> /etc/openvpn/client-template.txt
 
