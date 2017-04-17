@@ -79,7 +79,7 @@ This fork includes the following features :
 - Up-to-date OpenVPN thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) for CentOS and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Ubuntu and Debian. These are third-party yet trusted repositories.
 - Other improvements !
 
-##DNS
+## DNS
 
 The script will ask you which DNS resolvers you want to use when connected to the VPN.
 
