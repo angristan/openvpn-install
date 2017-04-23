@@ -80,6 +80,8 @@ IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,
 if [[ "$IP" = "" ]]; then
 	IP=$(wget -qO- ipv4.icanhazip.com)
 fi
+# Get Internet network interface with default route
+NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)')
 
 if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
@@ -483,8 +485,8 @@ verb 3" >> /etc/openvpn/server.conf
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
 	# Set NAT for the VPN subnet
-	iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
-	sed -i "1 a\iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP" $RCLOCAL
+	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
+	sed -i "1 a\iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE" $RCLOCAL
 	if pgrep firewalld; then
 		# We don't use --add-service=openvpn because that would only work with
 		# the default port. Using both permanent and not permanent rules to
