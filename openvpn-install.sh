@@ -462,11 +462,11 @@ cert server.crt
 key server.key
 tls-auth tls-auth.key 0
 dh dh.pem
-auth SHA256
+auth SHA512
 $CIPHER
 tls-server
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
 status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
@@ -579,11 +579,11 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
-auth SHA256
+auth SHA512
 $CIPHER
 tls-client
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+tls-cipher TLS-DHE-RSA-WITH-AES-256-GCM-SHA512
 setenv opt block-outside-dns
 verb 3" >> /etc/openvpn/client-template.txt
 
