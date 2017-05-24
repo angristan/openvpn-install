@@ -212,7 +212,7 @@ else
 	echo "   4) OpenDNS (Anycast: worldwide)"
 	echo "   5) Google (Anycast: worldwide)"
 	echo "   6) Yandex (Anycast: Russia, CIS, Western Europe)"
-	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6"]]; do
+	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" ]]; do
 		read -p "DNS [1-6]: " -e -i 2 DNS
 	done
 	echo ""
