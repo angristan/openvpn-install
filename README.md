@@ -57,6 +57,7 @@ The script is made to work on these OS :
 - Ubuntu 14.04 LTS
 - Ubuntu 16.04 LTS
 - Ubuntu 16.10
+- Ubuntu 17.04
 - CentOS 6
 - CentOS 7
 - Arch Linux
@@ -79,7 +80,7 @@ This fork includes the following features :
 - Up-to-date OpenVPN thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) for CentOS and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Ubuntu and Debian. These are third-party yet trusted repositories.
 - Other improvements !
 
-##DNS
+## DNS
 
 The script will ask you which DNS resolvers you want to use when connected to the VPN.
 
