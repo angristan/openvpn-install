@@ -164,7 +164,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					fi
 				fi
 				if [[ "$OS" = 'debian' ]]; then
-					apt-get remove --purge -y openvpn openvpn-blacklist
+					apt-get autoremove --purge -y openvpn
 				elif [[ "$OS" = 'arch' ]]; then
 					pacman -R openvpn --noconfirm
 				else
