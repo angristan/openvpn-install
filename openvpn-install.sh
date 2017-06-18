@@ -403,7 +403,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
-	openssl dhparam $DH_KEY_SIZE -out dh.pem
+	openssl dhparam -out dh.pem $DH_KEY_SIZE
 	./easyrsa build-server-full server nopass
 	./easyrsa build-client-full $CLIENT nopass
 	./easyrsa gen-crl
