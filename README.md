@@ -91,6 +91,7 @@ Here are the possibilities :
 - [DNS.WATCH DNS Servers](https://dns.watch/index), recommended if you're in western europe (Germany)
 - [OpenDNS](https://en.wikipedia.org/wiki/OpenDNS), not recommened but fast wordlwide (Anycast servers)
 - [Google Public DNS](https://en.wikipedia.org/wiki/Google_Public_DNS), not recommended, but fast worldwide (Anycast servers)
+- [Yandex Basic DNS](https://dns.yandex.com/), not recommended, but fast in Russia
 - Soon : local resolver :D
 
 Any other fast, trustable and neutral servers proposition is welcome.
