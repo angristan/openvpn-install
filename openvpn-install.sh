@@ -490,6 +490,12 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
+	# Needed to use rc.local with some systemd distros
+ 	if [[ "$OS" = 'debian' && ! -e $RCLOCAL ]]; then
+ 		echo '#!/bin/sh -e
+ exit 0' > $RCLOCAL
+	fi
+	chmod +x $RCLOCAL
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
 	sed -i "1 a\iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE" $RCLOCAL
