@@ -558,7 +558,7 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 	else
 		if pgrep systemd-journal; then
-			if [[ "$OS" = 'arch']]; then
+			if [[ "$OS" = 'arch' ]]; then
 				#Workaround to avoid rewriting the entire script for Arch
 				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /usr/lib/systemd/system/openvpn-server@.service
 				sed -i 's|%i.conf|server.conf|' /usr/lib/systemd/system/openvpn-server@.service
