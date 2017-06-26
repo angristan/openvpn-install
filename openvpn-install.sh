@@ -558,8 +558,17 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 	else
 		if pgrep systemd-journal; then
-			systemctl restart openvpn@server.service
-			systemctl enable openvpn@server.service
+			if [[ "$OS" = 'arch']]; then
+				#Workaround to avoid rewriting the entire script for Arch
+				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /usr/lib/systemd/system/openvpn-server@.service
+				sed -i 's|%i.conf|server.conf|' /usr/lib/systemd/system/openvpn-server@.service
+				systemctl daemon-reload
+				systemctl restart openvpn-server@openvpn.service
+				systemctl enable openvpn-server@openvpn.service
+			else
+				systemctl restart openvpn@server.service
+				systemctl enable openvpn@server.service
+			fi
 		else
 			service openvpn restart
 			chkconfig openvpn on
