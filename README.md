@@ -50,17 +50,18 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 
 ## Compatibility
 
-The script is made to work on these OS :
-- Debian 7
-- Debian 8
-- Ubuntu 12.04 LTS
-- Ubuntu 14.04 LTS
-- Ubuntu 16.04 LTS
-- Ubuntu 16.10
-- Ubuntu 17.04
-- CentOS 6
-- CentOS 7
-- Arch Linux
+The script is made to work on these OS and architectures :
+- **Debian 7** (i386, amd64)
+- **Debian 8** (i386, amd64)
+- **Debian 9** (i386, amd64, armhf, arm64)
+- **Ubuntu 12.04 LTS** (i386, amd64)
+- **Ubuntu 14.04 LTS** (i386, amd64)
+- **Ubuntu 16.04 LTS** (i386, amd64)
+- **Ubuntu 16.10** (i386, amd64, armhf, arm64)
+- **Ubuntu 17.04** (i386, amd64, armhf, arm64)
+- **CentOS 6** (i386, amd64)
+- **CentOS 7** (i386, amd64, arm64)
+- **Arch Linux** (i686, amd64)
 
 (It should also work on Debian unstable/testing and Ubuntu beta).
 
