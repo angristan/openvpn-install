@@ -256,7 +256,7 @@ else
 		6)
 		CIPHER="cipher CAMELLIA-256-CBC"
 		;;
-		5)
+		7)
 		CIPHER="cipher SEED-CBC"
 		;;
 	esac
