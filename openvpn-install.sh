@@ -157,8 +157,11 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					sed -i "/iptables -I INPUT -p udp --dport $PORT -j ACCEPT/d" $RCLOCAL
 					sed -i "/iptables -I FORWARD -s 10.8.0.0\/24 -j ACCEPT/d" $RCLOCAL
 					sed -i "/iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT/d" $RCLOCAL
+          iptables -D INPUT -p udp --dport $PORT -j ACCEPT
+          iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
 				fi
-				sed -i '/iptables -t nat -A POSTROUTING -s 10.8.0.0\/24 -j SNAT --to /d' $RCLOCAL
+				sed -i "/iptables -t nat -A POSTROUTING $NIC -s 10.8.0.0\/24 -j MASQUERADE/d" $RCLOCAL
+        iptables -t nat -D POSTROUTING $NIC -s 10.8.0.0/24 -j MASQUERADE
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 						if [[ "$PORT" != '1194' ]]; then
