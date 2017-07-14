@@ -552,7 +552,17 @@ verb 3" >> /etc/openvpn/server.conf
 	if [[ "$OS" = 'debian' ]]; then
 		# Little hack to check for systemd
 		if pgrep systemd-journal; then
-			systemctl restart openvpn@server.service
+			if [[ "$VERSION_ID" = 'VERSION_ID="9"' ]]; then
+				#Workaround to fix OpenVPN service on Debian 9 OpenVZ
+				sed -i 's|LimitNPROC|#LimitNPROC|' /lib/systemd/system/openvpn-server\@.service
+				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /lib/systemd/system/openvpn-server\@.service
+				sed -i 's|%i.conf|server.conf|' /lib/systemd/system/openvpn-server\@.service
+				systemctl daemon-reload
+				systemctl restart openvpn-server@openvpn.service
+				systemctl enable openvpn-server@openvpn.service
+			else
+				systemctl restart openvpn@server.service
+			fi
 		else
 			/etc/init.d/openvpn restart
 		fi
