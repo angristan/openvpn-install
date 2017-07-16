@@ -23,6 +23,7 @@ if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
+  IPTABLES='/etc/iptables/iptables.rules'
 	RCLOCAL='/etc/rc.local'
 	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.04"' ]]; then
@@ -42,12 +43,14 @@ if [[ -e /etc/debian_version ]]; then
 	fi
 elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
 	OS=centos
+  IPTABLES='/etc/iptables/iptables.rules'
 	RCLOCAL='/etc/rc.d/rc.local'
 	SYSCTL='/etc/sysctl.conf'
 	# Needed for CentOS 7
 	chmod +x /etc/rc.d/rc.local
 elif [[ -e /etc/arch-release ]]; then
 	OS=arch
+  IPTABLES='/etc/iptables/iptables.rules'
 	RCLOCAL='/etc/rc.local'
 	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
@@ -338,9 +341,71 @@ else
 		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 		# The we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
+    # Install iptables service
+    if [[ ! -e /etc/systemd/system/iptables.service ]]; then
+      mkdir /etc/iptables
+      iptables-save > /etc/iptables/iptables.rules
+      echo "#!/bin/sh
+iptables -F
+iptables -X
+iptables -t nat -F
+iptables -t nat -X
+iptables -t mangle -F
+iptables -t mangle -X
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
+      chmod +x /etc/iptables/flush-iptables.sh
+      echo "[Unit]
+Description=Packet Filtering Framework
+DefaultDependencies=no
+After=systemd-sysctl.service
+Before=sysinit.target
+[Service]
+Type=oneshot
+ExecStart=/sbin/iptables-restore < /etc/iptables/iptables.rules
+ExecReload=/sbin/iptables-restore < /etc/iptables/iptables.rules
+ExecStop=/etc/iptables/flush-iptables.sh
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
+      systemctl daemon-reload
+      systemctl enable iptables.service
+    fi
 	elif [[ "$OS" = 'centos' ]]; then
 		yum install epel-release -y
 		yum install openvpn iptables openssl wget ca-certificates curl -y
+    # Install iptables service
+    if [[ ! -e /etc/systemd/system/iptables.service ]]; then
+      mkdir /etc/iptables
+      iptables-save > /etc/iptables/iptables.rules
+      echo "#!/bin/sh
+iptables -F
+iptables -X
+iptables -t nat -F
+iptables -t nat -X
+iptables -t mangle -F
+iptables -t mangle -X
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
+      chmod +x /etc/iptables/flush-iptables.sh
+      echo "[Unit]
+Description=Packet Filtering Framework
+DefaultDependencies=no
+After=systemd-sysctl.service
+Before=sysinit.target
+[Service]
+Type=oneshot
+ExecStart=/sbin/iptables-restore < /etc/iptables/iptables.rules
+ExecReload=/sbin/iptables-restore < /etc/iptables/iptables.rules
+ExecStop=/etc/iptables/flush-iptables.sh
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
+      systemctl daemon-reload
+      systemctl enable iptables.service
+    fi
 	else
 		# Else, the distro is ArchLinux
 		echo ""
@@ -379,7 +444,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 		# Install dependencies
 		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
 		if [[ "$OS" = 'arch' ]]; then
-			touch /etc/iptables/iptables.rules # iptables won't start if this file does not exist
+			iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
 			systemctl enable iptables
 			systemctl start iptables
 		fi
