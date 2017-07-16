@@ -423,14 +423,13 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 		fi
 		
 		if [[ "$OS" = 'arch' ]]; then
-		# Install dependencies
-		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
-		if [[ "$OS" = 'arch' ]]; then
-			iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
+  		# Install dependencies
+  		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
+  		iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
       systemctl daemon-reload
-			systemctl enable iptables
-			systemctl start iptables
-		fi
+  		systemctl enable iptables
+  		systemctl start iptables
+    fi
 	fi
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
@@ -567,7 +566,7 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
 		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-    # save persitant OpenVPN rules
+    # Save persitent OpenVPN rules
     iptables-save > $IPTABLES
 	fi
 	# If SELinux is enabled and a custom port was selected, we need this
