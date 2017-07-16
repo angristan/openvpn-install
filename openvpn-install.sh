@@ -363,8 +363,8 @@ After=systemd-sysctl.service
 Before=sysinit.target
 [Service]
 Type=oneshot
-ExecStart=/sbin/iptables-restore < /etc/iptables/iptables.rules
-ExecReload=/sbin/iptables-restore < /etc/iptables/iptables.rules
+ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
+ExecReload=/sbin/iptables-restore /etc/iptables/iptables.rules
 ExecStop=/etc/iptables/flush-iptables.sh
 RemainAfterExit=yes
 [Install]
@@ -397,8 +397,8 @@ After=systemd-sysctl.service
 Before=sysinit.target
 [Service]
 Type=oneshot
-ExecStart=/sbin/iptables-restore < /etc/iptables/iptables.rules
-ExecReload=/sbin/iptables-restore < /etc/iptables/iptables.rules
+ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
+ExecReload=/sbin/iptables-restore /etc/iptables/iptables.rules
 ExecStop=/etc/iptables/flush-iptables.sh
 RemainAfterExit=yes
 [Install]
