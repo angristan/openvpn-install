@@ -23,7 +23,7 @@ if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
-  IPTABLES='/etc/iptables/iptables.rules'
+	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.04"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
@@ -42,11 +42,11 @@ if [[ -e /etc/debian_version ]]; then
 	fi
 elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
 	OS=centos
-  IPTABLES='/etc/iptables/iptables.rules'
+	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
 elif [[ -e /etc/arch-release ]]; then
 	OS=arch
-  IPTABLES='/etc/iptables/iptables.rules'
+	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
 	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
@@ -152,16 +152,16 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
 				fi
 				if iptables -L -n | grep -qE 'REJECT|DROP'; then
-          if [[ "$PROTOCOL" = 'udp' ]]; then
-            iptables -D INPUT -p udp --dport $PORT -j ACCEPT
-          else
-            iptables -D INPUT -p tcp --dport $PORT -j ACCEPT
-          fi
-          iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
-          iptables-save > $IPTABLES
+					if [[ "$PROTOCOL" = 'udp' ]]; then
+						iptables -D INPUT -p udp --dport $PORT -j ACCEPT
+					else
+						iptables -D INPUT -p tcp --dport $PORT -j ACCEPT
+					fi
+					iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
+					iptables-save > $IPTABLES
 				fi
-        iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-        iptables-save > $IPTABLES
+				iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
+				iptables-save > $IPTABLES
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 						if [[ "$PORT" != '1194' ]]; then
@@ -341,11 +341,11 @@ else
 		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 		# The we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
-    # Install iptables service
-    if [[ ! -e /etc/systemd/system/iptables.service ]]; then
-      mkdir /etc/iptables
-      iptables-save > /etc/iptables/iptables.rules
-      echo "#!/bin/sh
+		# Install iptables service
+		if [[ ! -e /etc/systemd/system/iptables.service ]]; then
+			mkdir /etc/iptables
+			iptables-save > /etc/iptables/iptables.rules
+			echo "#!/bin/sh
 iptables -F
 iptables -X
 iptables -t nat -F
@@ -355,12 +355,12 @@ iptables -t mangle -X
 iptables -P INPUT ACCEPT
 iptables -P FORWARD ACCEPT
 iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-      chmod +x /etc/iptables/flush-iptables.sh
-      echo "[Unit]
+			chmod +x /etc/iptables/flush-iptables.sh
+			echo "[Unit]
 Description=Packet Filtering Framework
 DefaultDependencies=no
-After=systemd-sysctl.service
-Before=sysinit.target
+Before=network-pre.target
+Wants=network-pre.target
 [Service]
 Type=oneshot
 ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
@@ -369,17 +369,17 @@ ExecStop=/etc/iptables/flush-iptables.sh
 RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
-      systemctl daemon-reload
-      systemctl enable iptables.service
-    fi
+			systemctl daemon-reload
+			systemctl enable iptables.service
+		fi
 	elif [[ "$OS" = 'centos' ]]; then
 		yum install epel-release -y
 		yum install openvpn iptables openssl wget ca-certificates curl -y
-    # Install iptables service
-    if [[ ! -e /etc/systemd/system/iptables.service ]]; then
-      mkdir /etc/iptables
-      iptables-save > /etc/iptables/iptables.rules
-      echo "#!/bin/sh
+		# Install iptables service
+		if [[ ! -e /etc/systemd/system/iptables.service ]]; then
+			mkdir /etc/iptables
+			iptables-save > /etc/iptables/iptables.rules
+			echo "#!/bin/sh
 iptables -F
 iptables -X
 iptables -t nat -F
@@ -389,12 +389,12 @@ iptables -t mangle -X
 iptables -P INPUT ACCEPT
 iptables -P FORWARD ACCEPT
 iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-      chmod +x /etc/iptables/flush-iptables.sh
-      echo "[Unit]
+			chmod +x /etc/iptables/flush-iptables.sh
+			echo "[Unit]
 Description=Packet Filtering Framework
 DefaultDependencies=no
-After=systemd-sysctl.service
-Before=sysinit.target
+Before=network-pre.target
+Wants=network-pre.target
 [Service]
 Type=oneshot
 ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
@@ -403,9 +403,9 @@ ExecStop=/etc/iptables/flush-iptables.sh
 RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
-      systemctl daemon-reload
-      systemctl enable iptables.service
-    fi
+			systemctl daemon-reload
+			systemctl enable iptables.service
+		fi
 	else
 		# Else, the distro is ArchLinux
 		echo ""
@@ -423,19 +423,19 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 		fi
 		
 		if [[ "$OS" = 'arch' ]]; then
-  		# Install dependencies
-  		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
-  		iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
-      systemctl daemon-reload
-  		systemctl enable iptables
-  		systemctl start iptables
-    fi
+			# Install dependencies
+			pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
+			iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
+			systemctl daemon-reload
+			systemctl enable iptables
+			systemctl start iptables
+		fi
 	fi
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
-	        NOGROUP=nogroup
+		NOGROUP=nogroup
 	else
-        	NOGROUP=nobody
+		NOGROUP=nobody
 	fi
 
 	# An old version of easy-rsa was available by default in some openvpn packages
@@ -539,8 +539,8 @@ verb 3" >> /etc/openvpn/server.conf
 	echo 1 > /proc/sys/net/ipv4/ip_forward
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-  # Save persitent iptables rules
-  iptables-save > $IPTABLES
+	# Save persitent iptables rules
+	iptables-save > $IPTABLES
 	if pgrep firewalld; then
 		# We don't use --add-service=openvpn because that would only work with
 		# the default port. Using both permanent and not permanent rules to
@@ -566,8 +566,8 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
 		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-    # Save persitent OpenVPN rules
-    iptables-save > $IPTABLES
+		# Save persitent OpenVPN rules
+		iptables-save > $IPTABLES
 	fi
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
@@ -627,10 +627,10 @@ verb 3" >> /etc/openvpn/server.conf
 		echo ""
 		echo "Looks like your server is behind a NAT!"
 		echo ""
-                echo "If your server is NATed (e.g. LowEndSpirit, Scaleway, or behind a router),"
-                echo "then I need to know the address that can be used to access it from outside."
-                echo "If that's not the case, just ignore this and leave the next field blank"
-                read -p "External IP or domain name: " -e USEREXTERNALIP
+		echo "If your server is NATed (e.g. LowEndSpirit, Scaleway, or behind a router),"
+		echo "then I need to know the address that can be used to access it from outside."
+		echo "If that's not the case, just ignore this and leave the next field blank"
+		read -p "External IP or domain name: " -e USEREXTERNALIP
 		if [[ "$USEREXTERNALIP" != "" ]]; then
 			IP=$USEREXTERNALIP
 		fi
