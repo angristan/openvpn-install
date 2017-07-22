@@ -56,21 +56,29 @@ else
 fi
 
 newclient () {
+	# Where to write the custom client.ovpn?
+	if [ -e /home/$1 ]; then  # if $1 is a user ID
+		homeDir="/home/$1"
+	elif [ -e /home/${SUDO_USER} ]; then  # if not, use SUDO_USER
+		homeDir="/home/${SUDO_USER}"
+	else  # if not, use /root
+		homeDir="~"
+	fi
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt ~/$1.ovpn
-	echo "<ca>" >> ~/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/ca.crt >> ~/$1.ovpn
-	echo "</ca>" >> ~/$1.ovpn
-	echo "<cert>" >> ~/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> ~/$1.ovpn
-	echo "</cert>" >> ~/$1.ovpn
-	echo "<key>" >> ~/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> ~/$1.ovpn
-	echo "</key>" >> ~/$1.ovpn
-	echo "key-direction 1" >> ~/$1.ovpn
-	echo "<tls-auth>" >> ~/$1.ovpn
-	cat /etc/openvpn/tls-auth.key >> ~/$1.ovpn
-	echo "</tls-auth>" >> ~/$1.ovpn
+	cp /etc/openvpn/client-template.txt $homeDir/$1.ovpn
+	echo "<ca>" >> $homeDir/$1.ovpn
+	cat /etc/openvpn/easy-rsa/pki/ca.crt >> $homeDir/$1.ovpn
+	echo "</ca>" >> $homeDir/$1.ovpn
+	echo "<cert>" >> $homeDir/$1.ovpn
+	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> $homeDir/$1.ovpn
+	echo "</cert>" >> $homeDir/$1.ovpn
+	echo "<key>" >> $homeDir/$1.ovpn
+	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> $homeDir/$1.ovpn
+	echo "</key>" >> $homeDir/$1.ovpn
+	echo "key-direction 1" >> $homeDir/$1.ovpn
+	echo "<tls-auth>" >> $homeDir/$1.ovpn
+	cat /etc/openvpn/tls-auth.key >> $homeDir/$1.ovpn
+	echo "</tls-auth>" >> $homeDir/$1.ovpn
 }
 
 # Try to get our IP from the system and fallback to the Internet.
@@ -108,7 +116,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			# Generates the custom client.ovpn
 			newclient "$CLIENT"
 			echo ""
-			echo "Client $CLIENT added, certs available at ~/$CLIENT.ovpn"
+			echo "Client $CLIENT added, certs available at $homeDir/$CLIENT.ovpn"
 			exit
 			;;
 			2)
@@ -356,7 +364,7 @@ else
 			echo "Ok, bye !"
 			exit 4
 		fi
-		
+
 		if [[ "$OS" = 'arch' ]]; then
 		# Install rc.local
 		echo "[Unit]
@@ -375,7 +383,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 				echo "#!/bin/bash" > $RCLOCAL
 			fi
 		fi
-		
+
 		# Install dependencies
 		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
 		if [[ "$OS" = 'arch' ]]; then
@@ -417,7 +425,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
-	
+
 	# Generate server.conf
 	echo "port $PORT" > /etc/openvpn/server.conf
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
@@ -625,7 +633,7 @@ verb 3" >> /etc/openvpn/client-template.txt
 	echo ""
 	echo "Finished!"
 	echo ""
-	echo "Your client config is available at ~/$CLIENT.ovpn"
+	echo "Your client config is available at $homeDir/$CLIENT.ovpn"
 	echo "If you want to add more clients, you simply need to run this script another time!"
 fi
 exit 0;
