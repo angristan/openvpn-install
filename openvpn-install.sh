@@ -59,7 +59,7 @@ newclient () {
 	# Where to write the custom client.ovpn?
 	if [ -e /home/$1 ]; then  # if $1 is a user name
 		homeDir="/home/$1"
-	elif [ ${SUDO_USER} ]; then  # if not, use SUDO_USER
+	elif [ ${SUDO_USER} ]; then   # if not, use SUDO_USER
 		homeDir="/home/${SUDO_USER}"
 	else  # if not SUDO_USER, use /root
 		homeDir="/root"
