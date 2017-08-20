@@ -321,25 +321,25 @@ else
 		# We add the OpenVPN repo to get the latest version.
 		# Debian 7
 		if [[ "$VERSION_ID" = 'VERSION_ID="7"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable wheezy main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/stable wheezy main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
 		# Debian 8
 		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt update
 		fi
 		# Ubuntu 12.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="12.04"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable precise main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/stable precise main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
 		# Ubuntu 14.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
