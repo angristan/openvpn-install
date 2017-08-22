@@ -427,7 +427,8 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	chmod 644 /etc/openvpn/crl.pem
 
 	# Generate server.conf
-	echo "port $PORT" > /etc/openvpn/server.conf
+	echo "local $IP" > /etc/openvpn/server.conf
+	echo "port $PORT" >> /etc/openvpn/server.conf
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
 		echo "proto udp" >> /etc/openvpn/server.conf
 	elif [[ "$PROTOCOL" = 'TCP' ]]; then
