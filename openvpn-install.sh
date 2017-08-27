@@ -622,6 +622,7 @@ persist-key
 persist-tun
 remote-cert-tls server
 auth SHA256
+auth-nocache
 $CIPHER
 tls-client
 tls-version-min 1.2
