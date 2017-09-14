@@ -300,7 +300,7 @@ else
 					DH_CURVE="secp384r1"
 				;;
 				3)
-					DH_CURVE"secp521r1"
+					DH_CURVE="secp521r1"
 				;;
 			esac
 		;;
@@ -320,7 +320,7 @@ else
 					DH_SIZE="3072"
 				;;
 				3)
-					DH_SIZE"4096"
+					DH_SIZE="4096"
 				;;
 			esac
 		;;
@@ -351,7 +351,7 @@ else
 					CERT_CURVE="secp384r1"
 				;;
 				3)
-					CERT_CURVE"secp521r1"
+					CERT_CURVE="secp521r1"
 				;;
 			esac
 		;;
@@ -371,7 +371,7 @@ else
 					RSA_SIZE="3072"
 				;;
 				3)
-					RSA_SIZE"4096"
+					RSA_SIZE="4096"
 				;;
 			esac
 		;;
