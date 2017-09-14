@@ -380,7 +380,7 @@ else
 	echo "   1) SHA-256"
 	echo "   2) SHA-384 (recommended)"
 	echo "   3) SHA-512"
-	while [[ $CERT_HASH != "1" && $CERT_HASH != "2" ]]; do
+	while [[ $CERT_HASH != "1" && $CERT_HASH != "2" && $CERT_HASH != "3"]]; do
 		read -p "Cert hash algo [1-3]: " -e -i 2 CERT_HASH
 	done
 	case $CERT_HASH in
