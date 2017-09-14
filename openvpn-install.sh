@@ -428,8 +428,8 @@ else
 	echo "   1) SHA-256"
 	echo "   2) SHA-384 (recommended)"
 	echo "   3) SHA-512"
-		while [[ $HMAC_AUTH != "1" && $HMAC_AUTH != "2" ]]; do
-			read -p "HMAC authentication algorithmHMAC_AUTH [1-3]: " -e -i 2 HMAC_AUTH
+		while [[ $HMAC_AUTH != "1" && $HMAC_AUTH != "2" && $HMAC_AUTH != "3" ]]; do
+			read -p "HMAC authentication algorithm [1-3]: " -e -i 2 HMAC_AUTH
 	done
 	case $HMAC_AUTH in
 		1)
