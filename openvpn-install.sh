@@ -640,7 +640,7 @@ ca ca.crt
 cert server.crt
 key server.key" >> /etc/openvpn/server.conf
 if [[ $TLS_SIG == "1" ]]; then
-	echo "tls-auth tls-crypt.key 0" >> /etc/openvpn/server.conf
+	echo "tls-crypt tls-crypt.key 0" >> /etc/openvpn/server.conf
 elif [[ $TLS_SIG == "2" ]]; then
 	echo "tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
 fi
