@@ -238,10 +238,12 @@ else
 	done
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
-	echo "the encryption in OpenVPN and the choices I made in this script."
-	echo "Please note that all the choices proposed are secure enough considering today's strandards,"
-	echo "unlike some default OpenVPN options"
-	echo ''
+	echo "the encryption in OpenVPN and the choices proposed in this script."
+	echo "Please note that all the choices proposed are secure enough considering today's strandards, unlike some default OpenVPN options"
+	echo "You can just type "enter" if you don't know what to choose."
+	echo "Note that if you want to use an OpenVPN 2.3 client, You'll have to choose OpenVPN 2.3-compatible options."
+	echo "All OpenVPN 2.3-compatible choices are specified for each following option."
+	echo ""
 	echo "Choose which cipher you want to use for the data channel:"
 	echo "   1) AES-128-GCM (recommended)"
 	echo "   2) AES-192-GCM"
@@ -251,7 +253,7 @@ else
 	echo "   5) AES-192-CBC"
 	echo "   6) AES-256-CBC"
 	while [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" && $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" ]]; do
-		read -p "Cipher [1-7]: " -e -i 1 CIPHER
+		read -p "Data channel cipher [1-6]: " -e -i 1 CIPHER
 	done
 	case $CIPHER in
 		1)
@@ -274,76 +276,23 @@ else
 		;;
 	esac
 	echo ""
-	echo "Choose what kind of Diffie-Hellman key you want to use."
-	echo "Elleptic Curves (EC) are recommended, they're faster, lighter and more secure."
-	echo "Use DH for OpenVPN 2.3 compatibilty"
-	echo "   1) ECDH (recommended)"
-	echo "   2) DH"
-	while [[ $DH_TYPE != "1" && $DH_TYPE != "2" ]]; do
-		read -p "DH key size [1-2]: " -e -i 1 DH_TYPE
-	done
-	case $DH_TYPE in
-		1)
-			echo ""
-			echo "Choose which curve you want to use"
-			echo "   1) secp256r1"
-			echo "   2) secp384r1 (recommended)"
-			echo "   3) secp521r1"
-			while [[ $DH_CURVE != "1" && $DH_CURVE != "2" && $DH_CURVE != "3" ]]; do
-				read -p "ECDH [1-3]: " -e -i 2 DH_CURVE
-			done
-			case $DH_CURVE in
-				1)
-					DH_CURVE="secp256r1"
-				;;
-				2)
-					DH_CURVE="secp384r1"
-				;;
-				3)
-					DH_CURVE="secp521r1"
-				;;
-			esac
-		;;
-		2)
-			echo""
-			echo "Choose which DH key size do you want to use"
-			echo "   1) 2048 bits"
-			echo "   2) 3072 bits (recommended)"
-			echo "   3) 4096 bits"
-			while [[ $DH_SIZE != "1" && $DH_SIZE != "2" && $DH_SIZE != "3" ]]; do
-				read -p "DH key size [1-3]: " -e -i 2 DH_SIZE
-			done
-			case $DH_SIZE in
-				1)
-					DH_SIZE="2048"
-				;;
-				2)
-					DH_SIZE="3072"
-				;;
-				3)
-					DH_SIZE="4096"
-				;;
-			esac
-		;;
-	esac
-	echo ""
-	echo "Choose what kind Certificate key you want to use."
-	echo "Elleptic Curves (EC) are recommended, they're faster, lighter and more secure."
+	echo "Choose what kind of certificate you want to use:"
+	echo "Elleptic Curves keys (EC) are recommended, they're faster, lighter and more secure."
 	echo "Use RSA for OpenVPN 2.3 compatibilty"
 	echo "   1) ECDSA (recommended)"
 	echo "   2) RSA"
 	while [[ $CERT_TYPE != "1" && $CERT_TYPE != "2" ]]; do
-		read -p "Certificate key [1-2]: " -e -i 1 CERT_TYPE
+		read -p "Certificate type [1-2]: " -e -i 1 CERT_TYPE
 	done
 	case $CERT_TYPE in
 		1)
 			echo ""
-			echo "Choose which curve you want to use:"
+			echo "Choose which curve you want to use for the EC key:"
 			echo "   1) secp256r1"
 			echo "   2) secp384r1 (recommended)"
 			echo "   3) secp521r1"
 			while [[ $CERT_CURVE != "1" && $CERT_CURVE != "2" && $CERT_CURVE != "3" ]]; do
-				read -p "ECDH [1-3]: " -e -i 2 CERT_CURVE
+				read -p "Curve [1-3]: " -e -i 2 CERT_CURVE
 			done
 			case $CERT_CURVE in
 				1)
@@ -359,7 +308,7 @@ else
 		;;
 		2)
 			echo ""
-			echo "Choose which RSA key size do you want to use:"
+			echo "Choose which RSA key size you want to use:"
 			echo "   1) 2048 bits"
 			echo "   2) 3072 bits (recommended)"
 			echo "   3) 4096 bits"
@@ -385,7 +334,7 @@ else
 	echo "   2) SHA-384 (recommended)"
 	echo "   3) SHA-512"
 	while [[ $CERT_HASH != "1" && $CERT_HASH != "2" && $CERT_HASH != "3" ]]; do
-		read -p "Cert hash algo [1-3]: " -e -i 2 CERT_HASH
+		read -p "Hash algorithm [1-3]: " -e -i 2 CERT_HASH
 	done
 	case $CERT_HASH in
 		1)
@@ -399,12 +348,65 @@ else
 		;;
 	esac
 	echo ""
-	echo "Which cipher to use for the control channel ?"
+	echo "Choose what kind of Diffie-Hellman key you want to use."
+	echo "Elleptic Curves (EC) are recommended, they're faster, lighter and more secure."
+	echo "Use DH for OpenVPN 2.3 compatibilty"
+	echo "   1) ECDH (recommended)"
+	echo "   2) DH"
+	while [[ $DH_TYPE != "1" && $DH_TYPE != "2" ]]; do
+		read -p "DH key type [1-2]: " -e -i 1 DH_TYPE
+	done
+	case $DH_TYPE in
+		1)
+			echo ""
+			echo "Choose which curve you want to use for the ECDH key"
+			echo "   1) secp256r1"
+			echo "   2) secp384r1 (recommended)"
+			echo "   3) secp521r1"
+			while [[ $DH_CURVE != "1" && $DH_CURVE != "2" && $DH_CURVE != "3" ]]; do
+				read -p "Curve [1-3]: " -e -i 2 DH_CURVE
+			done
+			case $DH_CURVE in
+				1)
+					DH_CURVE="secp256r1"
+				;;
+				2)
+					DH_CURVE="secp384r1"
+				;;
+				3)
+					DH_CURVE="secp521r1"
+				;;
+			esac
+		;;
+		2)
+			echo""
+			echo "Choose which DH key size you want to use"
+			echo "   1) 2048 bits"
+			echo "   2) 3072 bits (recommended)"
+			echo "   3) 4096 bits"
+			while [[ $DH_SIZE != "1" && $DH_SIZE != "2" && $DH_SIZE != "3" ]]; do
+				read -p "DH key size [1-3]: " -e -i 2 DH_SIZE
+			done
+			case $DH_SIZE in
+				1)
+					DH_SIZE="2048"
+				;;
+				2)
+					DH_SIZE="3072"
+				;;
+				3)
+					DH_SIZE="4096"
+				;;
+			esac
+		;;
+	esac
+	echo ""
+	echo "Choose which cipher you want to use for the control channel:"
 	if [[ "$CERT_TYPE" = '1' ]]; then
 		echo "   1) ECDHE-ECDSA-AES-256-GCM-SHA384 (recommended)"
 		echo "   2) ECDHE-ECDSA-AES-128-GCM-SHA256"
 		while [[ $CC_ENC != "1" && $CC_ENC != "2" ]]; do
-			read -p "Control Channel encryption [1-2]: " -e -i 1 CC_ENC
+			read -p "Control channel cipher [1-2]: " -e -i 1 CC_ENC
 		done
 		case $CC_ENC in
 			1)
@@ -418,7 +420,7 @@ else
 		echo "   1) ECDHE-RSA-AES-256-GCM-SHA384 (recommended)"
 		echo "   2) ECDHE-RSA-AES-128-GCM-SHA256"
 		while [[ $CC_ENC != "1" && $CC_ENC != "2" ]]; do
-			read -p "Control Channel encryption [1-2]: " -e -i 1 CC_ENC
+			read -p "Control channel cipher [1-2]: " -e -i 1 CC_ENC
 		done
 		case $CC_ENC in
 			1)
@@ -429,6 +431,15 @@ else
 			;;
 		esac
 	fi
+	echo ""
+	echo "Do you want to use tls-crypt or tls-auth?"
+	echo "They both encrypt and authenticate all control channel packets with a key."
+	echo "tls-crypt is more advanced and secure than tls-auth, but it's an OpenVPN 2.4 feature."
+	echo "   1) tls-crypt (recommended)"
+	echo "   2) tls-auth (use only for OpenVPN 2.3 client compatibility)"
+	while [[ $TLS_SIG != "1" && $TLS_SIG != "2" ]]; do
+			read -p "Crontrol channel additional security layer [1-2]: " -e -i 1 TLS_SIG
+	done
 	echo""
 	if [[ $CIPHER = "cipher AES-256-GCM" ]] || [[ $CIPHER = "cipher AES-192-GCM" ]] || [[ $CIPHER = "cipher AES-128-GCM" ]]; then
 		echo "Choose which message digest algorithm you want to use for the tls-auth/tls-crypt control channel packets:"
@@ -453,13 +464,6 @@ else
 			HMAC_AUTH="SHA512"
 		;;
 	esac
-	echo ""
-	echo "tls crypt or tls auth"
-	echo "   1) tls-crypt (recommended)"
-	echo "   2) tls-auth (use only for openvpn 2.3 compat)"
-	while [[ $TLS_SIG != "1" && $TLS_SIG != "2" ]]; do
-			read -p "tls sig [1-2]: " -e -i 1 TLS_SIG
-	done
 	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
