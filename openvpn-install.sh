@@ -424,7 +424,13 @@ else
 			;;
 		esac
 	fi
-	echo "Choose which HMAC authentication algorithm you want to use"
+	if [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" ]]; then
+		echo "Choose which message digest algorithm you want to use for the tls-auth/tls-crypt control channel packets:"
+	fi
+	if [[ $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" ]]; then
+		echo "Choose which message digest algorithm you want to use for the data channel packets"
+		echo "and the tls-auth/tls-crypt control channel packets:"
+	fi
 	echo "   1) SHA-256"
 	echo "   2) SHA-384 (recommended)"
 	echo "   3) SHA-512"
