@@ -658,6 +658,7 @@ elif [[ $DH_TYPE == "2" ]]; then
 fi
 echo "auth $HMAC_AUTH
 $CIPHER
+ncp-disable
 tls-server
 tls-version-min 1.2
 tls-cipher $CC_ENC
