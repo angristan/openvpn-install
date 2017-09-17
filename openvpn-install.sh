@@ -243,7 +243,6 @@ else
 	echo "unlike some default OpenVPN options"
 	echo ''
 	echo "Choose which cipher you want to use for the data channel:"
-	echo ""
 	echo "   1) AES-128-GCM (recommended)"
 	echo "   2) AES-192-GCM"
 	echo "   3) AES-256-GCM"
@@ -285,6 +284,7 @@ else
 	done
 	case $DH_TYPE in
 		1)
+			echo ""
 			echo "Choose which curve you want to use"
 			echo "   1) secp256r1"
 			echo "   2) secp384r1 (recommended)"
@@ -305,7 +305,8 @@ else
 			esac
 		;;
 		2)
-		echo "Choose which DH key size do you want to use"
+			echo""
+			echo "Choose which DH key size do you want to use"
 			echo "   1) 2048 bits"
 			echo "   2) 3072 bits (recommended)"
 			echo "   3) 4096 bits"
@@ -336,6 +337,7 @@ else
 	done
 	case $CERT_TYPE in
 		1)
+			echo ""
 			echo "Choose which curve you want to use:"
 			echo "   1) secp256r1"
 			echo "   2) secp384r1 (recommended)"
@@ -356,7 +358,8 @@ else
 			esac
 		;;
 		2)
-		echo "Choose which RSA key size do you want to use:"
+			echo ""
+			echo "Choose which RSA key size do you want to use:"
 			echo "   1) 2048 bits"
 			echo "   2) 3072 bits (recommended)"
 			echo "   3) 4096 bits"
@@ -376,6 +379,7 @@ else
 			esac
 		;;
 	esac
+	echo ""
 	echo "Choose which hash algorithm you want to use for the certificate:"
 	echo "   1) SHA-256"
 	echo "   2) SHA-384 (recommended)"
@@ -394,6 +398,7 @@ else
 			CERT_HASH="sha512"
 		;;
 	esac
+	echo ""
 	echo "Which cipher to use for the control channel ?"
 	if [[ "$CERT_TYPE" = '1' ]]; then
 		echo "   1) ECDHE-ECDSA-AES-256-GCM-SHA384 (recommended)"
@@ -424,6 +429,7 @@ else
 			;;
 		esac
 	fi
+	echo""
 	if [[ $CIPHER = "cipher AES-256-GCM" ]] || [[ $CIPHER = "cipher AES-192-GCM" ]] || [[ $CIPHER = "cipher AES-128-GCM" ]]; then
 		echo "Choose which message digest algorithm you want to use for the tls-auth/tls-crypt control channel packets:"
 	elif [[ $CIPHER = "cipher AES-256-CBC" ]] || [[ $CIPHER = "cipher AES-192-CBC" ]] || [[ $CIPHER = "cipher AES-128-CBC" ]]; then
@@ -447,6 +453,7 @@ else
 			HMAC_AUTH="SHA512"
 		;;
 	esac
+	echo ""
 	echo "tls crypt or tls auth"
 	echo "   1) tls-crypt (recommended)"
 	echo "   2) tls-auth (use only for openvpn 2.3 compat)"
