@@ -439,13 +439,13 @@ else
 	done
 	case $HMAC_AUTH in
 		1)
-			HMAC_AUTH="sha256"
+			HMAC_AUTH="SHA256"
 		;;
 		2)
-			HMAC_AUTH="sha384"
+			HMAC_AUTH="SHA384"
 		;;
 		3)
-			HMAC_AUTH="sha512"
+			HMAC_AUTH="SHA512"
 		;;
 	esac
 	echo "tls crypt or tls auth"
