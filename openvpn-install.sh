@@ -424,10 +424,9 @@ else
 			;;
 		esac
 	fi
-	if [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" ]]; then
+	if [[ $CIPHER = "1" && $CIPHER = "2" && $CIPHER = "3" ]]; then
 		echo "Choose which message digest algorithm you want to use for the tls-auth/tls-crypt control channel packets:"
-	fi
-	if [[ $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" ]]; then
+	elif [[ $CIPHER = "4" && $CIPHER = "5" && $CIPHER = "6" ]]; then
 		echo "Choose which message digest algorithm you want to use for the data channel packets"
 		echo "and the tls-auth/tls-crypt control channel packets:"
 	fi
