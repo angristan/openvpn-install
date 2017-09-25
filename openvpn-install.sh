@@ -598,8 +598,7 @@ set_var EASYRSA_CURVE $CERT_CURVE" > vars
 	chmod 644 /etc/openvpn/crl.pem
 
 	# Generate server.conf
-	echo "local $IP" > /etc/openvpn/server.conf
-	echo "port $PORT" >> /etc/openvpn/server.conf
+	echo "port $PORT" > /etc/openvpn/server.conf
 	if [[ "$PROTOCOL" = '1' ]]; then
 		echo "proto udp" >> /etc/openvpn/server.conf
 	elif [[ "$PROTOCOL" = '2' ]]; then
