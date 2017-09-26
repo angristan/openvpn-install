@@ -50,18 +50,22 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 
 ## Compatibility
 
-The script is made to work on these OS and architectures :
-- **Debian 7** (i386, amd64)
-- **Debian 8** (i386, amd64)
-- **Debian 9** (i386, amd64, armhf, arm64)
-- **Ubuntu 12.04 LTS** (i386, amd64)
-- **Ubuntu 14.04 LTS** (i386, amd64)
-- **Ubuntu 16.04 LTS** (i386, amd64)
-- **Ubuntu 16.10** (i386, amd64, armhf, arm64)
-- **Ubuntu 17.04** (i386, amd64, armhf, arm64)
-- **CentOS 6** (i386, amd64)
-- **CentOS 7** (i386, amd64, arm64)
-- **Arch Linux** (i686, amd64)
+|              | i386 | amd64 | armhf | arm64 |
+|:------------:|:----:|:-----:|:-----:|:-----:|
+|   Debian 8   |   ✔️  |   ✔️   |   ❌   |   ❌   |
+|   Debian 9   |   ✔️  |   ✔️   |   ✔️   |   ✔️   |
+| Ubuntu 14.04 |   ✔️  |   ✔️   |   ❌   |   ❌   |
+| Ubuntu 16.04 |   ✔️  |   ✔️   |   ❌   |   ❌   |
+| Ubuntu 17.04 |   ✔️  |   ✔️   |   ✔️   |   ✔️   |
+|   CentOS 6   |   ✔️  |   ✔️   |   ❔   |   ❔   |
+|   CentOS 7   |   ✔️  |   ✔️   |   ✔️   |   ❔   |
+|  Arch Linux  |   ✔️  |   ✔️   |   ❔   |   ❌[(❔)](https://github.com/Angristan/OpenVPN-install/issues/99)   |
+
+- ✔️ = tested and compatible
+
+- ❔ = untested
+
+- ❌ = tested and not compatible
 
 (It should also work on Debian unstable/testing and Ubuntu beta).
 
