@@ -237,6 +237,21 @@ else
 		read -p "DNS [1-6]: " -e -i 1 DNS
 	done
 	echo ""
+	echo "Choose which compression algorithm you want to use:"
+	echo "   1) LZ4 (faster)"
+	echo "   2) LZ0 (use for OpenVPN 2.3 compatibility"
+	while [[ $COMPRESSION != "1" && $COMPRESSION != "2" ]]; do
+		read -p "Compression algorithm [1-2]: " -e -i 1 COMPRESSION
+	done
+	case $COMPRESSION in
+		1)
+		COMPRESSION="lz4"
+		;;
+		2)
+		COMPRESSION="lzo"
+		;;
+	esac
+	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
 	echo "the encryption in OpenVPN and the choices proposed in this script."
 	echo "Please note that all the choices proposed are secure enough considering today's strandards, unlike some default OpenVPN options"
@@ -664,6 +679,7 @@ ncp-disable
 tls-server
 tls-version-min 1.2
 tls-cipher $CC_ENC
+compress $COMPRESSION
 status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
