@@ -496,17 +496,14 @@ else
 		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt update
 		# Ubuntu 14.04
 		elif [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt-get update
 		# Ubuntu 16.04
 		elif [[ "$VERSION_ID" = 'VERSION_ID="16.04"' ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable xenial main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt-get update
 		fi
 		# Ubuntu >= 17.04 and Debian > 9 have OpenVPN 2.4 without the need of a third party repository.
 		# The we install OpenVPN
