@@ -1,4 +1,4 @@
-## openvpn-install
+## OpenVPN-install
 Secure OpenVPN installer for Debian, Ubuntu, CentOS and Arch Linux.
 
 This script will let you setup your own secure VPN server in just a few minutes.
@@ -11,6 +11,8 @@ Here is a preview of the installer :
 ## Usage
 
 **You have to enable the TUN module otherwise OpenVPN won't work.** Ask your host if you don't know how to do it. If the TUN module is not enabled, the script will warn you and exit.
+
+You can get a cheap VPS to run this script for $2.50/month worldwide at [Vultr](https://goo.gl/Xyd1Sc) or 3€/month for unlimited bandwidth in France at [PulseHeberg](https://goo.gl/oBhgaj).
 
 First, get the script and make it executable :
 
@@ -48,22 +50,26 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 
 ## Compatibility
 
-The script is made to work on these OS :
-- Debian 7
-- Debian 8
-- Ubuntu 12.04 LTS
-- Ubuntu 14.04 LTS
-- Ubuntu 16.04 LTS
-- Ubuntu 16.10
-- CentOS 6
-- CentOS 7
-- Arch Linux
+|              | i386 | amd64 | armhf | arm64 |
+|:------------:|:----:|:-----:|:-----:|:-----:|
+|   Debian 8   |   ✔️  |   ✔️   |   ❌   |   ❌   |
+|   Debian 9   |   ✔️  |   ✔️   |   ✔️   |   ✔️   |
+| Ubuntu 14.04 |   ✔️  |   ✔️   |   ❌   |   ❌   |
+| Ubuntu 16.04 |   ✔️  |   ✔️   |   ❌   |   ❌   |
+| Ubuntu 17.04 |   ✔️  |   ✔️   |   ✔️   |   ✔️   |
+|   CentOS 6   |   ✔️  |   ✔️   |   ❔   |   ❔   |
+|   CentOS 7   |   ✔️  |   ✔️   |   ✔️   |   ❔   |
+|  Arch Linux  |   ✔️  |   ✔️   |   ❔   |   ❌[(❔)](https://github.com/Angristan/OpenVPN-install/issues/99)   |
+
+- ✔️ = tested and compatible
+
+- ❔ = untested
+
+- ❌ = tested and not compatible
 
 (It should also work on Debian unstable/testing and Ubuntu beta).
 
 If your're using an Ubuntu version that is not supported by the script, be aware that it's not supported by Ubuntu either, thus it's insecure.
-
-You can get a cheap VPS to run this script for 3€/month at [PulseHeberg](https://goo.gl/oBhgaj).
 
 ## Features
 
@@ -79,7 +85,7 @@ This fork includes the following features :
 - Up-to-date OpenVPN thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) for CentOS and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Ubuntu and Debian. These are third-party yet trusted repositories.
 - Other improvements !
 
-##DNS
+## DNS
 
 The script will ask you which DNS resolvers you want to use when connected to the VPN.
 
@@ -90,6 +96,7 @@ Here are the possibilities :
 - [DNS.WATCH DNS Servers](https://dns.watch/index), recommended if you're in western europe (Germany)
 - [OpenDNS](https://en.wikipedia.org/wiki/OpenDNS), not recommened but fast wordlwide (Anycast servers)
 - [Google Public DNS](https://en.wikipedia.org/wiki/Google_Public_DNS), not recommended, but fast worldwide (Anycast servers)
+- [Yandex Basic DNS](https://dns.yandex.com/), not recommended, but fast in Russia
 - Soon : local resolver :D
 
 Any other fast, trustable and neutral servers proposition is welcome.
@@ -177,7 +184,7 @@ To quote the [OpenVPN documentation](https://community.openvpn.net/openvpn/wiki/
 
 >Of the currently supported ciphers, OpenVPN currently recommends using AES-256-CBC or AES-128-CBC. OpenVPN 2.4 and newer will also support GCM. For 2.4+, we recommend using AES-256-GCM or AES-128-GCM.
 
-Of course I will update the script to add AES-GCM mode (as weel as ECDH and ECDSA) as soon as OpenVPN 2.4 is released.
+Of course I will update the script to add AES-GCM mode (as well as ECDH and ECDSA) as soon as OpenVPN 2.4 is released.
 
 For now, these cipher are available in the setup :
 
