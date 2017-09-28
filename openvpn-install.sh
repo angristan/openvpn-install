@@ -57,9 +57,7 @@ fi
 
 newclient () {
 	# Where to write the custom client.ovpn?
-	if [ -e /home/$1 ]; then  # if $1 is a user name
-		homeDir="/home/$1"
-	elif [ ${SUDO_USER} ]; then   # if not, use SUDO_USER
+	if [ ${SUDO_USER} ]; then   # if not, use SUDO_USER
 		homeDir="/home/${SUDO_USER}"
 	else  # if not SUDO_USER, use /root
 		homeDir="/root"
@@ -191,6 +189,13 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				rm -rf /etc/openvpn
 				rm -rf /usr/share/doc/openvpn*
+				# Where are the client files?
+				if [ ${SUDO_USER} ]; then   # if not, use SUDO_USER
+					homeDir="/home/${SUDO_USER}"
+				else  # if not SUDO_USER, use /root
+					homeDir="/root"
+				fi
+				rm $homeDir*/.ovpn
 				echo ""
 				echo "OpenVPN removed!"
 			else
