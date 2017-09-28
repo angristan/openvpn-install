@@ -439,8 +439,9 @@ else
 	elif [[ "$CERT_TYPE" = '2' ]]; then
 		echo "   1) ECDHE-RSA-AES-256-GCM-SHA384 (recommended)"
 		echo "   2) ECDHE-RSA-AES-128-GCM-SHA256"
-		while [[ $CC_ENC != "1" && $CC_ENC != "2" ]]; do
-			read -p "Control channel cipher [1-2]: " -e -i 1 CC_ENC
+		echo "   3) DHE-RSA-AES-128-GCM-SHA256"
+		while [[ $CC_ENC != "1" && $CC_ENC != "2" && $CC_ENC != "3" ]]; do
+			read -p "Control channel cipher [1-3]: " -e -i 1 CC_ENC
 		done
 		case $CC_ENC in
 			1)
@@ -448,6 +449,9 @@ else
 			;;
 			2)
 				CC_ENC="TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256"
+			;;
+			3)
+				CC_ENC="TLS-DHE-RSA-WITH-AES-128-GCM-SHA256"
 			;;
 		esac
 	fi
@@ -467,20 +471,24 @@ else
 		echo "Choose which message digest algorithm you want to use for the data channel packets"
 		echo "and the tls-auth/tls-crypt control channel packets:"
 	fi
-	echo "   1) SHA-256"
-	echo "   2) SHA-384 (recommended)"
-	echo "   3) SHA-512"
-		while [[ $HMAC_AUTH != "1" && $HMAC_AUTH != "2" && $HMAC_AUTH != "3" ]]; do
+	echo "   1) SHA-224"
+	echo "   2) SHA-256"
+	echo "   3) SHA-384 (recommended)"
+	echo "   4) SHA-512"
+		while [[ $HMAC_AUTH != "1" && $HMAC_AUTH != "2" && $HMAC_AUTH != "3" && $HMAC_AUTH != "4" ]]; do
 			read -p "HMAC authentication algorithm [1-3]: " -e -i 2 HMAC_AUTH
 	done
 	case $HMAC_AUTH in
 		1)
-			HMAC_AUTH="SHA256"
+			HMAC_AUTH="SHA224"
 		;;
 		2)
-			HMAC_AUTH="SHA384"
+			HMAC_AUTH="SHA256"
 		;;
 		3)
+			HMAC_AUTH="SHA384"
+		;;
+		4)
 			HMAC_AUTH="SHA512"
 		;;
 	esac
