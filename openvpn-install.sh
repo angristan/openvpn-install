@@ -195,7 +195,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				else  # if not SUDO_USER, use /root
 					homeDir="/root"
 				fi
-				rm $homeDir*/.ovpn
+				rm $homeDir/*.ovpn
 				echo ""
 				echo "OpenVPN removed!"
 			else
