@@ -137,7 +137,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 			cd /etc/openvpn/easy-rsa/
 			./easyrsa --batch revoke $CLIENT
-			./easyrsa gen-crl
+			EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 			rm -rf pki/reqs/$CLIENT.req
 			rm -rf pki/private/$CLIENT.key
 			rm -rf pki/issued/$CLIENT.crt
@@ -418,7 +418,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/rc-local.service
 	openssl dhparam -out dh.pem $DH_KEY_SIZE
 	./easyrsa build-server-full server nopass
 	./easyrsa build-client-full $CLIENT nopass
-	./easyrsa gen-crl
+	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	# Move all the generated files
