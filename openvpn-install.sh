@@ -294,7 +294,7 @@ else
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
 	while [[ $RSA_KEY_SIZE != "1" && $RSA_KEY_SIZE != "2" && $RSA_KEY_SIZE != "3" ]]; do
-		read -p "DH key size [1-3]: " -e -i 2 RSA_KEY_SIZE
+		read -p "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE
 	done
 	case $RSA_KEY_SIZE in
 		1)
