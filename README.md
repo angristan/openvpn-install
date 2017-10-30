@@ -46,7 +46,9 @@ The only drawback is that you need to use a recent version of OpenVPN, because s
 
 On the client-side, it's less problematic, but if you want to use an OpenVPN server installed with this script with an old client (\<2.3.3), it won't work. However I don't see why you would use an outdated client.
 
-**TL;DR**, this script is relatively secure, and you can just press enter in the setup. 
+**TL;DR**, this script is relatively secure, and you can just press enter in the setup.
+
+**[A Pull Request](https://github.com/Angristan/OpenVPN-install/pull/96) is currently being worked on to implement the latest OpenVPN 2.4 features.**
 
 ## Compatibility
 
