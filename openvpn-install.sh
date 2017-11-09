@@ -244,7 +244,7 @@ else
 	echo ""
 	echo "Choose which compression algorithm you want to use:"
 	echo "   1) LZ4 (faster)"
-	echo "   2) LZ0 (use for OpenVPN 2.3 compatibility"
+	echo "   2) LZ0 (use for OpenVPN 2.3 compatibility)"
 	while [[ $COMPRESSION != "1" && $COMPRESSION != "2" ]]; do
 		read -p "Compression algorithm [1-2]: " -e -i 1 COMPRESSION
 	done
