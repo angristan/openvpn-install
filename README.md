@@ -1,4 +1,4 @@
-## OpenVPN-install
+# OpenVPN-install
 Secure OpenVPN installer for Debian, Ubuntu, CentOS and Arch Linux.
 
 This script will let you setup your own secure VPN server in just a few minutes.
@@ -46,7 +46,9 @@ The only drawback is that you need to use a recent version of OpenVPN, because s
 
 On the client-side, it's less problematic, but if you want to use an OpenVPN server installed with this script with an old client (\<2.3.3), it won't work. However I don't see why you would use an outdated client.
 
-**TL;DR**, this script is relatively secure, and you can just press enter in the setup. 
+**TL;DR**, this script is relatively secure, and you can just press enter in the setup.
+
+**[A Pull Request](https://github.com/Angristan/OpenVPN-install/pull/96) is currently being worked on to implement the latest OpenVPN 2.4 features.**
 
 ## Compatibility
 
@@ -97,6 +99,7 @@ Here are the possibilities :
 - [OpenDNS](https://en.wikipedia.org/wiki/OpenDNS), not recommened but fast wordlwide (Anycast servers)
 - [Google Public DNS](https://en.wikipedia.org/wiki/Google_Public_DNS), not recommended, but fast worldwide (Anycast servers)
 - [Yandex Basic DNS](https://dns.yandex.com/), not recommended, but fast in Russia
+- [AdGuard DNS](https://github.com/AdguardTeam/AdguardDNS), located in Russia, blocks ads and trackers
 - Soon : local resolver :D
 
 Any other fast, trustable and neutral servers proposition is welcome.
