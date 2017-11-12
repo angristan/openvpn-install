@@ -87,7 +87,7 @@ if [[ "$IP" = "" ]]; then
 	IP=$(wget -qO- ipv4.icanhazip.com)
 fi
 # Get Internet network interface with default route
-NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)')
+NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
 if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
