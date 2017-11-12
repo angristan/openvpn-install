@@ -414,6 +414,8 @@ RemainAfterExit=yes
 WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 			systemctl daemon-reload
 			systemctl enable iptables.service
+			# Disable firewalld to allow iptables to start upon reboot
+			systemctl disable firewalld
 		fi
 	else
 		# Else, the distro is ArchLinux
