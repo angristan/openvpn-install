@@ -54,21 +54,29 @@ else
 fi
 
 newclient () {
+	# Where to write the custom client.ovpn?
+	if [ -e /home/$1 ]; then  # if $1 is a user name
+		homeDir="/home/$1"
+	elif [ ${SUDO_USER} ]; then   # if not, use SUDO_USER
+		homeDir="/home/${SUDO_USER}"
+	else  # if not SUDO_USER, use /root
+		homeDir="/root"
+	fi
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt ~/$1.ovpn
-	echo "<ca>" >> ~/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/ca.crt >> ~/$1.ovpn
-	echo "</ca>" >> ~/$1.ovpn
-	echo "<cert>" >> ~/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> ~/$1.ovpn
-	echo "</cert>" >> ~/$1.ovpn
-	echo "<key>" >> ~/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> ~/$1.ovpn
-	echo "</key>" >> ~/$1.ovpn
-	echo "key-direction 1" >> ~/$1.ovpn
-	echo "<tls-auth>" >> ~/$1.ovpn
-	cat /etc/openvpn/tls-auth.key >> ~/$1.ovpn
-	echo "</tls-auth>" >> ~/$1.ovpn
+	cp /etc/openvpn/client-template.txt $homeDir/$1.ovpn
+	echo "<ca>" >> $homeDir/$1.ovpn
+	cat /etc/openvpn/easy-rsa/pki/ca.crt >> $homeDir/$1.ovpn
+	echo "</ca>" >> $homeDir/$1.ovpn
+	echo "<cert>" >> $homeDir/$1.ovpn
+	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> $homeDir/$1.ovpn
+	echo "</cert>" >> $homeDir/$1.ovpn
+	echo "<key>" >> $homeDir/$1.ovpn
+	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> $homeDir/$1.ovpn
+	echo "</key>" >> $homeDir/$1.ovpn
+	echo "key-direction 1" >> $homeDir/$1.ovpn
+	echo "<tls-auth>" >> $homeDir/$1.ovpn
+	cat /etc/openvpn/tls-auth.key >> $homeDir/$1.ovpn
+	echo "</tls-auth>" >> $homeDir/$1.ovpn
 }
 
 # Try to get our IP from the system and fallback to the Internet.
@@ -106,7 +114,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			# Generates the custom client.ovpn
 			newclient "$CLIENT"
 			echo ""
-			echo "Client $CLIENT added, certs available at ~/$CLIENT.ovpn"
+			echo "Client $CLIENT added, certs available at $homeDir/$CLIENT.ovpn"
 			exit
 			;;
 			2)
@@ -127,7 +135,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 			cd /etc/openvpn/easy-rsa/
 			./easyrsa --batch revoke $CLIENT
-			./easyrsa gen-crl
+			EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 			rm -rf pki/reqs/$CLIENT.req
 			rm -rf pki/private/$CLIENT.key
 			rm -rf pki/issued/$CLIENT.crt
@@ -218,8 +226,9 @@ else
 	echo "   4) OpenDNS (Anycast: worldwide)"
 	echo "   5) Google (Anycast: worldwide)"
 	echo "   6) Yandex Basic (Russia)"
-	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" ]]; do
-		read -p "DNS [1-6]: " -e -i 1 DNS
+	echo "   7) AdGuard DNS (Russia)"
+	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" ]]; do
+		read -p "DNS [1-7]: " -e -i 1 DNS
 	done
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
@@ -288,7 +297,7 @@ else
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
 	while [[ $RSA_KEY_SIZE != "1" && $RSA_KEY_SIZE != "2" && $RSA_KEY_SIZE != "3" ]]; do
-		read -p "DH key size [1-3]: " -e -i 2 RSA_KEY_SIZE
+		read -p "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE
 	done
 	case $RSA_KEY_SIZE in
 		1)
@@ -316,25 +325,25 @@ else
 		# We add the OpenVPN repo to get the latest version.
 		# Debian 7
 		if [[ "$VERSION_ID" = 'VERSION_ID="7"' ]]; then
-			echo "deb http://swupdate.openvpn.net/apt wheezy main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/stable wheezy main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
 		# Debian 8
 		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
-			echo "deb http://swupdate.openvpn.net/apt jessie main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt update
 		fi
 		# Ubuntu 12.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="12.04"' ]]; then
-			echo "deb http://swupdate.openvpn.net/apt precise main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/stable precise main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
 		# Ubuntu 14.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
-			echo "deb http://swupdate.openvpn.net/apt trusty main" > /etc/apt/sources.list.d/swupdate-openvpn.list
+			echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
@@ -443,12 +452,12 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 		rm -rf /etc/openvpn/easy-rsa/
 	fi
 	# Get easy-rsa
-	wget -O ~/EasyRSA-3.0.1.tgz https://github.com/OpenVPN/easy-rsa/releases/download/3.0.1/EasyRSA-3.0.1.tgz
-	tar xzf ~/EasyRSA-3.0.1.tgz -C ~/
-	mv ~/EasyRSA-3.0.1/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-3.0.1/ /etc/openvpn/easy-rsa/
+	wget -O ~/EasyRSA-3.0.3.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz
+	tar xzf ~/EasyRSA-3.0.3.tgz -C ~/
+	mv ~/EasyRSA-3.0.3/ /etc/openvpn/
+	mv /etc/openvpn/EasyRSA-3.0.3/ /etc/openvpn/easy-rsa/
 	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -rf ~/EasyRSA-3.0.1.tgz
+	rm -rf ~/EasyRSA-3.0.3.tgz
 	cd /etc/openvpn/easy-rsa/
 	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
@@ -457,14 +466,14 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	openssl dhparam -out dh.pem $DH_KEY_SIZE
 	./easyrsa build-server-full server nopass
 	./easyrsa build-client-full $CLIENT nopass
-	./easyrsa gen-crl
+	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	# Move all the generated files
 	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
-	
+
 	# Generate server.conf
 	echo "port $PORT" > /etc/openvpn/server.conf
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
@@ -508,6 +517,10 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		6) #Yandex Basic
 		echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
+		;;
+		7) #AdGuard DNS
+		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
 		;;
 	esac
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
@@ -567,7 +580,7 @@ verb 3" >> /etc/openvpn/server.conf
 		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
 		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 		# Save persitent OpenVPN rules
-		iptables-save > $IPTABLES
+        iptables-save > $IPTABLES
 	fi
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
@@ -627,10 +640,10 @@ verb 3" >> /etc/openvpn/server.conf
 		echo ""
 		echo "Looks like your server is behind a NAT!"
 		echo ""
-		echo "If your server is NATed (e.g. LowEndSpirit, Scaleway, or behind a router),"
-		echo "then I need to know the address that can be used to access it from outside."
-		echo "If that's not the case, just ignore this and leave the next field blank"
-		read -p "External IP or domain name: " -e USEREXTERNALIP
+        echo "If your server is NATed (e.g. LowEndSpirit, Scaleway, or behind a router),"
+        echo "then I need to know the address that can be used to access it from outside."
+        echo "If that's not the case, just ignore this and leave the next field blank"
+        read -p "External IP or domain name: " -e USEREXTERNALIP
 		if [[ "$USEREXTERNALIP" != "" ]]; then
 			IP=$USEREXTERNALIP
 		fi
@@ -650,6 +663,7 @@ persist-key
 persist-tun
 remote-cert-tls server
 auth SHA256
+auth-nocache
 $CIPHER
 tls-client
 tls-version-min 1.2
@@ -662,7 +676,7 @@ verb 3" >> /etc/openvpn/client-template.txt
 	echo ""
 	echo "Finished!"
 	echo ""
-	echo "Your client config is available at ~/$CLIENT.ovpn"
+	echo "Your client config is available at $homeDir/$CLIENT.ovpn"
 	echo "If you want to add more clients, you simply need to run this script another time!"
 fi
 exit 0;
