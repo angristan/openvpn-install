@@ -52,15 +52,16 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 
 ## Compatibility
 
-|              | i386 | amd64 | armhf | arm64 |
-|:------------:|:----:|:-----:|:-----:|:-----:|
+|              | i386   |  amd64 | armhf   | arm64 |
+| ------------ | ------ | ------ | ------- | -------|
 |   Debian 8   |   ✔️  |   ✔️   |   ❌   |   ❌   |
 |   Debian 9   |   ✔️  |   ✔️   |   ✔️   |   ✔️   |
 | Ubuntu 14.04 |   ✔️  |   ✔️   |   ❌   |   ❌   |
 | Ubuntu 16.04 |   ✔️  |   ✔️   |   ❌   |   ❌   |
 | Ubuntu 17.04 |   ✔️  |   ✔️   |   ✔️   |   ✔️   |
+| [Ubuntu 17.10](https://github.com/Angristan/OpenVPN-install/issues/125) |   ❌  |   ❌   |   ❌   |   ❌   |
 |   CentOS 6   |   ✔️  |   ✔️   |   ❔   |   ❔   |
-|   CentOS 7   |   ✔️  |   ✔️   |   ✔️   |   ❔   |
+|   CentOS 7   |   ✔️  |   ✔️   |   ✔️   |   ❔    |
 |  Arch Linux  |   ✔️  |   ✔️   |   ❔   |   ❌[(❔)](https://github.com/Angristan/OpenVPN-install/issues/99)   |
 
 - ✔️ = tested and compatible
