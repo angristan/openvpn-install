@@ -249,8 +249,9 @@ else
 	echo "Choose which compression algorithm you want to use:"
 	echo "   1) LZ4 (faster)"
 	echo "   2) LZ0 (use for OpenVPN 2.3 compatibility)"
-	while [[ $COMPRESSION != "1" && $COMPRESSION != "2" ]]; do
-		read -p "Compression algorithm [1-2]: " -e -i 1 COMPRESSION
+	echo "   3) No compression"
+	while [[ $COMPRESSION != "1" && $COMPRESSION != "2" && $COMPRESSION != "3" ]]; do
+		read -p "Compression algorithm [1-3]: " -e -i 1 COMPRESSION
 	done
 	case $COMPRESSION in
 		1)
@@ -258,6 +259,9 @@ else
 		;;
 		2)
 		COMPRESSION="lzo"
+		;;
+		3)
+		# We don't do anything
 		;;
 	esac
 	echo ""
@@ -734,9 +738,13 @@ $CIPHER
 ncp-disable
 tls-server
 tls-version-min 1.2
-tls-cipher $CC_ENC
-compress $COMPRESSION
-status openvpn.log
+tls-cipher $CC_ENC" >> /etc/openvpn/server.conf
+
+if [[ $COMPRESSION == "lz4" || $COMPRESSION == "lzo"  ]]; then
+	echo "compress $COMPRESSION" >> /etc/openvpn/server.conf
+fi
+
+echo "status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
 	# Create the sysctl configuration file if needed (mainly for Arch Linux)
@@ -872,8 +880,13 @@ auth $HMAC_AUTH
 $CIPHER
 tls-client
 tls-version-min 1.2
-tls-cipher $CC_ENC
-setenv opt block-outside-dns
+tls-cipher $CC_ENC" >> /etc/openvpn/client-template.txt
+
+if [[ $COMPRESSION == "lz4" || $COMPRESSION == "lzo"  ]]; then
+	echo "compress $COMPRESSION" >> /etc/openvpn/client-template.txt
+fi
+
+echo "setenv opt block-outside-dns
 verb 3" >> /etc/openvpn/client-template.txt
 
 	# Generate the custom client.ovpn
