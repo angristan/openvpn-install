@@ -96,6 +96,7 @@ Here are the possibilities :
 - [Google Public DNS](https://en.wikipedia.org/wiki/Google_Public_DNS), not recommended, but fast worldwide (Anycast servers)
 - [Yandex Basic DNS](https://dns.yandex.com/), not recommended, but fast in Russia
 - [AdGuard DNS](https://github.com/AdguardTeam/AdguardDNS), located in Russia, blocks ads and trackers
+- [IBM Quad9](https://www.quad9.net), security oriented, fast worldwide (Anycast servers)
 - Soon : local resolver :D
 
 Any other fast, trustable and neutral servers proposition is welcome.

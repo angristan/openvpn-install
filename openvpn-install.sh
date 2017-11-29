@@ -227,7 +227,8 @@ else
 	echo "   5) Google (Anycast: worldwide)"
 	echo "   6) Yandex Basic (Russia)"
 	echo "   7) AdGuard DNS (Russia)"
-	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" ]]; do
+	echo "   8) Quad9 (Anycast: worldwide)"
+	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" && $DNS != "8" ]]; do
 		read -p "DNS [1-7]: " -e -i 1 DNS
 	done
 	echo ""
@@ -432,7 +433,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 			echo "Ok, bye !"
 			exit 4
 		fi
-		
+
 		if [[ "$OS" = 'arch' ]]; then
 			# Install dependencies
 			pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
@@ -523,6 +524,9 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		7) #AdGuard DNS
 		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
+		;;
+		8) #Quad9
+		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
 		;;
 	esac
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
