@@ -220,15 +220,16 @@ else
 	done
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
-	echo "   1) Current system resolvers (in /etc/resolv.conf)"
-	echo "   2) FDN (France)"
-	echo "   3) DNS.WATCH (Germany)"
-	echo "   4) OpenDNS (Anycast: worldwide)"
-	echo "   5) Google (Anycast: worldwide)"
-	echo "   6) Yandex Basic (Russia)"
-	echo "   7) AdGuard DNS (Russia)"
-	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" ]]; do
-		read -p "DNS [1-7]: " -e -i 1 DNS
+	echo "   1) Current system resolvers (from /etc/resolv.conf)"
+	echo "   2) Quad9 (Anycast: worldwide)"
+	echo "   3) FDN (France)"
+	echo "   4) DNS.WATCH (Germany)"
+	echo "   5) OpenDNS (Anycast: worldwide)"
+	echo "   6) Google (Anycast: worldwide)"
+	echo "   7) Yandex Basic (Russia)"
+	echo "   8) AdGuard DNS (Russia)"
+	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" && $DNS != "8" ]]; do
+		read -p "DNS [1-8]: " -e -i 1 DNS
 	done
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
@@ -432,7 +433,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 			echo "Ok, bye !"
 			exit 4
 		fi
-		
+
 		if [[ "$OS" = 'arch' ]]; then
 			# Install dependencies
 			pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
@@ -500,27 +501,30 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 			echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
 		done
 		;;
-		2) #FDN
+		2) #Quad9
+		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
+		;;
+		3) #FDN
 		echo 'push "dhcp-option DNS 80.67.169.12"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
 		;;
-		3) #DNS.WATCH
+		4) #DNS.WATCH
 		echo 'push "dhcp-option DNS 84.200.69.80"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 84.200.70.40"' >> /etc/openvpn/server.conf
 		;;
-		4) #OpenDNS
+		5) #OpenDNS
 		echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
 		;;
-		5) #Google
+		6) #Google
 		echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
 		;;
-		6) #Yandex Basic
+		7) #Yandex Basic
 		echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
 		;;
-		7) #AdGuard DNS
+		8) #AdGuard DNS
 		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
 		;;
