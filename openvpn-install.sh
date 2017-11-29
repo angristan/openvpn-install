@@ -220,16 +220,16 @@ else
 	done
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
-	echo "   1) Current system resolvers (in /etc/resolv.conf)"
-	echo "   2) FDN (France)"
-	echo "   3) DNS.WATCH (Germany)"
-	echo "   4) OpenDNS (Anycast: worldwide)"
-	echo "   5) Google (Anycast: worldwide)"
-	echo "   6) Yandex Basic (Russia)"
-	echo "   7) AdGuard DNS (Russia)"
-	echo "   8) Quad9 (Anycast: worldwide)"
+	echo "   1) Current system resolvers (from /etc/resolv.conf)"
+	echo "   2) Quad9 (Anycast: worldwide)"
+	echo "   3) FDN (France)"
+	echo "   4) DNS.WATCH (Germany)"
+	echo "   5) OpenDNS (Anycast: worldwide)"
+	echo "   6) Google (Anycast: worldwide)"
+	echo "   7) Yandex Basic (Russia)"
+	echo "   8) AdGuard DNS (Russia)"
 	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" && $DNS != "8" ]]; do
-		read -p "DNS [1-7]: " -e -i 1 DNS
+		read -p "DNS [1-8]: " -e -i 1 DNS
 	done
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
