@@ -501,32 +501,32 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 			echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
 		done
 		;;
-		2) #FDN
+		2) #Quad9
+		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
+		;;
+		3) #FDN
 		echo 'push "dhcp-option DNS 80.67.169.12"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
 		;;
-		3) #DNS.WATCH
+		4) #DNS.WATCH
 		echo 'push "dhcp-option DNS 84.200.69.80"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 84.200.70.40"' >> /etc/openvpn/server.conf
 		;;
-		4) #OpenDNS
+		5) #OpenDNS
 		echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
 		;;
-		5) #Google
+		6) #Google
 		echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
 		;;
-		6) #Yandex Basic
+		7) #Yandex Basic
 		echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
 		;;
-		7) #AdGuard DNS
+		8) #AdGuard DNS
 		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
-		;;
-		8) #Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
 		;;
 	esac
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
