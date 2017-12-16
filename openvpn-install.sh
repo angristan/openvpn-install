@@ -40,12 +40,16 @@ if [[ -e /etc/debian_version ]]; then
 			exit 4
 		fi
 	fi
-elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
+elif [[ -e /etc/centos-release || -e /etc/redhat-release && ! -e /etc/fedora-release ]]; then
 	OS=centos
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
 elif [[ -e /etc/arch-release ]]; then
 	OS=arch
+	IPTABLES='/etc/iptables/iptables.rules'
+	SYSCTL='/etc/sysctl.d/openvpn.conf'
+elif [[ -e /etc/fedora-release ]]; then
+	OS=fedora
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
@@ -382,8 +386,10 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 			systemctl daemon-reload
 			systemctl enable iptables.service
 		fi
-	elif [[ "$OS" = 'centos' ]]; then
-		yum install epel-release -y
+	elif [[ "$OS" = 'centos' || "$OS" = 'fedora' ]]; then
+		if [[ "$OS" = 'centos' ]]; then
+			yum install epel-release -y
+		fi
 		yum install openvpn iptables openssl wget ca-certificates curl -y
 		# Install iptables service
 		if [[ ! -e /etc/systemd/system/iptables.service ]]; then
@@ -417,6 +423,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 			systemctl enable iptables.service
 			# Disable firewalld to allow iptables to start upon reboot
 			systemctl disable firewalld
+			systemctl mask firewalld
 		fi
 	else
 		# Else, the distro is ArchLinux
@@ -624,8 +631,8 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 	else
 		if pgrep systemd-journal; then
-			if [[ "$OS" = 'arch' ]]; then
-				#Workaround to avoid rewriting the entire script for Arch
+			if [[ "$OS" = 'arch' || "$OS" = 'fedora' ]]; then
+				#Workaround to avoid rewriting the entire script for Arch & Fedora
 				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /usr/lib/systemd/system/openvpn-server@.service
 				sed -i 's|%i.conf|server.conf|' /usr/lib/systemd/system/openvpn-server@.service
 				systemctl daemon-reload
