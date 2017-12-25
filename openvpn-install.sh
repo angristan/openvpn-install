@@ -67,20 +67,21 @@ newclient () {
 		homeDir="/root"
 	fi
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt $homeDir/$1.ovpn
-	echo "<ca>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/ca.crt >> $homeDir/$1.ovpn
-	echo "</ca>" >> $homeDir/$1.ovpn
-	echo "<cert>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> $homeDir/$1.ovpn
-	echo "</cert>" >> $homeDir/$1.ovpn
-	echo "<key>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> $homeDir/$1.ovpn
-	echo "</key>" >> $homeDir/$1.ovpn
-	echo "key-direction 1" >> $homeDir/$1.ovpn
-	echo "<tls-auth>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/tls-auth.key >> $homeDir/$1.ovpn
-	echo "</tls-auth>" >> $homeDir/$1.ovpn
+	file_client="$homeDir/$1.ovpn"
+	cp ${file_client_tpl} ${file_client}
+	echo "<ca>" >> ${file_client}
+	cat /etc/openvpn/easy-rsa/pki/ca.crt >> ${file_client}
+	echo "</ca>" >> ${file_client}
+	echo "<cert>" >> ${file_client}
+	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> ${file_client}
+	echo "</cert>" >> ${file_client}
+	echo "<key>" >> ${file_client}
+	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> ${file_client}
+	echo "</key>" >> ${file_client}
+	echo "key-direction 1" >> ${file_client}
+	echo "<tls-auth>" >> ${file_client}
+	cat /etc/openvpn/tls-auth.key >> ${file_client}
+	echo "</tls-auth>" >> ${file_client}
 }
 
 # Try to get our IP from the system and fallback to the Internet.
@@ -658,11 +659,12 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 	fi
 	# client-template.txt is created so we have a template to add further users later
-	echo "client" > /etc/openvpn/client-template.txt
+	file_client_tpl=/etc/openvpn/client-template.txt
+	echo "client" > ${file_client_tpl}
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "proto udp" >> /etc/openvpn/client-template.txt
+		echo "proto udp" >> ${file_client_tpl}
 	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "proto tcp-client" >> /etc/openvpn/client-template.txt
+		echo "proto tcp-client" >> ${file_client_tpl}
 	fi
 	echo "remote $IP $PORT
 dev tun
