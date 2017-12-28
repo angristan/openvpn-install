@@ -19,38 +19,46 @@ if grep -qs "CentOS release 5" "/etc/redhat-release"; then
 	exit 3
 fi
 
+VAR_LIST(){
+	:
+}
+dir_openvpn='/etc/openvpn'
+dir_easy="${dir_openvpn}/easy-rsa"
+bin_easy='${dir_easy}/easyrsa'
+file_client_tpl='${dir_openvpn}/client-template.txt'
+file_openvpn_conf='${dir_openvpn}/server.conf'
+IPTABLES='/etc/iptables/iptables.rules'
+
+
+	
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
-	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.04"' ]]; then
-		echo "Your version of Debian/Ubuntu is not supported."
+		echo 'Your version of Debian/Ubuntu is not supported.'
 		echo "I can't install a recent version of OpenVPN on your system."
-		echo ""
+		echo ''
 		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
-		echo "then you can continue, a recent version of OpenVPN is available on these."
-		echo "Keep in mind they are not supported, though."
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -p "Continue ? [y/n]: " -e CONTINUE
+		echo 'then you can continue, a recent version of OpenVPN is available on these.'
+		echo 'Keep in mind they are not supported, though.'
+		while [[ 'y' != $CONTINUE && 'n' != $CONTINUE ]]; do
+			read -p 'Continue ? [y/n]: ' -e CONTINUE
 		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
+		if [[ 'n' = "$CONTINUE" ]]; then
+			echo 'Ok, bye !'
 			exit 4
 		fi
 	fi
 elif [[ -e /etc/centos-release || -e /etc/redhat-release && ! -e /etc/fedora-release ]]; then
-	OS=centos
-	IPTABLES='/etc/iptables/iptables.rules'
+	OS='centos'
 	SYSCTL='/etc/sysctl.conf'
 elif [[ -e /etc/arch-release ]]; then
-	OS=arch
-	IPTABLES='/etc/iptables/iptables.rules'
+	OS='arch'
 	SYSCTL='/etc/sysctl.d/openvpn.conf'
 elif [[ -e /etc/fedora-release ]]; then
-	OS=fedora
-	IPTABLES='/etc/iptables/iptables.rules'
+	OS='fedora'
 	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
 	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
@@ -70,17 +78,17 @@ newclient () {
 	file_client="$homeDir/$1.ovpn"
 	cp ${file_client_tpl} ${file_client}
 	echo "<ca>" >> ${file_client}
-	cat /etc/openvpn/easy-rsa/pki/ca.crt >> ${file_client}
+	cat ${dir_easy}/pki/ca.crt >> ${file_client}
 	echo "</ca>" >> ${file_client}
 	echo "<cert>" >> ${file_client}
-	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> ${file_client}
+	cat ${dir_easy}/pki/issued/$1.crt >> ${file_client}
 	echo "</cert>" >> ${file_client}
 	echo "<key>" >> ${file_client}
-	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> ${file_client}
+	cat ${dir_easy}/pki/private/$1.key >> ${file_client}
 	echo "</key>" >> ${file_client}
 	echo "key-direction 1" >> ${file_client}
 	echo "<tls-auth>" >> ${file_client}
-	cat /etc/openvpn/tls-auth.key >> ${file_client}
+	cat ${dir_openvpn}/tls-auth.key >> ${file_client}
 	echo "</tls-auth>" >> ${file_client}
 }
 
@@ -94,28 +102,30 @@ fi
 # Get Internet network interface with default route
 NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
-if [[ -e /etc/openvpn/server.conf ]]; then
+if [[ -e ${file_openvpn_conf} ]]; then
 	while :
 	do
-	clear
-		echo "OpenVPN-install (github.com/Angristan/OpenVPN-install)"
-		echo ""
-		echo "Looks like OpenVPN is already installed"
-		echo ""
-		echo "What do you want to do?"
-		echo "   1) Add a cert for a new user"
-		echo "   2) Revoke existing user cert"
-		echo "   3) Remove OpenVPN"
-		echo "   4) Exit"
-		read -p "Select an option [1-4]: " option
+		clear
+cat <<'EOF'
+OpenVPN-install (github.com/Angristan/OpenVPN-install)
+
+Looks like OpenVPN is already installed
+
+What do you want to do?
+   1) Add a cert for a new user
+   2) Revoke existing user cert
+   3) Remove OpenVPN
+   4) Exit
+EOF
+		read -p 'Select an option [1-4]: ' option
 		case $option in
 			1)
 			echo ""
 			echo "Tell me a name for the client cert"
 			echo "Please, use one word only, no special characters"
 			read -p "Client name: " -e -i client CLIENT
-			cd /etc/openvpn/easy-rsa/
-			./easyrsa build-client-full $CLIENT nopass
+			cd ${dir_easy}
+			${bin_easy} build-client-full $CLIENT nopass
 			# Generates the custom client.ovpn
 			newclient "$CLIENT"
 			echo ""
@@ -123,7 +133,8 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			exit
 			;;
 			2)
-			NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
+			file_index="${dir_easy}/pki/index.txt"
+			NUMBEROFCLIENTS=$(tail -n +2 ${file_index} | grep -c "^V")
 			if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
 				echo ""
 				echo "You have no existing clients!"
@@ -131,22 +142,22 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			fi
 			echo ""
 			echo "Select the existing client certificate you want to revoke"
-			tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+			tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 			if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
 				read -p "Select one client [1]: " CLIENTNUMBER
 			else
 				read -p "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
 			fi
-			CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-			cd /etc/openvpn/easy-rsa/
-			./easyrsa --batch revoke $CLIENT
-			EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
+			CLIENT=$(tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+			cd ${dir_easy}
+			${bin_easy} --batch revoke $CLIENT
+			EASYRSA_CRL_DAYS=3650 ${bin_easy} gen-crl
 			rm -rf pki/reqs/$CLIENT.req
 			rm -rf pki/private/$CLIENT.key
 			rm -rf pki/issued/$CLIENT.crt
 			rm -rf /etc/openvpn/crl.pem
-			cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-			chmod 644 /etc/openvpn/crl.pem
+			cp ${dir_easy}/pki/crl.pem ${dir_openvpn}/crl.pem
+			chmod 644 ${dir_openvpn}/crl.pem
 			echo ""
 			echo "Certificate for client $CLIENT revoked"
 			echo "Exiting..."
@@ -155,8 +166,8 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			3)
 			echo ""
 			read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
-			if [[ "$REMOVE" = 'y' ]]; then
-				PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
+			if [[ 'y' = "$REMOVE" ]]; then
+				PORT=$(grep '^port ' ${file_openvpn_conf} | cut -d " " -f 2)
 				if pgrep firewalld; then
 					# Using both permanent and not permanent rules to avoid a firewalld reload.
 					firewall-cmd --zone=public --remove-port=$PORT/udp
@@ -189,7 +200,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				else
 					yum remove openvpn -y
 				fi
-				rm -rf /etc/openvpn
+				rm -rf ${dir_openvpn}
 				rm -rf /usr/share/doc/openvpn*
 				echo ""
 				echo "OpenVPN removed!"
@@ -202,17 +213,21 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			4) exit;;
 		esac
 	done
-else
+fi
+
+## OpenVPN setup and first user creation
+if [[ ! -e ${file_openvpn_conf} ]]; then
 	clear
-	echo "Welcome to the secure OpenVPN installer (github.com/Angristan/OpenVPN-install)"
-	echo ""
-	# OpenVPN setup and first user creation
-	echo "I need to ask you a few questions before starting the setup"
-	echo "You can leave the default options and just press enter if you are ok with them"
-	echo ""
-	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
-	echo "If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)"
-	echo "Otherwise, it should be your public IPv4 address."
+cat <<EOF
+Welcome to the secure OpenVPN installer (github.com/Angristan/OpenVPN-install)
+
+I need to ask you a few questions before starting the setup
+You can leave the default options and just press enter if you are ok with them
+"
+I need to know the IPv4 address of the network interface you want OpenVPN listening to.
+If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)
+Otherwise, it should be your public IPv4 address.
+EOF
 	read -p "IP address: " -e -i $IP IP
 	echo ""
 	echo "What port do you want for OpenVPN?"
@@ -223,35 +238,37 @@ else
 	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
 		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
 	done
-	echo ""
-	echo "What DNS do you want to use with the VPN?"
-	echo "   1) Current system resolvers (from /etc/resolv.conf)"
-	echo "   2) Quad9 (Anycast: worldwide)"
-	echo "   3) FDN (France)"
-	echo "   4) DNS.WATCH (Germany)"
-	echo "   5) OpenDNS (Anycast: worldwide)"
-	echo "   6) Google (Anycast: worldwide)"
-	echo "   7) Yandex Basic (Russia)"
-	echo "   8) AdGuard DNS (Russia)"
+cat <<EOF
+What DNS do you want to use with the VPN?
+   1) Current system resolvers (from /etc/resolv.conf)
+   2) Quad9 (Anycast: worldwide)
+   3) FDN (France)
+   4) DNS.WATCH (Germany)
+   5) OpenDNS (Anycast: worldwide)
+   6) Google (Anycast: worldwide)
+   7) Yandex Basic (Russia)
+   8) AdGuard DNS (Russia)
+EOF
 	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" && $DNS != "8" ]]; do
 		read -p "DNS [1-8]: " -e -i 1 DNS
 	done
-	echo ""
-	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
-	echo "the encryption in OpenVPN and the choices I made in this script."
-	echo "Please note that all the choices proposed are secure (to a different degree)"
-	echo "and are still viable to date, unlike some default OpenVPN options"
-	echo ''
-	echo "Choose which cipher you want to use for the data channel:"
-	echo "   1) AES-128-CBC (fastest and sufficiently secure for everyone, recommended)"
-	echo "   2) AES-192-CBC"
-	echo "   3) AES-256-CBC"
-	echo "Alternatives to AES, use them only if you know what you're doing."
-	echo "They are relatively slower but as secure as AES."
-	echo "   4) CAMELLIA-128-CBC"
-	echo "   5) CAMELLIA-192-CBC"
-	echo "   6) CAMELLIA-256-CBC"
-	echo "   7) SEED-CBC"
+cat <<EOF
+See https://github.com/Angristan/OpenVPN-install#encryption to learn more about 
+the encryption in OpenVPN and the choices I made in this script.
+Please note that all the choices proposed are secure (to a different degree)
+and are still viable to date, unlike some default OpenVPN options
+
+Choose which cipher you want to use for the data channel:
+   1) AES-128-CBC (fastest and sufficiently secure for everyone, recommended)
+   2) AES-192-CBC
+   3) AES-256-CBC
+Alternatives to AES, use them only if you know what you're doing.
+They are relatively slower but as secure as AES.
+   4) CAMELLIA-128-CBC
+   5) CAMELLIA-192-CBC
+   6) CAMELLIA-256-CBC
+   7) SEED-CBC
+EOF
 	while [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" && $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" && $CIPHER != "7" ]]; do
 		read -p "Cipher [1-7]: " -e -i 1 CIPHER
 	done
@@ -659,7 +676,6 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 	fi
 	# client-template.txt is created so we have a template to add further users later
-	file_client_tpl=/etc/openvpn/client-template.txt
 	echo "client" > ${file_client_tpl}
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
 		echo "proto udp" >> ${file_client_tpl}
@@ -680,7 +696,7 @@ tls-client
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 setenv opt block-outside-dns
-verb 3" >> /etc/openvpn/client-template.txt
+verb 3" >> ${file_client_tpl}
 
 	# Generate the custom client.ovpn
 	newclient "$CLIENT"
