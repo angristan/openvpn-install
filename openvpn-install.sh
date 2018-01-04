@@ -65,6 +65,69 @@ else
 	exit 4
 fi
 
+install_easyrsa(){
+	# An old version of easy-rsa was available by default in some openvpn packages
+	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
+		rm -rf /etc/openvpn/easy-rsa/
+	fi
+	# Get easy-rsa
+	wget -O ~/EasyRSA-3.0.3.tgz 'https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz'
+	tar xzf ~/EasyRSA-3.0.3.tgz -C ~/
+	mv ~/EasyRSA-3.0.3 /etc/openvpn/easy-rsa
+	chown -R root:root /etc/openvpn/easy-rsa/
+	rm -rf ~/EasyRSA-3.0.3.tgz
+}
+
+set_firewall(){
+	# Create the sysctl configuration file if needed (mainly for Arch Linux)
+	if [[ ! -e $SYSCTL ]]; then
+		touch $SYSCTL
+	fi
+
+	# Enable net.ipv4.ip_forward for the system
+	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
+	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
+		echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+	fi
+	# Avoid an unneeded reboot
+	echo 1 > /proc/sys/net/ipv4/ip_forward
+	# Set NAT for the VPN subnet
+	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
+	# Save persitent iptables rules
+	iptables-save > $IPTABLES
+	if pgrep firewalld; then
+		# We don't use --add-service=openvpn because that would only work with
+		# the default port. Using both permanent and not permanent rules to
+		# avoid a firewalld reload.
+		firewall-cmd --zone=public --add-port=$PORT/${PROTOCOL}
+		firewall-cmd --permanent --zone=public --add-port=$PORT/${PROTOCOL}
+		firewall-cmd --zone=trusted --add-source=10.8.0.0/24
+		firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
+	fi
+	if iptables -L -n | grep -qE 'REJECT|DROP'; then
+		# If iptables has at least one REJECT rule, we asume this is needed.
+		# Not the best approach but I can't think of other and this shouldn't
+		# cause problems.
+		iptables -I INPUT -p ${PROTOCOL} --dport $PORT -j ACCEPT
+		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
+		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+		# Save persitent OpenVPN rules
+        iptables-save > $IPTABLES
+	fi
+	# If SELinux is enabled and a custom port was selected, we need this
+	if hash sestatus 2>/dev/null; then
+		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
+			if [[ "$PORT" != '1194' ]]; then
+				# semanage isn't available in CentOS 6 by default
+				if ! hash semanage 2>/dev/null; then
+					yum install policycoreutils-python -y
+				fi
+				semanage port -a -t openvpn_port_t -p ${PROTOCOL} $PORT
+			fi
+		fi
+	fi
+}
+
 newclient () {
 	# Where to write the custom client.ovpn?
 	if [ -e /home/$1 ]; then  # if $1 is a user name
@@ -72,7 +135,7 @@ newclient () {
 	elif [ ${SUDO_USER} ]; then   # if not, use SUDO_USER
 		homeDir="/home/${SUDO_USER}"
 	else  # if not SUDO_USER, use /root
-		homeDir="/root"
+		homeDir="${dir_openvpn}"
 	fi
 	# Generates the custom client.ovpn
 	file_client="$homeDir/$1.ovpn"
@@ -106,7 +169,7 @@ if [[ -e ${file_openvpn_conf} ]]; then
 	while :
 	do
 		clear
-cat <<'EOF'
+cat <<EOF
 OpenVPN-install (github.com/Angristan/OpenVPN-install)
 
 Looks like OpenVPN is already installed
@@ -176,11 +239,7 @@ EOF
 					firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
 				fi
 				if iptables -L -n | grep -qE 'REJECT|DROP'; then
-					if [[ "$PROTOCOL" = 'udp' ]]; then
-						iptables -D INPUT -p udp --dport $PORT -j ACCEPT
-					else
-						iptables -D INPUT -p tcp --dport $PORT -j ACCEPT
-					fi
+					iptables -D INPUT -p ${PROTOCOL} --dport $PORT -j ACCEPT
 					iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
 					iptables-save > $IPTABLES
 				fi
@@ -235,8 +294,8 @@ EOF
 	echo ""
 	echo "What protocol do you want for OpenVPN?"
 	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
-	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
-		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
+	while [[ $PROTOCOL != "udp" && $PROTOCOL != "tcp" ]]; do
+		read -p "Protocol [udp/tcp]: " -e -i udp PROTOCOL
 	done
 cat <<EOF
 What DNS do you want to use with the VPN?
@@ -249,7 +308,7 @@ What DNS do you want to use with the VPN?
    7) Yandex Basic (Russia)
    8) AdGuard DNS (Russia)
 EOF
-	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" && $DNS != "8" ]]; do
+	while [[ $DNS != [1-8] ]]; do
 		read -p "DNS [1-8]: " -e -i 1 DNS
 	done
 cat <<EOF
@@ -269,7 +328,7 @@ They are relatively slower but as secure as AES.
    6) CAMELLIA-256-CBC
    7) SEED-CBC
 EOF
-	while [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" && $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" && $CIPHER != "7" ]]; do
+	while [[ $CIPHER != [1-7] ]]; do
 		read -p "Cipher [1-7]: " -e -i 1 CIPHER
 	done
 	case $CIPHER in
@@ -300,7 +359,7 @@ EOF
 	echo "   1) 2048 bits (fastest)"
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
-	while [[ $DH_KEY_SIZE != "1" && $DH_KEY_SIZE != "2" && $DH_KEY_SIZE != "3" ]]; do
+	while [[ $DH_KEY_SIZE != [1-3] ]]; do
 		read -p "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE
 	done
 	case $DH_KEY_SIZE in
@@ -319,7 +378,7 @@ EOF
 	echo "   1) 2048 bits (fastest)"
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
-	while [[ $RSA_KEY_SIZE != "1" && $RSA_KEY_SIZE != "2" && $RSA_KEY_SIZE != "3" ]]; do
+	while [[ $RSA_KEY_SIZE != [1-3] ]]; do
 		read -p "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE
 	done
 	case $RSA_KEY_SIZE in
@@ -451,7 +510,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
 		echo ""
 		echo "Continuing will update your installed packages and install needed ones."
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+		while [[ $CONTINUE != [yn] ]]; do
 			read -p "Continue ? [y/n]: " -e -i y CONTINUE
 		done
 		if [[ "$CONTINUE" = "n" ]]; then
@@ -474,18 +533,9 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	else
 		NOGROUP=nobody
 	fi
-
-	# An old version of easy-rsa was available by default in some openvpn packages
-	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
-		rm -rf /etc/openvpn/easy-rsa/
-	fi
-	# Get easy-rsa
-	wget -O ~/EasyRSA-3.0.3.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz
-	tar xzf ~/EasyRSA-3.0.3.tgz -C ~/
-	mv ~/EasyRSA-3.0.3/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-3.0.3/ /etc/openvpn/easy-rsa/
-	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -rf ~/EasyRSA-3.0.3.tgz
+	## function install_easyrsa
+	install_easyrsa
+	
 	cd /etc/openvpn/easy-rsa/
 	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
@@ -498,18 +548,14 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	# generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 
 	# Generate server.conf
-	echo "port $PORT" > /etc/openvpn/server.conf
-	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "proto udp" >> /etc/openvpn/server.conf
-	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "proto tcp" >> /etc/openvpn/server.conf
-	fi
-	echo "dev tun
+	echo "port $PORT
+proto ${PROTOCOL}
+dev tun
 user nobody
 group $NOGROUP
 persist-key
@@ -523,37 +569,37 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		1)
 		# Obtain the resolvers from resolv.conf and use them for OpenVPN
 		grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read line; do
-			echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
+			echo "push \"dhcp-option DNS $line\"" 
 		done
 		;;
 		2) #Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 9.9.9.9"' 
 		;;
 		3) #FDN
-		echo 'push "dhcp-option DNS 80.67.169.12"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 80.67.169.12"'
+		echo 'push "dhcp-option DNS 80.67.169.40"'
 		;;
 		4) #DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 84.200.69.80"'
+		echo 'push "dhcp-option DNS 84.200.70.40"'
 		;;
 		5) #OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 208.67.222.222"'
+		echo 'push "dhcp-option DNS 208.67.220.220"'
 		;;
 		6) #Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 8.8.8.8"'
+		echo 'push "dhcp-option DNS 8.8.4.4"'
 		;;
 		7) #Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 77.88.8.8"'
+		echo 'push "dhcp-option DNS 77.88.8.1"'
 		;;
 		8) #AdGuard DNS
-		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 176.103.130.130"'
+		echo 'push "dhcp-option DNS 176.103.130.131"'
 		;;
-	esac
+	esac >> /etc/openvpn/server.conf
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
 echo "crl-verify crl.pem
 ca ca.crt
@@ -569,66 +615,9 @@ tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
 
-	# Create the sysctl configuration file if needed (mainly for Arch Linux)
-	if [[ ! -e $SYSCTL ]]; then
-		touch $SYSCTL
-	fi
-
-	# Enable net.ipv4.ip_forward for the system
-	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
-	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
-		echo 'net.ipv4.ip_forward=1' >> $SYSCTL
-	fi
-	# Avoid an unneeded reboot
-	echo 1 > /proc/sys/net/ipv4/ip_forward
-	# Set NAT for the VPN subnet
-	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-	# Save persitent iptables rules
-	iptables-save > $IPTABLES
-	if pgrep firewalld; then
-		# We don't use --add-service=openvpn because that would only work with
-		# the default port. Using both permanent and not permanent rules to
-		# avoid a firewalld reload.
-		if [[ "$PROTOCOL" = 'UDP' ]]; then
-			firewall-cmd --zone=public --add-port=$PORT/udp
-			firewall-cmd --permanent --zone=public --add-port=$PORT/udp
-		elif [[ "$PROTOCOL" = 'TCP' ]]; then
-			firewall-cmd --zone=public --add-port=$PORT/tcp
-			firewall-cmd --permanent --zone=public --add-port=$PORT/tcp
-		fi
-		firewall-cmd --zone=trusted --add-source=10.8.0.0/24
-		firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
-	fi
-	if iptables -L -n | grep -qE 'REJECT|DROP'; then
-		# If iptables has at least one REJECT rule, we asume this is needed.
-		# Not the best approach but I can't think of other and this shouldn't
-		# cause problems.
-		if [[ "$PROTOCOL" = 'UDP' ]]; then
-			iptables -I INPUT -p udp --dport $PORT -j ACCEPT
-		elif [[ "$PROTOCOL" = 'TCP' ]]; then
-			iptables -I INPUT -p tcp --dport $PORT -j ACCEPT
-		fi
-		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
-		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-		# Save persitent OpenVPN rules
-        iptables-save > $IPTABLES
-	fi
-	# If SELinux is enabled and a custom port was selected, we need this
-	if hash sestatus 2>/dev/null; then
-		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
-			if [[ "$PORT" != '1194' ]]; then
-				# semanage isn't available in CentOS 6 by default
-				if ! hash semanage 2>/dev/null; then
-					yum install policycoreutils-python -y
-				fi
-				if [[ "$PROTOCOL" = 'UDP' ]]; then
-					semanage port -a -t openvpn_port_t -p udp $PORT
-				elif [[ "$PROTOCOL" = 'TCP' ]]; then
-					semanage port -a -t openvpn_port_t -p tcp $PORT
-				fi
-			fi
-		fi
-	fi
+	## function set_firewall 
+	set_firewall
+	
 	# And finally, restart OpenVPN
 	if [[ "$OS" = 'debian' ]]; then
 		# Little hack to check for systemd
@@ -675,12 +664,13 @@ verb 3" >> /etc/openvpn/server.conf
 			IP=$USEREXTERNALIP
 		fi
 	fi
+	
 	# client-template.txt is created so we have a template to add further users later
 	echo "client" > ${file_client_tpl}
-	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "proto udp" >> ${file_client_tpl}
-	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "proto tcp-client" >> ${file_client_tpl}
+	if [[ "$PROTOCOL" = 'udp' ]]; then
+		echo "proto ${PROTOCOL}" >> ${file_client_tpl}
+	elif [[ "$PROTOCOL" = 'tcp' ]]; then
+		echo "proto ${PROTOCOL}-client" >> ${file_client_tpl}
 	fi
 	echo "remote $IP $PORT
 dev tun
@@ -698,7 +688,7 @@ tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 setenv opt block-outside-dns
 verb 3" >> ${file_client_tpl}
 
-	# Generate the custom client.ovpn
+	# function Generate the custom client.ovpn
 	newclient "$CLIENT"
 	echo ""
 	echo "Finished!"
