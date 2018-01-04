@@ -232,6 +232,7 @@ EOF
 			read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 			if [[ 'y' = "$REMOVE" ]]; then
 				PORT=$(grep '^port ' ${file_openvpn_conf} | cut -d " " -f 2)
+				PROTOCOL=$(grep '^proto ' ${file_openvpn_conf} | cut -d " " -f 2)
 				if pgrep firewalld; then
 					# Using both permanent and not permanent rules to avoid a firewalld reload.
 					firewall-cmd --zone=public --remove-port=$PORT/${PROTOCOL}
@@ -249,7 +250,7 @@ EOF
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 						if [[ "$PORT" != '1194' ]]; then
-							semanage port -d -t openvpn_port_t -p udp $PORT
+							semanage port -d -t openvpn_port_t -p ${PROTOCOL} $PORT
 						fi
 					fi
 				fi
@@ -260,8 +261,7 @@ EOF
 				else
 					yum remove openvpn -y
 				fi
-				rm -rf ${dir_openvpn}
-				rm -rf /usr/share/doc/openvpn*
+				rm -rf ${dir_openvpn} /usr/share/doc/openvpn*
 				echo ""
 				echo "OpenVPN removed!"
 			else
@@ -274,6 +274,8 @@ EOF
 		esac
 	done
 fi
+
+
 
 ## OpenVPN setup and first user creation
 if [[ ! -e ${file_openvpn_conf} ]]; then
@@ -293,13 +295,13 @@ EOF
 	echo "What port do you want for OpenVPN?"
 	read -p "Port: " -e -i 1194 PORT
 	echo ""
-	echo "What protocol do you want for OpenVPN?"
+	echo "1/6.What protocol do you want for OpenVPN?"
 	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
 	while [[ $PROTOCOL != "udp" && $PROTOCOL != "tcp" ]]; do
 		read -p "Protocol [udp/tcp]: " -e -i udp PROTOCOL
 	done
 cat <<EOF
-What DNS do you want to use with the VPN?
+2/6.What DNS do you want to use with the VPN?
    1) Current system resolvers (from /etc/resolv.conf)
    2) Quad9 (Anycast: worldwide)
    3) FDN (France)
@@ -318,7 +320,7 @@ the encryption in OpenVPN and the choices I made in this script.
 Please note that all the choices proposed are secure (to a different degree)
 and are still viable to date, unlike some default OpenVPN options
 
-Choose which cipher you want to use for the data channel:
+3/6.Choose which cipher you want to use for the data channel:
    1) AES-128-CBC (fastest and sufficiently secure for everyone, recommended)
    2) AES-192-CBC
    3) AES-256-CBC
@@ -356,7 +358,7 @@ EOF
 		;;
 	esac
 	echo ""
-	echo "Choose what size of Diffie-Hellman key you want to use:"
+	echo "4/6.Choose what size of Diffie-Hellman key you want to use:"
 	echo "   1) 2048 bits (fastest)"
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
@@ -375,7 +377,7 @@ EOF
 		;;
 	esac
 	echo ""
-	echo "Choose what size of RSA key you want to use:"
+	echo "5/6.Choose what size of RSA key you want to use:"
 	echo "   1) 2048 bits (fastest)"
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
@@ -394,7 +396,7 @@ EOF
 		;;
 	esac
 	echo ""
-	echo "Finally, tell me a name for the client certificate and configuration"
+	echo "6/6.Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
 		echo "Please, use one word only, no special characters"
 		read -p "Client name: " -e -i client CLIENT
@@ -408,30 +410,30 @@ EOF
 		# We add the OpenVPN repo to get the latest version.
 		# Debian 7
 		if [[ "$VERSION_ID" = 'VERSION_ID="7"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable wheezy main" > /etc/apt/sources.list.d/openvpn.list
-			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt-get update
+			os_vername=wheezy
+			bin_apt=apt-get
 		fi
 		# Debian 8
 		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
-			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt update
+			os_vername=jessie
+			bin_apt=apt
 		fi
 		# Ubuntu 12.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="12.04"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable precise main" > /etc/apt/sources.list.d/openvpn.list
-			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt-get update
+			os_vername=precise
+			bin_apt=apt-get
 		fi
 		# Ubuntu 14.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/openvpn.list
-			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt-get update
+			os_vername=trusty
+			bin_apt=apt-get
 		fi
+		echo "deb http://build.openvpn.net/debian/openvpn/stable ${os_vername} main" > /etc/apt/sources.list.d/openvpn.list
+		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+		${bin_apt} update		
 		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
-		# The we install OpenVPN
+		
+		## The we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
 		# Install iptables service
 		if [[ ! -e /etc/systemd/system/iptables.service ]]; then
