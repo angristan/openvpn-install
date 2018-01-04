@@ -19,17 +19,12 @@ if grep -qs "CentOS release 5" "/etc/redhat-release"; then
 	exit 3
 fi
 
-VAR_LIST(){
-	:
-}
 dir_openvpn='/etc/openvpn'
 dir_easy="${dir_openvpn}/easy-rsa"
 bin_easy='${dir_easy}/easyrsa'
 file_client_tpl='${dir_openvpn}/client-template.txt'
 file_openvpn_conf='${dir_openvpn}/server.conf'
 IPTABLES='/etc/iptables/iptables.rules'
-
-
 	
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
