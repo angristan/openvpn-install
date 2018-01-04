@@ -21,10 +21,13 @@ fi
 
 dir_openvpn='/etc/openvpn'
 dir_easy="${dir_openvpn}/easy-rsa"
+dir_pki="${dir_easy}/pki"
+
 bin_easy="${dir_easy}/easyrsa"
+
 file_client_tpl="${dir_openvpn}/client-template.txt"
 file_openvpn_conf="${dir_openvpn}/server.conf"
-IPTABLES='/etc/iptables/iptables.rules'
+file_iptables='/etc/iptables/iptables.rules'
 	
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
@@ -38,7 +41,7 @@ if [[ -e /etc/debian_version ]]; then
 		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
 		echo 'then you can continue, a recent version of OpenVPN is available on these.'
 		echo 'Keep in mind they are not supported, though.'
-		while [[ 'y' != $CONTINUE && 'n' != $CONTINUE ]]; do
+		while [[ "$CONTINUE" != [yn]  ]]; do
 			read -p 'Continue ? [y/n]: ' -e CONTINUE
 		done
 		if [[ 'n' = "$CONTINUE" ]]; then
@@ -62,15 +65,17 @@ fi
 
 install_easyrsa(){
 	# An old version of easy-rsa was available by default in some openvpn packages
-	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
-		rm -rf /etc/openvpn/easy-rsa/
+	if [[ -d ${dir_easy}/ ]]; then
+		rm -rf ${dir_easy}/
 	fi
 	# Get easy-rsa
-	wget -O ~/EasyRSA-3.0.3.tgz 'https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz'
-	tar xzf ~/EasyRSA-3.0.3.tgz -C ~/
-	mv ~/EasyRSA-3.0.3 /etc/openvpn/easy-rsa
-	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -rf ~/EasyRSA-3.0.3.tgz
+	url_easy='https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz'
+	file_easy=${url_easy##*/}
+	wget -O ~/${file_easy} ${url_easy}
+	tar xzf ~/${file_easy} -C ~/
+	mv ~/${file_easy%.tgz} ${dir_easy}
+	chown -R root:root ${dir_easy}/
+	rm -rf ~/${file_easy}
 }
 
 set_firewall(){
@@ -89,7 +94,7 @@ set_firewall(){
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
 	# Save persitent iptables rules
-	iptables-save > $IPTABLES
+	iptables-save > $file_iptables
 	if pgrep firewalld; then
 		# We don't use --add-service=openvpn because that would only work with
 		# the default port. Using both permanent and not permanent rules to
@@ -107,7 +112,7 @@ set_firewall(){
 		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
 		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 		# Save persitent OpenVPN rules
-        iptables-save > $IPTABLES
+        iptables-save > $file_iptables
 	fi
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
@@ -160,6 +165,7 @@ fi
 # Get Internet network interface with default route
 NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
+#### server.conf exist.
 if [[ -e ${file_openvpn_conf} ]]; then
 	while :
 	do
@@ -175,12 +181,15 @@ What do you want to do?
    3) Remove OpenVPN
    4) Exit
 EOF
+		file_index="${dir_easy}/pki/index.txt"
 		read -p 'Select an option [1-4]: ' option
 		case $option in
 			1)
 			echo ""
 			echo "Tell me a name for the client cert"
 			echo "Please, use one word only, no special characters"
+			echo "Here are the files that already exist,do not repeat that"
+			tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 			read -p "Client name: " -e -i client CLIENT
 			cd ${dir_easy}
 			${bin_easy} build-client-full $CLIENT nopass
@@ -191,7 +200,6 @@ EOF
 			exit
 			;;
 			2)
-			file_index="${dir_easy}/pki/index.txt"
 			NUMBEROFCLIENTS=$(tail -n +2 ${file_index} | grep -c "^V")
 			if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
 				echo ""
@@ -210,11 +218,9 @@ EOF
 			cd ${dir_easy}
 			${bin_easy} --batch revoke $CLIENT
 			EASYRSA_CRL_DAYS=3650 ${bin_easy} gen-crl
-			rm -rf pki/reqs/$CLIENT.req
-			rm -rf pki/private/$CLIENT.key
-			rm -rf pki/issued/$CLIENT.crt
-			rm -rf /etc/openvpn/crl.pem
-			cp ${dir_easy}/pki/crl.pem ${dir_openvpn}/crl.pem
+			rm -f ${dir_pki}/reqs/$CLIENT.req ${dir_pki}/private/$CLIENT.key ${dir_pki}/issued/$CLIENT.crt 
+			#rm -f ${dir_openvpn}/crl.pem
+			/bin/cp -f ${dir_pki}/crl.pem ${dir_openvpn}/crl.pem
 			chmod 644 ${dir_openvpn}/crl.pem
 			echo ""
 			echo "Certificate for client $CLIENT revoked"
@@ -228,18 +234,18 @@ EOF
 				PORT=$(grep '^port ' ${file_openvpn_conf} | cut -d " " -f 2)
 				if pgrep firewalld; then
 					# Using both permanent and not permanent rules to avoid a firewalld reload.
-					firewall-cmd --zone=public --remove-port=$PORT/udp
+					firewall-cmd --zone=public --remove-port=$PORT/${PROTOCOL}
 					firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
-					firewall-cmd --permanent --zone=public --remove-port=$PORT/udp
+					firewall-cmd --permanent --zone=public --remove-port=$PORT/${PROTOCOL}
 					firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
 				fi
 				if iptables -L -n | grep -qE 'REJECT|DROP'; then
 					iptables -D INPUT -p ${PROTOCOL} --dport $PORT -j ACCEPT
 					iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
-					iptables-save > $IPTABLES
+					iptables-save > $file_iptables
 				fi
 				iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-				iptables-save > $IPTABLES
+				iptables-save > $file_iptables
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 						if [[ "$PORT" != '1194' ]]; then
@@ -531,7 +537,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	## function install_easyrsa
 	install_easyrsa
 	
-	cd /etc/openvpn/easy-rsa/
+	cd ${dir_easy}/
 	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
@@ -543,7 +549,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	# generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/
+	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key ${dir_easy}/pki/crl.pem /etc/openvpn/
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 
