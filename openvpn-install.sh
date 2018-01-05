@@ -23,9 +23,7 @@ fi
 dir_openvpn='/etc/openvpn'
 dir_easy="${dir_openvpn}/easy-rsa"
 dir_pki="${dir_easy}/pki"
-
 bin_easy="${dir_easy}/easyrsa"
-
 file_client_tpl="${dir_openvpn}/client-template.txt"
 file_openvpn_conf="${dir_openvpn}/server.conf"
 file_iptables='/etc/iptables/iptables.rules'
@@ -48,53 +46,54 @@ rm -rf ~/${file_easy}
 }
 
 set_firewall(){
-	# Create the sysctl configuration file if needed (mainly for Arch Linux)
-	if [[ ! -e $SYSCTL ]]; then
-		touch $SYSCTL
-	fi
 
-	# Enable net.ipv4.ip_forward for the system
-	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
-	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
-		echo 'net.ipv4.ip_forward=1' >> $SYSCTL
-	fi
-	# Avoid an unneeded reboot
-	echo 1 > /proc/sys/net/ipv4/ip_forward
-	# Set NAT for the VPN subnet
-	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-	# Save persitent iptables rules
+# Create the sysctl configuration file if needed (mainly for Arch Linux)
+if [[ ! -e $SYSCTL ]]; then
+	touch $SYSCTL
+fi
+
+# Enable net.ipv4.ip_forward for the system
+sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
+if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
+	echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+fi
+# Avoid an unneeded reboot
+echo 1 > /proc/sys/net/ipv4/ip_forward
+# Set NAT for the VPN subnet
+iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
+# Save persitent iptables rules
+iptables-save > $file_iptables
+if pgrep firewalld; then
+	# We don't use --add-service=openvpn because that would only work with
+	# the default port. Using both permanent and not permanent rules to
+	# avoid a firewalld reload.
+	firewall-cmd --zone=public --add-port=$PORT/${PROTOCOL}
+	firewall-cmd --permanent --zone=public --add-port=$PORT/${PROTOCOL}
+	firewall-cmd --zone=trusted --add-source=10.8.0.0/24
+	firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
+fi
+if iptables -L -n | grep -qE 'REJECT|DROP'; then
+	# If iptables has at least one REJECT rule, we asume this is needed.
+	# Not the best approach but I can't think of other and this shouldn't
+	# cause problems.
+	iptables -I INPUT -p ${PROTOCOL} --dport $PORT -j ACCEPT
+	iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
+	iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+	# Save persitent OpenVPN rules
 	iptables-save > $file_iptables
-	if pgrep firewalld; then
-		# We don't use --add-service=openvpn because that would only work with
-		# the default port. Using both permanent and not permanent rules to
-		# avoid a firewalld reload.
-		firewall-cmd --zone=public --add-port=$PORT/${PROTOCOL}
-		firewall-cmd --permanent --zone=public --add-port=$PORT/${PROTOCOL}
-		firewall-cmd --zone=trusted --add-source=10.8.0.0/24
-		firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
-	fi
-	if iptables -L -n | grep -qE 'REJECT|DROP'; then
-		# If iptables has at least one REJECT rule, we asume this is needed.
-		# Not the best approach but I can't think of other and this shouldn't
-		# cause problems.
-		iptables -I INPUT -p ${PROTOCOL} --dport $PORT -j ACCEPT
-		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
-		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-		# Save persitent OpenVPN rules
-        iptables-save > $file_iptables
-	fi
-	# If SELinux is enabled and a custom port was selected, we need this
-	if hash sestatus 2>/dev/null; then
-		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
-			if [[ "$PORT" != '1194' ]]; then
-				# semanage isn't available in CentOS 6 by default
-				if ! hash semanage 2>/dev/null; then
-					yum install policycoreutils-python -y
-				fi
-				semanage port -a -t openvpn_port_t -p ${PROTOCOL} $PORT
+fi
+# If SELinux is enabled and a custom port was selected, we need this
+if hash sestatus 2>/dev/null; then
+	if sestatus | grep "Current mode" | grep -qs "enforcing"; then
+		if [[ "$PORT" != '1194' ]]; then
+			# semanage isn't available in CentOS 6 by default
+			if ! hash semanage 2>/dev/null; then
+				yum install policycoreutils-python -y
 			fi
+			semanage port -a -t openvpn_port_t -p ${PROTOCOL} $PORT
 		fi
 	fi
+fi
 }
 
 generate_newclient() {
@@ -125,6 +124,41 @@ cat ${dir_openvpn}/tls-auth.key >> ${file_client}
 echo "</tls-auth>" >> ${file_client}
 }
 
+## function: install iptables for debian
+install_iptables_service(){
+
+# Install iptables service
+if [[ ! -e /etc/systemd/system/iptables.service ]]; then
+	mkdir /etc/iptables
+	iptables-save > ${file_iptables}
+	echo "#!/bin/sh
+iptables -F
+iptables -X
+iptables -t nat -F
+iptables -t nat -X
+iptables -t mangle -F
+iptables -t mangle -X
+iptables -P INPUT ACCEPT
+iptables -P FORWARD ACCEPT
+iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
+	chmod +x /etc/iptables/flush-iptables.sh
+	echo "[Unit]
+Description=Packet Filtering Framework
+DefaultDependencies=no
+Before=network-pre.target
+Wants=network-pre.target
+[Service]
+Type=oneshot
+ExecStart=/sbin/iptables-restore ${file_iptables}
+ExecReload=/sbin/iptables-restore ${file_iptables}
+ExecStop=/etc/iptables/flush-iptables.sh
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
+	systemctl daemon-reload
+	systemctl enable iptables.service
+fi
+}
 
 ## function for install openvpn server
 install_openvpn(){
@@ -268,101 +302,44 @@ if [[ "$OS" = 'debian' ]]; then
 	# We add the OpenVPN repo to get the latest version.
 	# Debian 7
 	if [[ "$VERSION_ID" = 'VERSION_ID="7"' ]]; then
-		os_vername=wheezy
-		bin_apt=apt-get
+		echo "deb http://build.openvpn.net/debian/openvpn/stable wheezy main" > /etc/apt/sources.list.d/openvpn.list
+		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+		apt-get update
 	fi
 	# Debian 8
 	if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
 		os_vername=jessie
-		bin_apt=apt
+		echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
+		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+		apt update
 	fi
 	# Ubuntu 12.04
 	if [[ "$VERSION_ID" = 'VERSION_ID="12.04"' ]]; then
 		os_vername=precise
-		bin_apt=apt-get
+		echo "deb http://build.openvpn.net/debian/openvpn/stable precise main" > /etc/apt/sources.list.d/openvpn.list
+		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+		apt-get update
 	fi
 	# Ubuntu 14.04
 	if [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
 		os_vername=trusty
-		bin_apt=apt-get
+		echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/openvpn.list
+		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+		apt-get update
 	fi
-	echo "deb http://build.openvpn.net/debian/openvpn/stable ${os_vername} main" > /etc/apt/sources.list.d/openvpn.list
-	wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-	${bin_apt} update		
 	# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
-	
 	## The we install OpenVPN
 	apt-get install openvpn iptables openssl wget ca-certificates curl -y
-	# Install iptables service
-	if [[ ! -e /etc/systemd/system/iptables.service ]]; then
-		mkdir /etc/iptables
-		iptables-save > ${file_iptables}
-		echo "#!/bin/sh
-iptables -F
-iptables -X
-iptables -t nat -F
-iptables -t nat -X
-iptables -t mangle -F
-iptables -t mangle -X
-iptables -P INPUT ACCEPT
-iptables -P FORWARD ACCEPT
-iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-		chmod +x /etc/iptables/flush-iptables.sh
-		echo "[Unit]
-Description=Packet Filtering Framework
-DefaultDependencies=no
-Before=network-pre.target
-Wants=network-pre.target
-[Service]
-Type=oneshot
-ExecStart=/sbin/iptables-restore ${file_iptables}
-ExecReload=/sbin/iptables-restore ${file_iptables}
-ExecStop=/etc/iptables/flush-iptables.sh
-RemainAfterExit=yes
-[Install]
-WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
-		systemctl daemon-reload
-		systemctl enable iptables.service
-	fi
+	install_iptables_service ## call function
 elif [[ "$OS" = 'centos' || "$OS" = 'fedora' ]]; then
 	if [[ "$OS" = 'centos' ]]; then
 		yum install epel-release -y
 	fi
 	yum install openvpn iptables openssl wget ca-certificates curl -y
-	# Install iptables service
-	if [[ ! -e /etc/systemd/system/iptables.service ]]; then
-		mkdir /etc/iptables
-		iptables-save > ${file_iptables}
-		echo "#!/bin/sh
-iptables -F
-iptables -X
-iptables -t nat -F
-iptables -t nat -X
-iptables -t mangle -F
-iptables -t mangle -X
-iptables -P INPUT ACCEPT
-iptables -P FORWARD ACCEPT
-iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-		chmod +x /etc/iptables/flush-iptables.sh
-		echo "[Unit]
-Description=Packet Filtering Framework
-DefaultDependencies=no
-Before=network-pre.target
-Wants=network-pre.target
-[Service]
-Type=oneshot
-ExecStart=/sbin/iptables-restore ${file_iptables}
-ExecReload=/sbin/iptables-restore ${file_iptables}
-ExecStop=/etc/iptables/flush-iptables.sh
-RemainAfterExit=yes
-[Install]
-WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
-		systemctl daemon-reload
-		systemctl enable iptables.service
-		# Disable firewalld to allow iptables to start upon reboot
-		systemctl disable firewalld
-		systemctl mask firewalld
-	fi
+	install_iptables_service ## call function
+	# Disable firewalld to allow iptables to start upon reboot
+	systemctl disable firewalld
+	systemctl mask firewalld
 else
 	# Else, the distro is ArchLinux
 	echo ""
@@ -395,8 +372,8 @@ if grep -qs "^nogroup:" /etc/group; then
 else
 	NOGROUP=nobody
 fi
-## function install_easyrsa
-install_easyrsa
+
+install_easyrsa ## call function 
 
 cd ${dir_easy}/
 echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
@@ -407,14 +384,14 @@ openssl dhparam -out dh.pem $DH_KEY_SIZE
 ./easyrsa build-server-full server nopass
 ./easyrsa build-client-full $CLIENT nopass
 EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-# generate tls-auth key
-openvpn --genkey --secret /etc/openvpn/tls-auth.key
-# Move all the generated files
-cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key ${dir_easy}/pki/crl.pem /etc/openvpn/
-# Make cert revocation list readable for non-root
-chmod 644 /etc/openvpn/crl.pem
+## generate tls-auth key
+openvpn --genkey --secret ${dir_openvpn}/tls-auth.key
+## Move all the generated files
+cp ${dir_pki}/ca.crt ${dir_pki}/private/ca.key dh.pem ${dir_pki}/issued/server.crt ${dir_pki}/private/server.key ${dir_pki}/crl.pem ${dir_openvpn}/
+## Make cert revocation list readable for non-root
+chmod 644 ${dir_openvpn}/crl.pem
 
-# Generate server.conf
+## Generate server.conf
 echo "port $PORT
 proto ${PROTOCOL}
 dev tun
@@ -425,7 +402,7 @@ persist-tun
 keepalive 10 120
 topology subnet
 server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
+ifconfig-pool-persist ipp.txt" >> ${file_openvpn_conf}
 # DNS resolvers
 case $DNS in
 	1)
@@ -461,8 +438,8 @@ case $DNS in
 	echo 'push "dhcp-option DNS 176.103.130.130"'
 	echo 'push "dhcp-option DNS 176.103.130.131"'
 	;;
-esac >> /etc/openvpn/server.conf
-echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
+esac >> ${file_openvpn_conf}
+echo 'push "redirect-gateway def1 bypass-dhcp" '>> ${file_openvpn_conf}
 echo "crl-verify crl.pem
 ca ca.crt
 cert server.crt
@@ -475,10 +452,9 @@ tls-server
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 status openvpn.log
-verb 3" >> /etc/openvpn/server.conf
+verb 3" >> ${file_openvpn_conf}
 
-## call function set_firewall 
-set_firewall
+set_firewall ## call function
 	
 # And finally, restart OpenVPN
 if [[ "$OS" = 'debian' ]]; then
@@ -512,6 +488,7 @@ else
 		chkconfig openvpn on
 	fi
 fi
+
 # Try to detect a NATed connection and ask about it to potential LowEndSpirit/Scaleway users
 EXTERNALIP=$(wget -qO- ipv4.icanhazip.com)
 if [[ "$IP" != "$EXTERNALIP" ]]; then
@@ -576,7 +553,7 @@ What do you want to do?
    3) Remove OpenVPN
    4) Exit
 EOF
-	file_index="${dir_easy}/pki/index.txt"
+	file_index="${dir_pki}/index.txt"
 	read -p 'Select an option [1-4]: ' option
 	case $option in
 		1)
