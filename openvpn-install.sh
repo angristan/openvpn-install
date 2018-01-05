@@ -127,9 +127,12 @@ echo "</tls-auth>" >> ${file_client}
 ## function: install iptables for debian
 install_iptables_service(){
 
+dir_ipt='/etc/iptables'
+file_ipt_svc='/etc/systemd/system/iptables.service'
+file_ipt_sh="${dir_ipt}/flush-iptables.sh"
 # Install iptables service
-if [[ ! -e /etc/systemd/system/iptables.service ]]; then
-	mkdir /etc/iptables
+if [[ ! -e ${file_ipt_svc} ]]; then
+	mkdir ${dir_ipt}
 	iptables-save > ${file_iptables}
 	echo "#!/bin/sh
 iptables -F
@@ -140,8 +143,8 @@ iptables -t mangle -F
 iptables -t mangle -X
 iptables -P INPUT ACCEPT
 iptables -P FORWARD ACCEPT
-iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-	chmod +x /etc/iptables/flush-iptables.sh
+iptables -P OUTPUT ACCEPT" > ${file_ipt_sh}
+	chmod +x ${file_ipt_sh}
 	echo "[Unit]
 Description=Packet Filtering Framework
 DefaultDependencies=no
@@ -154,7 +157,7 @@ ExecReload=/sbin/iptables-restore ${file_iptables}
 ExecStop=/etc/iptables/flush-iptables.sh
 RemainAfterExit=yes
 [Install]
-WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
+WantedBy=multi-user.target" > ${file_ipt_svc}
 	systemctl daemon-reload
 	systemctl enable iptables.service
 fi
@@ -586,7 +589,7 @@ EOF
 		else
 			read -p "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
 		fi
-		CLIENT=$(tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+		CLIENT=$(tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | sed -n "${CLIENTNUMBER:?empty-var}"p)
 		cd ${dir_easy}
 		${bin_easy} --batch revoke $CLIENT
 		EASYRSA_CRL_DAYS=3650 ${bin_easy} gen-crl
