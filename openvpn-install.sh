@@ -26,7 +26,7 @@ dir_pki="${dir_easy}/pki"
 bin_easy="${dir_easy}/easyrsa"
 file_client_tpl="${dir_openvpn}/client-template.txt"
 file_openvpn_conf="${dir_openvpn}/server.conf"
-file_iptables='/etc/iptables/iptables.rules'
+file_iptables='/etc/sysconfig/iptables.rules'
 
 
 install_easyrsa(){
@@ -125,7 +125,7 @@ echo "</tls-auth>" >> ${file_client}
 }
 
 ## function: install iptables for debian
-install_iptables_service(){
+install_ipt_service(){
 
 dir_ipt='/etc/iptables'
 file_ipt_svc='/etc/systemd/system/iptables.service'
@@ -160,8 +160,14 @@ RemainAfterExit=yes
 WantedBy=multi-user.target" > ${file_ipt_svc}
 	systemctl daemon-reload
 	systemctl enable iptables.service
+	if [[ "$OS" = 'centos7' || "$OS" = 'fedora' ]]; then
+		# Disable firewalld to allow iptables to start upon reboot
+		systemctl disable firewalld
+		systemctl mask firewalld
+	fi
 fi
 }
+
 
 ## function for install openvpn server
 install_openvpn(){
@@ -333,16 +339,17 @@ if [[ "$OS" = 'debian' ]]; then
 	# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 	## The we install OpenVPN
 	apt-get install openvpn iptables openssl wget ca-certificates curl -y
-	install_iptables_service ## call function
-elif [[ "$OS" = 'centos' || "$OS" = 'fedora' ]]; then
-	if [[ "$OS" = 'centos' ]]; then
+	install_ipt_service ## call function
+elif [[ "$OS" = 'centos7' || "$OS" = 'fedora' ]]; then
+	if [[ "$OS" = 'centos7'  ]]; then
 		yum install epel-release -y
 	fi
 	yum install openvpn iptables openssl wget ca-certificates curl -y
-	install_iptables_service ## call function
-	# Disable firewalld to allow iptables to start upon reboot
-	systemctl disable firewalld
-	systemctl mask firewalld
+	# install_ipt_service ## call function
+elif [[ "$OS" = 'centos6' ]]; then
+	yum install epel-release -y
+	yum install openvpn iptables openssl wget ca-certificates curl -y
+	# install_ipt_service ## call function
 else
 	# Else, the distro is ArchLinux
 	echo ""
@@ -536,7 +543,7 @@ echo ""
 echo "Finished!"
 echo ""
 echo "Your client config is available at $homeDir/$CLIENT.ovpn"
-echo "If you want to add more clients, you simply need to run this script another time!"
+echo "If you want to add more clients, you simply need to run this script again!"
 }
 
 
@@ -657,9 +664,16 @@ detect_os_ver(){
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
-	VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
+	# VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
+	source /etc/os-release
 	SYSCTL='/etc/sysctl.conf'
-	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.04"' ]]; then
+	# if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.04"' ]]; then
+	# if [[ "$VERSION_ID" != [789] && "$VERSION_ID" != '12.04' && "$VERSION_ID" != '14.04' && "$VERSION_ID" != '16.04' && "$VERSION_ID" != '16.10' && "$VERSION_ID" != '17.04' ]]; then
+	case "$VERSION_ID" in 
+	7|8|9|12.04|14.04|16.04|16.10|17.04)
+		:
+		;;
+	*)
 		echo 'Your version of Debian/Ubuntu is not supported.'
 		echo "I can't install a recent version of OpenVPN on your system."
 		echo ''
@@ -673,9 +687,13 @@ if [[ -e /etc/debian_version ]]; then
 			echo 'Ok, bye !'
 			exit 4
 		fi
-	fi
+	esac
+	# fi
 elif [[ -e /etc/centos-release || -e /etc/redhat-release && ! -e /etc/fedora-release ]]; then
-	OS='centos'
+	# rpm -q --queryformat '%{VERSION}' centos-release
+	# rpm -q --queryformat '%{RELEASE}' redhat-release-server | awk -F. '{print $1}'
+	# grep -oE '[0-9]+\.[0-9]+' /etc/redhat-release	
+	OS="centos$(rpm -q --queryformat '%{VERSION}' centos-release)"
 	SYSCTL='/etc/sysctl.conf'
 elif [[ -e /etc/arch-release ]]; then
 	OS='arch'
@@ -708,13 +726,10 @@ detect_os_ver ## call function
 detect_IP_NIC ## call function
 
 ## OpenVPN setup and first user creation
-if [[ ! -e ${file_openvpn_conf} ]]; then
-	install_openvpn ## call function
-fi
-
-#### server.conf exist.
 if [[ -e ${file_openvpn_conf} ]]; then
 	config_openvpn ## call function
+else
+	install_openvpn ## call function
 fi
 }
 
