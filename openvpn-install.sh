@@ -95,13 +95,13 @@ fi
 file_client="$homeDir/$1.ovpn"
 cp ${file_client_tpl} ${file_client}
 echo "<ca>" >> ${file_client}
-cat ${dir_easy}/pki/ca.crt >> ${file_client}
+cat ${dir_pki}/ca.crt >> ${file_client}
 echo "</ca>" >> ${file_client}
 echo "<cert>" >> ${file_client}
-cat ${dir_easy}/pki/issued/$1.crt >> ${file_client}
+cat ${dir_pki}/issued/$1.crt >> ${file_client}
 echo "</cert>" >> ${file_client}
 echo "<key>" >> ${file_client}
-cat ${dir_easy}/pki/private/$1.key >> ${file_client}
+cat ${dir_pki}/private/$1.key >> ${file_client}
 echo "</key>" >> ${file_client}
 echo "key-direction 1" >> ${file_client}
 echo "<tls-auth>" >> ${file_client}
@@ -115,15 +115,16 @@ install_easyrsa(){
 # An old version of easy-rsa was available by default in some openvpn packages
 if [[ -d ${dir_easy}/ ]]; then
 	rm -rf ${dir_easy}/
+	mkdir -p ${dir_easy}
 else
 	mkdir -p ${dir_easy}
 fi
 # Get easy-rsa
 url_easy='https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz'
 file_easy=${url_easy##*/}
-wget -O ~/${file_easy} ${url_easy}
+wget -c -O ~/${file_easy} ${url_easy}
 tar xzf ~/${file_easy} -C ~/
-mv ~/${file_easy%.tgz} ${dir_easy}
+mv ~/${file_easy%.tgz}/* ${dir_easy}/
 chown -R root:root ${dir_easy}/
 rm -rf ~/${file_easy}
 }
@@ -387,11 +388,11 @@ install_easyrsa ## call function
 cd ${dir_easy}/
 echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 # Create the PKI, set up the CA, the DH params and the server + client certificates
-./easyrsa init-pki
-./easyrsa --batch build-ca nopass
+${dir_easy}/easyrsa init-pki
+${dir_easy}/easyrsa --batch build-ca nopass
 openssl dhparam -out dh.pem $DH_KEY_SIZE
-./easyrsa build-server-full server nopass
-./easyrsa build-client-full $CLIENT nopass
+${dir_easy}/easyrsa build-server-full server nopass
+${dir_easy}/easyrsa build-client-full $CLIENT nopass
 EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 ## generate tls-auth key
 openvpn --genkey --secret ${dir_openvpn}/tls-auth.key
@@ -463,7 +464,7 @@ $CIPHER
 tls-server
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
-status openvpn.log
+status openvpn-status.log
 log openvpn.log
 log-append openvpn.log
 verb 3" >> ${file_openvpn_conf}
