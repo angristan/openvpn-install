@@ -28,7 +28,7 @@ file_client_tpl="${dir_openvpn}/client-template.txt"
 file_openvpn_conf="${dir_openvpn}/server.conf"
 file_iptables='/etc/sysconfig/iptables.rules'
 
-
+## function: config the firewall
 set_firewall(){
 
 # Create the sysctl configuration file if needed (mainly for Arch Linux)
@@ -80,6 +80,7 @@ if hash sestatus 2>/dev/null; then
 fi
 }
 
+## function: generate the new client??.ovpn
 generate_newclient() {
 
 # Where to write the custom client.ovpn?
@@ -108,6 +109,7 @@ cat ${dir_openvpn}/tls-auth.key >> ${file_client}
 echo "</tls-auth>" >> ${file_client}
 }
 
+## function: install easyrsa 3.0.3
 install_easyrsa(){
 
 # An old version of easy-rsa was available by default in some openvpn packages
@@ -170,8 +172,7 @@ WantedBy=multi-user.target" > ${file_ipt_svc}
 fi
 }
 
-
-## function for install openvpn server
+## function: install openvpn server
 install_openvpn(){
 
 clear
@@ -311,33 +312,27 @@ read -n1 -r -p "Press any key to continue..."
 if [[ "$OS" = 'debian' ]]; then
 	apt-get install ca-certificates -y
 	# We add the OpenVPN repo to get the latest version.
-	# Debian 7
-	if [[ "$VERSION_ID" = 'VERSION_ID="7"' ]]; then
+	case $VERSION_ID in 
+	'7')  # Debian 7
 		echo "deb http://build.openvpn.net/debian/openvpn/stable wheezy main" > /etc/apt/sources.list.d/openvpn.list
 		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 		apt-get update
-	fi
-	# Debian 8
-	if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
-		os_vername=jessie
+		;;
+	'8')  # Debian 8
 		echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
 		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 		apt update
-	fi
-	# Ubuntu 12.04
-	if [[ "$VERSION_ID" = 'VERSION_ID="12.04"' ]]; then
-		os_vername=precise
+		;;
+	'12.04')  # Ubuntu 12.04
 		echo "deb http://build.openvpn.net/debian/openvpn/stable precise main" > /etc/apt/sources.list.d/openvpn.list
 		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 		apt-get update
-	fi
-	# Ubuntu 14.04
-	if [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
-		os_vername=trusty
+		;;
+	'14.04')  # Ubuntu 14.04
 		echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/openvpn.list
 		wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 		apt-get update
-	fi
+	esac
 	# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 	## The we install OpenVPN
 	apt-get install openvpn iptables openssl wget ca-certificates curl -y
@@ -348,10 +343,12 @@ elif [[ "$OS" = 'centos7' || "$OS" = 'fedora' ]]; then
 	fi
 	yum --enablerepo=epel install openvpn iptables openssl wget ca-certificates curl -y
 	# install_ipt_service ## call function
+	read -p "Please manually set the firewall,press anykey continue"
 elif [[ "$OS" = 'centos6' ]]; then
 	yum install epel-release -y
 	yum --enablerepo=epel install openvpn iptables openssl wget ca-certificates curl -y
 	# install_ipt_service ## call function
+	read -p "Please manually set the firewall,press anykey continue"
 else
 	# Else, the distro is ArchLinux
 	echo ""
@@ -553,6 +550,7 @@ echo "Your client config is available at $homeDir/$CLIENT.ovpn"
 echo "If you want to add more clients, you simply need to run this script again!"
 }
 
+## function: remove openvpn server and config dir 
 remove_openvpn(){
 
 echo ""
@@ -596,6 +594,7 @@ else
 	echo "Removal aborted!"
 fi
 }
+
 
 config_openvpn(){
 
@@ -745,4 +744,3 @@ fi
 }
 
 main $@
-# exit 0;
