@@ -29,22 +29,6 @@ file_openvpn_conf="${dir_openvpn}/server.conf"
 file_iptables='/etc/sysconfig/iptables.rules'
 
 
-install_easyrsa(){
-
-# An old version of easy-rsa was available by default in some openvpn packages
-if [[ -d ${dir_easy}/ ]]; then
-	rm -rf ${dir_easy}/
-fi
-# Get easy-rsa
-url_easy='https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz'
-file_easy=${url_easy##*/}
-wget -O ~/${file_easy} ${url_easy}
-tar xzf ~/${file_easy} -C ~/
-mv ~/${file_easy%.tgz} ${dir_easy}
-chown -R root:root ${dir_easy}/
-rm -rf ~/${file_easy}
-}
-
 set_firewall(){
 
 # Create the sysctl configuration file if needed (mainly for Arch Linux)
@@ -122,6 +106,24 @@ echo "key-direction 1" >> ${file_client}
 echo "<tls-auth>" >> ${file_client}
 cat ${dir_openvpn}/tls-auth.key >> ${file_client}
 echo "</tls-auth>" >> ${file_client}
+}
+
+install_easyrsa(){
+
+# An old version of easy-rsa was available by default in some openvpn packages
+if [[ -d ${dir_easy}/ ]]; then
+	rm -rf ${dir_easy}/
+else
+	mkdir -p ${dir_easy}
+fi
+# Get easy-rsa
+url_easy='https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz'
+file_easy=${url_easy##*/}
+wget -O ~/${file_easy} ${url_easy}
+tar xzf ~/${file_easy} -C ~/
+mv ~/${file_easy%.tgz} ${dir_easy}
+chown -R root:root ${dir_easy}/
+rm -rf ~/${file_easy}
 }
 
 ## function: install iptables for debian
@@ -344,11 +346,11 @@ elif [[ "$OS" = 'centos7' || "$OS" = 'fedora' ]]; then
 	if [[ "$OS" = 'centos7'  ]]; then
 		yum install epel-release -y
 	fi
-	yum install openvpn iptables openssl wget ca-certificates curl -y
+	yum --enablerepo=epel install openvpn iptables openssl wget ca-certificates curl -y
 	# install_ipt_service ## call function
 elif [[ "$OS" = 'centos6' ]]; then
 	yum install epel-release -y
-	yum install openvpn iptables openssl wget ca-certificates curl -y
+	yum --enablerepo=epel install openvpn iptables openssl wget ca-certificates curl -y
 	# install_ipt_service ## call function
 else
 	# Else, the distro is ArchLinux
@@ -412,7 +414,9 @@ persist-tun
 keepalive 10 120
 topology subnet
 server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist ipp.txt" >> ${file_openvpn_conf}
+ifconfig-pool-persist ipp.txt
+#client-config-dir ccd
+#route 10.8.0.0 255.255.255.252" >> ${file_openvpn_conf}
 # DNS resolvers
 case $DNS in
 	1)
@@ -450,7 +454,8 @@ case $DNS in
 	;;
 esac >> ${file_openvpn_conf}
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> ${file_openvpn_conf}
-echo "crl-verify crl.pem
+echo "client-to-client
+crl-verify crl.pem
 ca ca.crt
 cert server.crt
 key server.key
@@ -462,6 +467,8 @@ tls-server
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 status openvpn.log
+log openvpn.log
+log-append openvpn.log
 verb 3" >> ${file_openvpn_conf}
 
 set_firewall ## call function
@@ -546,6 +553,49 @@ echo "Your client config is available at $homeDir/$CLIENT.ovpn"
 echo "If you want to add more clients, you simply need to run this script again!"
 }
 
+remove_openvpn(){
+
+echo ""
+read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+if [[ 'y' = "$REMOVE" ]]; then
+	PORT=$(grep '^port ' ${file_openvpn_conf} | cut -d " " -f 2)
+	PROTOCOL=$(grep '^proto ' ${file_openvpn_conf} | cut -d " " -f 2)
+	if pgrep firewalld; then
+		# Using both permanent and not permanent rules to avoid a firewalld reload.
+		firewall-cmd --zone=public --remove-port=$PORT/${PROTOCOL}
+		firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
+		firewall-cmd --permanent --zone=public --remove-port=$PORT/${PROTOCOL}
+		firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
+	fi
+	if iptables -L -n | grep -qE 'REJECT|DROP'; then
+		iptables -D INPUT -p ${PROTOCOL} --dport $PORT -j ACCEPT
+		iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
+		iptables-save > $file_iptables
+	fi
+	iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
+	iptables-save > $file_iptables
+	if hash sestatus 2>/dev/null; then
+		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
+			if [[ "$PORT" != '1194' ]]; then
+				semanage port -d -t openvpn_port_t -p ${PROTOCOL} $PORT
+			fi
+		fi
+	fi
+	if [[ "$OS" = 'debian' ]]; then
+		apt-get autoremove --purge -y openvpn
+	elif [[ "$OS" = 'arch' ]]; then
+		pacman -R openvpn --noconfirm
+	else
+		yum remove openvpn -y
+	fi
+	rm -rf ${dir_openvpn} /usr/share/doc/openvpn*
+	echo ""
+	echo "OpenVPN removed!"
+else
+	echo ""
+	echo "Removal aborted!"
+fi
+}
 
 config_openvpn(){
 
@@ -610,46 +660,7 @@ EOF
 		exit
 		;;
 		3)
-		echo ""
-		read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
-		if [[ 'y' = "$REMOVE" ]]; then
-			PORT=$(grep '^port ' ${file_openvpn_conf} | cut -d " " -f 2)
-			PROTOCOL=$(grep '^proto ' ${file_openvpn_conf} | cut -d " " -f 2)
-			if pgrep firewalld; then
-				# Using both permanent and not permanent rules to avoid a firewalld reload.
-				firewall-cmd --zone=public --remove-port=$PORT/${PROTOCOL}
-				firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
-				firewall-cmd --permanent --zone=public --remove-port=$PORT/${PROTOCOL}
-				firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
-			fi
-			if iptables -L -n | grep -qE 'REJECT|DROP'; then
-				iptables -D INPUT -p ${PROTOCOL} --dport $PORT -j ACCEPT
-				iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
-				iptables-save > $file_iptables
-			fi
-			iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-			iptables-save > $file_iptables
-			if hash sestatus 2>/dev/null; then
-				if sestatus | grep "Current mode" | grep -qs "enforcing"; then
-					if [[ "$PORT" != '1194' ]]; then
-						semanage port -d -t openvpn_port_t -p ${PROTOCOL} $PORT
-					fi
-				fi
-			fi
-			if [[ "$OS" = 'debian' ]]; then
-				apt-get autoremove --purge -y openvpn
-			elif [[ "$OS" = 'arch' ]]; then
-				pacman -R openvpn --noconfirm
-			else
-				yum remove openvpn -y
-			fi
-			rm -rf ${dir_openvpn} /usr/share/doc/openvpn*
-			echo ""
-			echo "OpenVPN removed!"
-		else
-			echo ""
-			echo "Removal aborted!"
-		fi
+		remove_openvpn ## call function 
 		exit
 		;;
 		4) exit;;
