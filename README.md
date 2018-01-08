@@ -32,7 +32,7 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 - Remove a client
 - Uninstall OpenVPN
 
-![](https://lut.im/Z8xfJ8WqyO/3JoPmJK8VRp6zwOE)
+![](https://i.imgur.com/l7elEtB.png)
 
 ## Why make a fork ?
 
