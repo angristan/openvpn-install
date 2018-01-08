@@ -87,24 +87,24 @@ generate_newclient() {
 
 # Generates the custom client.ovpn
 # Where to write the custom client.ovpn?
-if [ -e /home/$CLIENT ]; then  # if $CLIENT is a user name
-	homeDir="/home/$CLIENT"
+if [ -e /home/$1 ]; then  # if $1 is a user name
+	homeDir="/home/$1"
 elif [ ${SUDO_USER} ]; then   # if not, use SUDO_USER
 	homeDir="/home/${SUDO_USER}"
 else  # if not SUDO_USER, use /root
 	homeDir="${dir_openvpn}"
 fi
 # Generates the custom client.ovpn
-file_client="$homeDir/$CLIENT.ovpn"
+file_client="$homeDir/$1.ovpn"
 cp ${conf_client_tpl} ${file_client}
 echo "<ca>" >> ${file_client}
 cat ${dir_pki}/ca.crt >> ${file_client}
 echo "</ca>" >> ${file_client}
 echo "<cert>" >> ${file_client}
-cat ${dir_pki}/issued/$CLIENT.crt >> ${file_client}
+cat ${dir_pki}/issued/$1.crt >> ${file_client}
 echo "</cert>" >> ${file_client}
 echo "<key>" >> ${file_client}
-cat ${dir_pki}/private/$CLIENT.key >> ${file_client}
+cat ${dir_pki}/private/$1.key >> ${file_client}
 echo "</key>" >> ${file_client}
 echo "key-direction 1" >> ${file_client}
 echo "<tls-auth>" >> ${file_client}
@@ -112,7 +112,7 @@ cat ${dir_openvpn}/tls-auth.key >> ${file_client}
 echo "</tls-auth>" >> ${file_client}
 
 echo ""
-echo "Client $CLIENT added, certs available at $homeDir/$CLIENT.ovpn"
+echo "Client $1 added, certs available at $homeDir/$1.ovpn"
 
 }
 
@@ -685,7 +685,7 @@ EOF
 		read -p "Client name: " -e -i client CLIENT
 		cd ${dir_easy}
 		${bin_easy} build-client-full $CLIENT nopass
-		generate_newclient
+		generate_newclient $CLIENT
 		exit
 		;;
 		2)
