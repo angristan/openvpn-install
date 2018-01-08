@@ -26,7 +26,7 @@ dir_pki="${dir_easy}/pki"
 file_index="${dir_pki}/index.txt"
 bin_easy="${dir_easy}/easyrsa"
 conf_client_tpl="${dir_openvpn}/client-template.txt"
-conf_server="${dir_openvpn}/server.conf"
+conf_openvpn="${dir_openvpn}/server.conf"
 conf_iptables='/etc/sysconfig/iptables.rules'
 
 
@@ -150,8 +150,12 @@ echo "Exiting..."
 install_easyrsa(){
 
 # An old version of easy-rsa was available by default in some openvpn packages
-rm -rf ${dir_easy}
-mkdir -p ${dir_easy}
+if [[ -d ${dir_easy}/ ]]; then
+	rm -rf ${dir_easy}/
+	mkdir -p ${dir_easy}
+else
+	mkdir -p ${dir_easy}
+fi
 # Get easy-rsa
 url_easy='https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz'
 file_easy=${url_easy##*/}
@@ -206,19 +210,6 @@ WantedBy=multi-user.target" > ${file_ipt_svc}
 fi
 }
 
-##
-config_iptables(){
-	echo "Please manually set the firewall"
-	read -p "press any key continue..."
-}
-
-##
-config_firewalld(){
-	echo "Please manually set the firewall"
-	read -p "press any key continue..."
-}
-
-	
 ## function: install openvpn server
 install_openvpn(){
 
@@ -384,16 +375,18 @@ if [[ "$OS" = 'debian' ]]; then
 	## The we install OpenVPN
 	apt-get install openvpn iptables openssl wget ca-certificates curl -y
 	systemd_ipt_service ## call function
-elif [[ "$OS" = 'centos6' || "$OS" = 'centos7' || "$OS" = 'fedora' ]]; then
-	if [[ "$OS" != 'fedora' ]]; then
+elif [[ "$OS" = 'centos7' || "$OS" = 'fedora' ]]; then
+	if [[ "$OS" = 'centos7'  ]]; then
 		yum install epel-release -y
 	fi
 	yum --enablerepo=epel install openvpn iptables openssl wget ca-certificates curl -y
-	if [[ "$OS" = 'centos6' ]]; then 
-		config_iptables ## call function
-	else
-		config_firewalld ## call function
-	fi
+	# systemd_ipt_service ## call function
+	read -p "Please manually set the firewall,press anykey continue"
+elif [[ "$OS" = 'centos6' ]]; then
+	yum install epel-release -y
+	yum --enablerepo=epel install openvpn iptables openssl wget ca-certificates curl -y
+	# systemd_ipt_service ## call function
+	read -p "Please manually set the firewall,press anykey continue"
 else
 	# Else, the distro is ArchLinux
 	echo ""
@@ -419,7 +412,6 @@ else
 		systemctl start iptables
 	fi
 fi
-
 
 # Find out if the machine uses nogroup or nobody for the permissionless group
 if grep -qs "^nogroup:" /etc/group; then
@@ -459,7 +451,7 @@ topology subnet
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt
 #client-config-dir ccd
-#route 10.8.0.0 255.255.255.252" >> ${conf_server}
+#route 10.8.0.0 255.255.255.252" >> ${conf_openvpn}
 # DNS resolvers
 case $DNS in
 	1)
@@ -496,8 +488,8 @@ case $DNS in
 	echo 'push "dhcp-option DNS 176.103.130.130"'
 	echo 'push "dhcp-option DNS 176.103.130.131"'
 	;;
-esac >> ${conf_server}
-echo 'push "redirect-gateway def1 bypass-dhcp" '>> ${conf_server}
+esac >> ${conf_openvpn}
+echo 'push "redirect-gateway def1 bypass-dhcp" '>> ${conf_openvpn}
 echo "client-to-client
 crl-verify crl.pem
 ca ca.crt
@@ -513,7 +505,7 @@ tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 status openvpn-status.log
 log openvpn.log
 log-append openvpn.log
-verb 3" >> ${conf_server}
+verb 3" >> ${conf_openvpn}
 
 set_firewall ## call function
 	
@@ -603,8 +595,8 @@ remove_openvpn(){
 echo ""
 read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 if [[ 'y' = "$REMOVE" ]]; then
-	PORT=$(grep '^port ' ${conf_server} | cut -d " " -f 2)
-	PROTOCOL=$(grep '^proto ' ${conf_server} | cut -d " " -f 2)
+	PORT=$(grep '^port ' ${conf_openvpn} | cut -d " " -f 2)
+	PROTOCOL=$(grep '^proto ' ${conf_openvpn} | cut -d " " -f 2)
 	if pgrep firewalld; then
 		# Using both permanent and not permanent rules to avoid a firewalld reload.
 		firewall-cmd --zone=public --remove-port=$PORT/${PROTOCOL}
@@ -649,13 +641,6 @@ else
 fi
 }
 
-config_openvpn_server(){
-:
-}
-
-config_openvpn_client(){
-:
-}
 
 config_openvpn(){
 
@@ -663,7 +648,7 @@ while :
 do
 	clear
 	cat <<EOF
-OpenVPN-install (github.com/xiagw/OpenVPN-install)
+OpenVPN-install (github.com/Angristan/OpenVPN-install)
 
 Looks like OpenVPN is already installed
 
@@ -685,11 +670,11 @@ EOF
 		read -p "Client name: " -e -i client CLIENT
 		cd ${dir_easy}
 		${bin_easy} build-client-full $CLIENT nopass
-		generate_newclient $CLIENT
+		generate_newclient "$CLIENT"
 		exit
 		;;
 		2)
-		revoke_openvpn_client
+		revoke_openvpn_client ## call function 
 		exit
 		;;
 		3)
@@ -711,6 +696,8 @@ if [[ -e /etc/debian_version ]]; then
 	# VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
 	source /etc/os-release
 	SYSCTL='/etc/sysctl.conf'
+	# if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="12.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.04"' ]]; then
+	# if [[ "$VERSION_ID" != [789] && "$VERSION_ID" != '12.04' && "$VERSION_ID" != '14.04' && "$VERSION_ID" != '16.04' && "$VERSION_ID" != '16.10' && "$VERSION_ID" != '17.04' ]]; then
 	case "$VERSION_ID" in 
 	7|8|9|12.04|14.04|16.04|16.10|17.04)
 		:
@@ -768,7 +755,7 @@ detect_os_ver ## call function
 detect_IP_NIC ## call function
 
 ## OpenVPN setup and first user creation
-if [[ -e ${conf_server} ]]; then
+if [[ -e ${conf_openvpn} ]]; then
 	config_openvpn ## call function
 else
 	install_openvpn ## call function
