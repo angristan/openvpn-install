@@ -471,7 +471,8 @@ ifconfig-pool-persist ipp.txt
 case $DNS in
 	1)
 	# Obtain the resolvers from resolv.conf and use them for OpenVPN
-	grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read line; do
+	grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
+	while read line; do
 		echo "push \"dhcp-option DNS $line\"" 
 	done
 	;;
