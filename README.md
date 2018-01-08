@@ -65,7 +65,7 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 |   Fedora 25  |   ❔   |   ✔️   |   ❔   |   ❔   |
 |   Fedora 26  |   ❔   |   ✔️   |   ❔   |   ❔   |
 |   Fedora 27  |   ❔   |   ✔️   |   ❔   |   ❔   |
-|  Arch Linux  |   ✔️  |   ✔️   |   ❔   |   ❌[(❔)](https://github.com/Angristan/OpenVPN-install/issues/99)   |
+|  Arch Linux  |   ✔️  |   ✔️   |   ❌[(❔)](https://github.com/Angristan/OpenVPN-install/issues/99)   |   ✔️   |
 
 - ✔️ = tested and compatible
 
