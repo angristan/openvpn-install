@@ -23,10 +23,12 @@ fi
 dir_openvpn='/etc/openvpn'
 dir_easy="${dir_openvpn}/easy-rsa"
 dir_pki="${dir_easy}/pki"
+file_index="${dir_pki}/index.txt"
 bin_easy="${dir_easy}/easyrsa"
 conf_client_tpl="${dir_openvpn}/client-template.txt"
 conf_server="${dir_openvpn}/server.conf"
 conf_iptables='/etc/sysconfig/iptables.rules'
+
 
 ## function: config the firewall
 set_firewall(){
@@ -82,15 +84,6 @@ fi
 
 ## function: generate the new client??.ovpn
 generate_newclient() {
-
-echo ""
-echo "Tell me a name for the client cert"
-echo "Please, use one word only, no special characters"
-echo "Here are the files that already exist,do not repeat that"
-tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-read -p "Client name: " -e -i client CLIENT
-cd ${dir_easy}
-${bin_easy} build-client-full $CLIENT nopass
 
 # Generates the custom client.ovpn
 # Where to write the custom client.ovpn?
@@ -634,9 +627,16 @@ if [[ 'y' = "$REMOVE" ]]; then
 		fi
 	fi
 	if [[ "$OS" = 'debian' ]]; then
+		systemctl stop openvpn@server
 		apt-get autoremove --purge -y openvpn
 	elif [[ "$OS" = 'arch' ]]; then
 		pacman -R openvpn --noconfirm
+	elif [[ "$OS" = 'centos7' ]]; then
+		systemctl stop openvpn@server
+		yum remove openvpn -y
+	elif [[ "$OS" = 'centos6' ]]; then
+		/etc/init.d/openvpn stop
+		yum remove openvpn -y
 	else
 		yum remove openvpn -y
 	fi
@@ -673,10 +673,18 @@ What do you want to do?
    3) Remove OpenVPN
    4) Exit
 EOF
-	file_index="${dir_pki}/index.txt"
+
 	read -p 'Select an option [1-4]: ' option
 	case $option in
 		1)
+		echo ""
+		echo "Tell me a name for the client cert"
+		echo "Please, use one word only, no special characters"
+		echo "Here are the files that already exist,do not repeat that"
+		tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+		read -p "Client name: " -e -i client CLIENT
+		cd ${dir_easy}
+		${bin_easy} build-client-full $CLIENT nopass
 		generate_newclient
 		exit
 		;;
