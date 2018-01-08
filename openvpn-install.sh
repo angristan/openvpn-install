@@ -23,10 +23,12 @@ fi
 dir_openvpn='/etc/openvpn'
 dir_easy="${dir_openvpn}/easy-rsa"
 dir_pki="${dir_easy}/pki"
+file_index="${dir_pki}/index.txt"
 bin_easy="${dir_easy}/easyrsa"
-file_client_tpl="${dir_openvpn}/client-template.txt"
-file_openvpn_conf="${dir_openvpn}/server.conf"
-file_iptables='/etc/sysconfig/iptables.rules'
+conf_client_tpl="${dir_openvpn}/client-template.txt"
+conf_openvpn="${dir_openvpn}/server.conf"
+conf_iptables='/etc/sysconfig/iptables.rules'
+
 
 ## function: config the firewall
 set_firewall(){
@@ -46,7 +48,7 @@ echo 1 > /proc/sys/net/ipv4/ip_forward
 # Set NAT for the VPN subnet
 iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
 # Save persitent iptables rules
-iptables-save > $file_iptables
+iptables-save > $conf_iptables
 if pgrep firewalld; then
 	# We don't use --add-service=openvpn because that would only work with
 	# the default port. Using both permanent and not permanent rules to
@@ -64,7 +66,7 @@ if iptables -L -n | grep -qE 'REJECT|DROP'; then
 	iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
 	iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 	# Save persitent OpenVPN rules
-	iptables-save > $file_iptables
+	iptables-save > $conf_iptables
 fi
 # If SELinux is enabled and a custom port was selected, we need this
 if hash sestatus 2>/dev/null; then
@@ -83,6 +85,7 @@ fi
 ## function: generate the new client??.ovpn
 generate_newclient() {
 
+# Generates the custom client.ovpn
 # Where to write the custom client.ovpn?
 if [ -e /home/$1 ]; then  # if $1 is a user name
 	homeDir="/home/$1"
@@ -93,7 +96,7 @@ else  # if not SUDO_USER, use /root
 fi
 # Generates the custom client.ovpn
 file_client="$homeDir/$1.ovpn"
-cp ${file_client_tpl} ${file_client}
+cp ${conf_client_tpl} ${file_client}
 echo "<ca>" >> ${file_client}
 cat ${dir_pki}/ca.crt >> ${file_client}
 echo "</ca>" >> ${file_client}
@@ -107,6 +110,40 @@ echo "key-direction 1" >> ${file_client}
 echo "<tls-auth>" >> ${file_client}
 cat ${dir_openvpn}/tls-auth.key >> ${file_client}
 echo "</tls-auth>" >> ${file_client}
+
+echo ""
+echo "Client $1 added, certs available at $homeDir/$1.ovpn"
+
+}
+
+## function: revoke a exist client??.ovpn
+revoke_openvpn_client(){
+
+NUMBEROFCLIENTS=$(tail -n +2 ${file_index} | grep -c "^V")
+if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
+	echo ""
+	echo "You have no existing clients!"
+	exit 5
+fi
+echo ""
+echo "Select the existing client certificate you want to revoke"
+tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
+	read -p "Select one client [1]: " CLIENTNUMBER
+else
+	read -p "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
+fi
+CLIENT=$(tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | sed -n "${CLIENTNUMBER:?empty-var}"p)
+cd ${dir_easy}
+${bin_easy} --batch revoke $CLIENT
+EASYRSA_CRL_DAYS=3650 ${bin_easy} gen-crl
+rm -f ${dir_pki}/reqs/$CLIENT.req ${dir_pki}/private/$CLIENT.key ${dir_pki}/issued/$CLIENT.crt 
+#rm -f ${dir_openvpn}/crl.pem
+/bin/cp -f ${dir_pki}/crl.pem ${dir_openvpn}/crl.pem
+chmod 644 ${dir_openvpn}/crl.pem
+echo ""
+echo "Certificate for client $CLIENT revoked"
+echo "Exiting..."
 }
 
 ## function: install easyrsa 3.0.3
@@ -130,7 +167,7 @@ rm -rf ~/${file_easy}
 }
 
 ## function: install iptables for debian
-install_ipt_service(){
+systemd_ipt_service(){
 
 dir_ipt='/etc/iptables'
 file_ipt_svc='/etc/systemd/system/iptables.service'
@@ -138,7 +175,7 @@ file_ipt_sh="${dir_ipt}/flush-iptables.sh"
 # Install iptables service
 if [[ ! -e ${file_ipt_svc} ]]; then
 	mkdir ${dir_ipt}
-	iptables-save > ${file_iptables}
+	iptables-save > ${conf_iptables}
 	echo "#!/bin/sh
 iptables -F
 iptables -X
@@ -157,8 +194,8 @@ Before=network-pre.target
 Wants=network-pre.target
 [Service]
 Type=oneshot
-ExecStart=/sbin/iptables-restore ${file_iptables}
-ExecReload=/sbin/iptables-restore ${file_iptables}
+ExecStart=/sbin/iptables-restore ${conf_iptables}
+ExecReload=/sbin/iptables-restore ${conf_iptables}
 ExecStop=/etc/iptables/flush-iptables.sh
 RemainAfterExit=yes
 [Install]
@@ -337,18 +374,18 @@ if [[ "$OS" = 'debian' ]]; then
 	# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 	## The we install OpenVPN
 	apt-get install openvpn iptables openssl wget ca-certificates curl -y
-	install_ipt_service ## call function
+	systemd_ipt_service ## call function
 elif [[ "$OS" = 'centos7' || "$OS" = 'fedora' ]]; then
 	if [[ "$OS" = 'centos7'  ]]; then
 		yum install epel-release -y
 	fi
 	yum --enablerepo=epel install openvpn iptables openssl wget ca-certificates curl -y
-	# install_ipt_service ## call function
+	# systemd_ipt_service ## call function
 	read -p "Please manually set the firewall,press anykey continue"
 elif [[ "$OS" = 'centos6' ]]; then
 	yum install epel-release -y
 	yum --enablerepo=epel install openvpn iptables openssl wget ca-certificates curl -y
-	# install_ipt_service ## call function
+	# systemd_ipt_service ## call function
 	read -p "Please manually set the firewall,press anykey continue"
 else
 	# Else, the distro is ArchLinux
@@ -369,7 +406,7 @@ else
 	if [[ "$OS" = 'arch' ]]; then
 		# Install dependencies
 		pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
-		iptables-save > ${file_iptables} # iptables won't start if this file does not exist
+		iptables-save > ${conf_iptables} # iptables won't start if this file does not exist
 		systemctl daemon-reload
 		systemctl enable iptables
 		systemctl start iptables
@@ -414,12 +451,13 @@ topology subnet
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt
 #client-config-dir ccd
-#route 10.8.0.0 255.255.255.252" >> ${file_openvpn_conf}
+#route 10.8.0.0 255.255.255.252" >> ${conf_openvpn}
 # DNS resolvers
 case $DNS in
 	1)
 	# Obtain the resolvers from resolv.conf and use them for OpenVPN
-	grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read line; do
+	grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
+	while read line; do
 		echo "push \"dhcp-option DNS $line\"" 
 	done
 	;;
@@ -450,8 +488,8 @@ case $DNS in
 	echo 'push "dhcp-option DNS 176.103.130.130"'
 	echo 'push "dhcp-option DNS 176.103.130.131"'
 	;;
-esac >> ${file_openvpn_conf}
-echo 'push "redirect-gateway def1 bypass-dhcp" '>> ${file_openvpn_conf}
+esac >> ${conf_openvpn}
+echo 'push "redirect-gateway def1 bypass-dhcp" '>> ${conf_openvpn}
 echo "client-to-client
 crl-verify crl.pem
 ca ca.crt
@@ -467,7 +505,7 @@ tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 status openvpn-status.log
 log openvpn.log
 log-append openvpn.log
-verb 3" >> ${file_openvpn_conf}
+verb 3" >> ${conf_openvpn}
 
 set_firewall ## call function
 	
@@ -520,11 +558,11 @@ if [[ "$IP" != "$EXTERNALIP" ]]; then
 fi
 	
 # client-template.txt is created so we have a template to add further users later
-echo "client" > ${file_client_tpl}
+echo "client" > ${conf_client_tpl}
 if [[ "$PROTOCOL" = 'udp' ]]; then
-	echo "proto ${PROTOCOL}" >> ${file_client_tpl}
+	echo "proto ${PROTOCOL}" >> ${conf_client_tpl}
 elif [[ "$PROTOCOL" = 'tcp' ]]; then
-	echo "proto ${PROTOCOL}-client" >> ${file_client_tpl}
+	echo "proto ${PROTOCOL}-client" >> ${conf_client_tpl}
 fi
 echo "remote $IP $PORT
 dev tun
@@ -540,7 +578,7 @@ tls-client
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 setenv opt block-outside-dns
-verb 3" >> ${file_client_tpl}
+verb 3" >> ${conf_client_tpl}
 
 # call function Generate the custom client.ovpn
 generate_newclient "$CLIENT"
@@ -557,8 +595,8 @@ remove_openvpn(){
 echo ""
 read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 if [[ 'y' = "$REMOVE" ]]; then
-	PORT=$(grep '^port ' ${file_openvpn_conf} | cut -d " " -f 2)
-	PROTOCOL=$(grep '^proto ' ${file_openvpn_conf} | cut -d " " -f 2)
+	PORT=$(grep '^port ' ${conf_openvpn} | cut -d " " -f 2)
+	PROTOCOL=$(grep '^proto ' ${conf_openvpn} | cut -d " " -f 2)
 	if pgrep firewalld; then
 		# Using both permanent and not permanent rules to avoid a firewalld reload.
 		firewall-cmd --zone=public --remove-port=$PORT/${PROTOCOL}
@@ -569,10 +607,10 @@ if [[ 'y' = "$REMOVE" ]]; then
 	if iptables -L -n | grep -qE 'REJECT|DROP'; then
 		iptables -D INPUT -p ${PROTOCOL} --dport $PORT -j ACCEPT
 		iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
-		iptables-save > $file_iptables
+		iptables-save > $conf_iptables
 	fi
 	iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-	iptables-save > $file_iptables
+	iptables-save > $conf_iptables
 	if hash sestatus 2>/dev/null; then
 		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 			if [[ "$PORT" != '1194' ]]; then
@@ -581,9 +619,16 @@ if [[ 'y' = "$REMOVE" ]]; then
 		fi
 	fi
 	if [[ "$OS" = 'debian' ]]; then
+		systemctl stop openvpn@server
 		apt-get autoremove --purge -y openvpn
 	elif [[ "$OS" = 'arch' ]]; then
 		pacman -R openvpn --noconfirm
+	elif [[ "$OS" = 'centos7' ]]; then
+		systemctl stop openvpn@server
+		yum remove openvpn -y
+	elif [[ "$OS" = 'centos6' ]]; then
+		/etc/init.d/openvpn stop
+		yum remove openvpn -y
 	else
 		yum remove openvpn -y
 	fi
@@ -613,7 +658,7 @@ What do you want to do?
    3) Remove OpenVPN
    4) Exit
 EOF
-	file_index="${dir_pki}/index.txt"
+
 	read -p 'Select an option [1-4]: ' option
 	case $option in
 		1)
@@ -625,38 +670,11 @@ EOF
 		read -p "Client name: " -e -i client CLIENT
 		cd ${dir_easy}
 		${bin_easy} build-client-full $CLIENT nopass
-		# Generates the custom client.ovpn
 		generate_newclient "$CLIENT"
-		echo ""
-		echo "Client $CLIENT added, certs available at $homeDir/$CLIENT.ovpn"
 		exit
 		;;
 		2)
-		NUMBEROFCLIENTS=$(tail -n +2 ${file_index} | grep -c "^V")
-		if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
-			echo ""
-			echo "You have no existing clients!"
-			exit 5
-		fi
-		echo ""
-		echo "Select the existing client certificate you want to revoke"
-		tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-		if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
-			read -p "Select one client [1]: " CLIENTNUMBER
-		else
-			read -p "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
-		fi
-		CLIENT=$(tail -n +2 ${file_index} | grep "^V" | cut -d '=' -f 2 | sed -n "${CLIENTNUMBER:?empty-var}"p)
-		cd ${dir_easy}
-		${bin_easy} --batch revoke $CLIENT
-		EASYRSA_CRL_DAYS=3650 ${bin_easy} gen-crl
-		rm -f ${dir_pki}/reqs/$CLIENT.req ${dir_pki}/private/$CLIENT.key ${dir_pki}/issued/$CLIENT.crt 
-		#rm -f ${dir_openvpn}/crl.pem
-		/bin/cp -f ${dir_pki}/crl.pem ${dir_openvpn}/crl.pem
-		chmod 644 ${dir_openvpn}/crl.pem
-		echo ""
-		echo "Certificate for client $CLIENT revoked"
-		echo "Exiting..."
+		revoke_openvpn_client ## call function 
 		exit
 		;;
 		3)
@@ -737,7 +755,7 @@ detect_os_ver ## call function
 detect_IP_NIC ## call function
 
 ## OpenVPN setup and first user creation
-if [[ -e ${file_openvpn_conf} ]]; then
+if [[ -e ${conf_openvpn} ]]; then
 	config_openvpn ## call function
 else
 	install_openvpn ## call function
