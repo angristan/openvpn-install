@@ -150,12 +150,8 @@ echo "Exiting..."
 install_easyrsa(){
 
 # An old version of easy-rsa was available by default in some openvpn packages
-if [[ -d ${dir_easy}/ ]]; then
-	rm -rf ${dir_easy}/
-	mkdir -p ${dir_easy}
-else
-	mkdir -p ${dir_easy}
-fi
+rm -rf ${dir_easy}
+mkdir -p ${dir_easy}
 # Get easy-rsa
 url_easy='https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz'
 file_easy=${url_easy##*/}
