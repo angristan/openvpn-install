@@ -40,7 +40,7 @@ if [[ -e /etc/debian_version ]]; then
 			exit 4
 		fi
 	fi
-elif [[ -e /etc/centos-release || -e /etc/redhat-release && ! -e /etc/fedora-release ]]; then
+elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release && ! -e /etc/fedora-release ]]; then
 	OS=centos
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
