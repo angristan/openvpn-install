@@ -678,6 +678,7 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
+verify-x509-name $SERVER_NAME name
 auth SHA256
 auth-nocache
 $CIPHER
