@@ -469,18 +469,25 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -rf ~/EasyRSA-3.0.3.tgz
 	cd /etc/openvpn/easy-rsa/
+	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name =>
+	###  => FROM https://github.com/pivpn/pivpn/blob/master/auto_install/install.sh ###
+	NEW_UUID_CN=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+	NEW_UUID_SERVER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+	SERVER_CN="cn_$NEW_UUID_CN"
+	SERVER_NAME="server_$NEW_UUID_SERVER"
 	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
+	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
 	openssl dhparam -out dh.pem $DH_KEY_SIZE
-	./easyrsa build-server-full server nopass
+	./easyrsa build-server-full $SERVER_NAME nopass
 	./easyrsa build-client-full $CLIENT nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/$SERVER_NAME.crt pki/private/$SERVER_NAME.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 
@@ -539,8 +546,8 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
 echo "crl-verify crl.pem
 ca ca.crt
-cert server.crt
-key server.key
+cert $SERVER_NAME.crt
+key $SERVER_NAME.key
 tls-auth tls-auth.key 0
 dh dh.pem
 auth SHA256
