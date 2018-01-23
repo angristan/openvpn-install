@@ -1,4 +1,5 @@
 # OpenVPN-install
+
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
 
 This script will let you setup your own secure VPN server in just a few minutes.
@@ -16,10 +17,11 @@ You can get a cheap VPS to run this script for $2.50/month worldwide at [Vultr](
 
 First, get the script and make it executable :
 
-```
+```bash
 wget https://raw.githubusercontent.com/Angristan/OpenVPN-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
+
 Then run it :
 
 `./openvpn-install.sh`
@@ -34,7 +36,7 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 
 ![](https://i.imgur.com/AlW9g7t.png)
 
-## Why make a fork ?
+## The fork
 
 This script is based on the great work of [Nyr and its contributors](https://github.com/Nyr/openvpn-install).
 
@@ -53,6 +55,7 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 ## Compatibility
 
 The script is made to work on these OS and architectures :
+
 - **Debian 7** (i386, amd64)
 - **Debian 8** (i386, amd64)
 - **Debian 9** (i386, amd64, armhf, arm64)
@@ -75,6 +78,7 @@ If your're using an Ubuntu version that is not supported by the script, be aware
 ## Features
 
 This fork includes the following features :
+
 - Every feature of the [original script](https://github.com/Nyr/openvpn-install)
 - Better encryption, see below
 - Better DNS resolvers, see below
@@ -108,13 +112,13 @@ Any other fast, trustable and neutral servers proposition is welcome.
 
 The main reason why I made this fork is to improve the encryption. Indeed, OpenVPN's default parameters are weak (and that's what [Nyr's script](https://github.com/Nyr/openvpn-install) uses).
 
-I want to justify all my choices regarding the encryption settings I have chosen, to prove that I'm not some random noob as some may think. 😉 
+I want to justify all my choices regarding the encryption settings I have chosen, to prove that I'm not some random noob as some may think. 😉
 
 However I'm far from a crypto expert, so don't hesitate to doubt what I say (I put links to my sources anyway), and to open an issue to correct me.
 
 OpenVPN 2.4 will be a great update on the encryption part, because we'll be able to use elliptic curves, so ECDSA and ECDH (as well for the control channel), and AES GCM. They are faster and more secure. I will, of course, update the script when it will be available.
 
-**Note:** With OpenVPN's default parameters, you have a relatively weak encryption. Nonetheless, your trafic is still encrypted, so unless you're under surveillance, probably no one will try to decrypt it. Yet it's not a reason to use old and weak algorithm when there are much better ones available. 😉 
+**Note:** With OpenVPN's default parameters, you have a relatively weak encryption. Nonetheless, your trafic is still encrypted, so unless you're under surveillance, probably no one will try to decrypt it. Yet it's not a reason to use old and weak algorithm when there are much better ones available. 😉
 
 ### TLS version
 
@@ -144,7 +148,7 @@ It also supports SHA1 and MD5, which are unsafe, and all the SHA2 family. I didn
 
 ### Data channel's cipher
 
-By default, OpenVPN uses `BF-CBC` as the data channel cipher. Blowfish is an old (1993) an weak alogorithm. What's *funny* is that even the official OpenVPN documentation admits it. 
+By default, OpenVPN uses `BF-CBC` as the data channel cipher. Blowfish is an old (1993) an weak alogorithm. What's *funny* is that even the official OpenVPN documentation admits it.
 
 >The default is BF-CBC, an abbreviation for Blowfish in Cipher Block Chaining mode.
 Using BF-CBC is no longer recommended, because of its 64-bit block size. This small block size allows attacks based on collisions, as demonstrated by SWEET32. See https://community.openvpn.net/openvpn/wiki/SWEET32 for details.
@@ -168,11 +172,13 @@ Convinced ?
 
 The [SWEET32 vulnerability page](https://community.openvpn.net/openvpn/wiki/SWEET32) from OpenVPN's documentation says :
 >The following ciphers are affected, and should no longer be used:
+
 - BF-*
 - DES* (including 3DES variants)
 - RC2-*
 
 >The following ciphers are *not* affected:
+
 - AES-*
 - CAMELLIA-*
 - SEED-*
@@ -242,7 +248,7 @@ SHA-1 is not safe anymore, so I use SHA-256 which is safe and widely used.
 
 >The primary benefit is that an unauthenticated client cannot cause the same CPU/crypto load against a server as the junk traffic can be dropped much sooner. This can aid in mitigating denial-of-service attempts.
 
->This feature by itself does not improve the TLS auth in any way, although it offers a 2nd line of defense if a future flaw is discovered in a particular TLS cipher-suite or implementation (such as CVE-2014-0160, Heartbleed, where the tls-auth key provided protection against attackers who did not have a copy). However, it offers no protection at all in the event of a complete cryptographic break that can allow decryption of a cipher-suite's traffic. 
+>This feature by itself does not improve the TLS auth in any way, although it offers a 2nd line of defense if a future flaw is discovered in a particular TLS cipher-suite or implementation (such as CVE-2014-0160, Heartbleed, where the tls-auth key provided protection against attackers who did not have a copy). However, it offers no protection at all in the event of a complete cryptographic break that can allow decryption of a cipher-suite's traffic.
 
 [Source](https://openvpn.net/index.php/open-source/documentation/howto.html#security)
 
