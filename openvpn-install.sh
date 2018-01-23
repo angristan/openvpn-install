@@ -462,12 +462,12 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 		rm -rf /etc/openvpn/easy-rsa/
 	fi
 	# Get easy-rsa
-	wget -O ~/EasyRSA-3.0.3.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.3/EasyRSA-3.0.3.tgz
-	tar xzf ~/EasyRSA-3.0.3.tgz -C ~/
-	mv ~/EasyRSA-3.0.3/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-3.0.3/ /etc/openvpn/easy-rsa/
+	wget -O ~/EasyRSA-3.0.4.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.4/EasyRSA-3.0.4.tgz
+	tar xzf ~/EasyRSA-3.0.4.tgz -C ~/
+	mv ~/EasyRSA-3.0.4/ /etc/openvpn/
+	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
 	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -rf ~/EasyRSA-3.0.3.tgz
+	rm -rf ~/EasyRSA-3.0.4.tgz
 	cd /etc/openvpn/easy-rsa/
 	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
