@@ -78,9 +78,9 @@ newclient () {
 	#We verify if we used tls-crypt or tls-auth during the installation
 	TLS_SIG=$(cat /etc/openvpn/TLS_SIG)
 	if [[ $TLS_SIG == "1" ]]; then
-		echo "<tls-crypt>" >> ~/$1.ovpn
-		cat /etc/openvpn/tls-crypt.key >> ~/$1.ovpn
-		echo "</tls-crypt>" >> ~/$1.ovpn
+		echo "<tls-crypt>" >> $homeDir/$1.ovpn
+		cat /etc/openvpn/tls-crypt.key >> $homeDir/$1.ovpn
+		echo "</tls-crypt>" >> $homeDir/$1.ovpn
 	elif [[ $TLS_SIG == "2" ]]; then
 		echo "key-direction 1" >> $homeDir/$1.ovpn
 		echo "<tls-auth>" >> $homeDir/$1.ovpn
