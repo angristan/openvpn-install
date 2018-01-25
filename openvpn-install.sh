@@ -469,12 +469,9 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -rf ~/EasyRSA-3.0.3.tgz
 	cd /etc/openvpn/easy-rsa/
-	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name =>
-	###  => FROM https://github.com/pivpn/pivpn/blob/master/auto_install/install.sh ###
-	NEW_UUID_CN=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
-	NEW_UUID_SERVER=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
-	SERVER_CN="cn_$NEW_UUID_CN"
-	SERVER_NAME="server_$NEW_UUID_SERVER"
+	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
+	SERVER_CN="cn_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+	SERVER_NAME="server_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
