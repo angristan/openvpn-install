@@ -1,4 +1,6 @@
 # OpenVPN-install
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FAngristan%2FOpenVPN-install.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FAngristan%2FOpenVPN-install?ref=badge_shield)
+
 
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
 
@@ -262,3 +264,6 @@ Thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs
 [Old repo](https://github.com/Angristan/OpenVPN-install-fork-old)
 
 [MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FAngristan%2FOpenVPN-install.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FAngristan%2FOpenVPN-install?ref=badge_large)
