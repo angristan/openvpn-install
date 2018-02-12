@@ -110,11 +110,24 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 		case $option in
 			1)
 			echo ""
+			echo "Do you want to protect the configuration file with a password?"
+			echo "(e.g. encrypt the private key with a password)"
+			echo "   1) Add a passwordless client"
+			echo "   2) Use a password for the client"
+			read -p "Select an option [1-2]: " pass
+			echo ""
 			echo "Tell me a name for the client cert"
 			echo "Please, use one word only, no special characters"
-			read -p "Client name: " -e -i client CLIENT
+			read -p "Client name: " -e -i client2 CLIENT
 			cd /etc/openvpn/easy-rsa/
-			./easyrsa build-client-full $CLIENT nopass
+			case $pass in
+				1)
+				./easyrsa build-client-full $CLIENT nopass
+				;;
+				2)
+				./easyrsa build-client-full $CLIENT
+				;;
+			esac
 			# Generates the custom client.ovpn
 			newclient "$CLIENT"
 			echo ""
@@ -316,6 +329,12 @@ else
 		;;
 	esac
 	echo ""
+	echo "Do you want to protect the configuration file with a password?"
+	echo "(e.g. encrypt the private key with a password)"
+	echo "   1) Add a passwordless client"
+	echo "   2) Use a password for the client"
+	read -p "Select an option [1-2]: " pass
+	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
 		echo "Please, use one word only, no special characters"
@@ -479,7 +498,14 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	./easyrsa --batch build-ca nopass
 	openssl dhparam -out dh.pem $DH_KEY_SIZE
 	./easyrsa build-server-full $SERVER_NAME nopass
-	./easyrsa build-client-full $CLIENT nopass
+	case $pass in
+		1)
+			./easyrsa build-client-full $CLIENT nopass
+		;;
+		2)
+			./easyrsa build-client-full $CLIENT
+		;;
+	esac
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
