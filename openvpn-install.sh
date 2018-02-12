@@ -118,7 +118,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			echo ""
 			echo "Tell me a name for the client cert"
 			echo "Please, use one word only, no special characters"
-			read -p "Client name: " -e -i client2 CLIENT
+			read -p "Client name: " -e -i client CLIENT
 			cd /etc/openvpn/easy-rsa/
 			case $pass in
 				1)
