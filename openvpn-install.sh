@@ -40,16 +40,16 @@ if [[ -e /etc/debian_version ]]; then
 			exit 4
 		fi
 	fi
-elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release && ! -e /etc/fedora-release ]]; then
+elif [[ -e /etc/fedora-release ]]; then
+	OS=fedora
+	IPTABLES='/etc/iptables/iptables.rules'
+	SYSCTL='/etc/sysctl.d/openvpn.conf'
+elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release ]]; then
 	OS=centos
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
 elif [[ -e /etc/arch-release ]]; then
 	OS=arch
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
-elif [[ -e /etc/fedora-release ]]; then
-	OS=fedora
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
