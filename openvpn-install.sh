@@ -517,6 +517,8 @@ else
 		elif [[ "$VERSION_ID" = 'VERSION_ID="9"' ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable stretch main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+			apt update
+		fi
 		# Ubuntu 14.04
 		elif [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/openvpn.list
@@ -650,7 +652,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	cd /etc/openvpn/easy-rsa/
 	if [[ $CERT_TYPE == "1" ]]; then
 		echo "set_var EASYRSA_ALGO ec
-set_var EASYRSA_CURVE $CERT_CURVE" > vars
+    set_var EASYRSA_CURVE $CERT_CURVE" > vars
 	elif [[ $CERT_TYPE == "2" ]]; then
 		echo "set_var EASYRSA_KEY_SIZE $RSA_SIZE" > vars
 	fi
@@ -892,6 +894,7 @@ persist-tun
 remote-cert-tls server
 verify-x509-name $SERVER_NAME name
 auth $HMAC_AUTH
+auth-nocache
 $CIPHER
 tls-client
 tls-version-min 1.2
