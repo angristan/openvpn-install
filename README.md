@@ -89,6 +89,7 @@ This fork includes the following features :
 - No comp-lzo, as [compression is a vector for oracle attacks, e.g. CRIME or BREACH](https://github.com/BetterCrypto/Applied-Crypto-Hardening/pull/91#issuecomment-75388575)
 - [Arch Linux support](https://github.com/Angristan/OpenVPN-install/pull/2)
 - Up-to-date OpenVPN thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) for CentOS and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Ubuntu and Debian. These are third-party yet trusted repositories.
+- Randomized certificate name
 - Other improvements !
 
 ## DNS
