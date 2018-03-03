@@ -508,7 +508,7 @@ else
 	read -n1 -r -p "Press any key to continue..."
 
 	if [[ "$OS" = 'debian' ]]; then
-		apt-get install ca-certificates -y
+		apt-get install ca-certificates gpg -y
 		# We add the OpenVPN repo to get the latest version.
 		# Debian 8
 		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
