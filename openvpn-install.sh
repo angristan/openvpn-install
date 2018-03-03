@@ -44,7 +44,7 @@ elif [[ -e /etc/fedora-release ]]; then
 	OS=fedora
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.d/openvpn.conf'
-elif [[ -e /etc/centos-release || -e /etc/redhat-release ]]; then
+elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release ]]; then
 	OS=centos
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
