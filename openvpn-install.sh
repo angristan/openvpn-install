@@ -517,7 +517,6 @@ else
 		elif [[ "$VERSION_ID" = 'VERSION_ID="9"' ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable stretch main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt update
 		fi
 		# Ubuntu 14.04
 		elif [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
