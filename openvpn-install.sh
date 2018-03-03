@@ -654,14 +654,18 @@ set_var EASYRSA_CURVE $CERT_CURVE" > vars
 	elif [[ $CERT_TYPE == "2" ]]; then
 		echo "set_var EASYRSA_KEY_SIZE $RSA_SIZE" > vars
 	fi
+	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
+	SERVER_CN="cn_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+	SERVER_NAME="server_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	echo 'set_var EASYRSA_DIGEST "'$CERT_HASH'"' >> vars
+	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
 	if [[ $DH_TYPE == "2" ]]; then
 		openssl dhparam -out dh.pem $DH_SIZE
 	fi
-	./easyrsa build-server-full server nopass
+	./easyrsa build-server-full $SERVER_NAME nopass
 	./easyrsa build-client-full $CLIENT nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	if [[ $TLS_SIG == "1" ]]; then
@@ -672,7 +676,7 @@ set_var EASYRSA_CURVE $CERT_CURVE" > vars
 		openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	fi
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key pki/issued/$SERVER_NAME.crt pki/private/$SERVER_NAME.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	if [[ $DH_TYPE == "2" ]]; then
 		cp dh.pem /etc/openvpn
 	fi
@@ -734,8 +738,8 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
 echo "crl-verify crl.pem
 ca ca.crt
-cert server.crt
-key server.key" >> /etc/openvpn/server.conf
+cert $SERVER_NAME.crt
+key $SERVER_NAME.key" >> /etc/openvpn/server.conf
 if [[ $TLS_SIG == "1" ]]; then
 	echo "tls-crypt tls-crypt.key 0" >> /etc/openvpn/server.conf
 elif [[ $TLS_SIG == "2" ]]; then
@@ -886,6 +890,7 @@ nobind
 persist-key
 persist-tun
 remote-cert-tls server
+verify-x509-name $SERVER_NAME name
 auth $HMAC_AUTH
 $CIPHER
 tls-client
