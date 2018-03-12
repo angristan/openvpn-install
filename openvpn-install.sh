@@ -211,7 +211,7 @@ install_openvpn(){
 
 clear
 cat <<EOF
-Welcome to the secure OpenVPN installer (github.com/Angristan/OpenVPN-install)
+Welcome to the secure OpenVPN installer (https://github.com/xiagw/OpenVPN-install)
 
 I need to ask you a few questions before starting the setup
 You can leave the default options and just press enter if you are ok with them
