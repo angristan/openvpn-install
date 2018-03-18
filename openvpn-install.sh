@@ -190,6 +190,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				rm -rf /etc/openvpn
 				rm -rf /usr/share/doc/openvpn*
+				cd /home/ && rm $(find . -maxdepth 2 | grep .ovpn) || rm /root/*.ovpn
 				echo ""
 				echo "OpenVPN removed!"
 			else
