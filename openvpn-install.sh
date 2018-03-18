@@ -146,6 +146,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			rm -rf /etc/openvpn/crl.pem
 			cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 			chmod 644 /etc/openvpn/crl.pem
+			cd /home/ && rm $(find . -maxdepth 2 | grep $CLIENT.ovpn) || rm /root/$CLIENT.ovpn
 			echo ""
 			echo "Certificate for client $CLIENT revoked"
 			echo "Exiting..."
