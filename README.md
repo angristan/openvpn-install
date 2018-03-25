@@ -147,7 +147,7 @@ It also supports SHA1 and MD5, which are unsafe, and all the SHA2 family. I didn
 
 ### Data channel's cipher
 
-By default, OpenVPN uses `BF-CBC` as the data channel cipher. Blowfish is an old (1993) an weak alogorithm. What's *funny* is that even the official OpenVPN documentation admits it.
+By default, OpenVPN uses `BF-CBC` as the data channel cipher. Blowfish is an old (1993) and weak alogorithm. What's *funny* is that even the official OpenVPN documentation admits it.
 
 >The default is BF-CBC, an abbreviation for Blowfish in Cipher Block Chaining mode.
 Using BF-CBC is no longer recommended, because of its 64-bit block size. This small block size allows attacks based on collisions, as demonstrated by SWEET32. See https://community.openvpn.net/openvpn/wiki/SWEET32 for details.
