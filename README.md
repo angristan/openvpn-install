@@ -13,7 +13,7 @@ Here is a preview of the installer :
 
 **You have to enable the TUN module otherwise OpenVPN won't work.** Ask your host if you don't know how to do it. If the TUN module is not enabled, the script will warn you and exit.
 
-You can get a cheap VPS to run this script for $2.50/month worldwide at [Vultr](https://goo.gl/Xyd1Sc) or 3€/month for unlimited bandwidth in France at [PulseHeberg](https://goo.gl/76yqW5).
+You can get a cheap VPS to run this script at [Vultr](https://goo.gl/Xyd1Sc), [Digital Ocean](https://goo.gl/qXrNLK) or [PulseHeberg](https://goo.gl/76yqW5).
 
 First, get the script and make it executable :
 
@@ -54,20 +54,27 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 
 ## Compatibility
 
-The script is made to work on these OS and architectures :
+|              | i386   |  amd64 | armhf   | arm64 |
+| ------------ | ------ | ------ | ------- | ------|
+|   Debian 8   |   ✔️  |   ✔️   |   ❌   |   ❌  |
+|   Debian 9   |   ✔️  |   ✔️   |   ✔️   |   ✔️  |
+| Ubuntu 14.04 |   ✔️  |   ✔️   |   ❌   |   ❌  |
+| Ubuntu 16.04 |   ✔️  |   ✔️   |   ❌   |   ❌  |
+| Ubuntu 17.04 |   ✔️  |   ✔️   |   ✔️   |   ✔️  |
+| [Ubuntu 17.10](https://github.com/Angristan/OpenVPN-install/issues/125) |   ❌  |   ❌   |   ❌   |   ❌   |
+|   CentOS 6   |   ✔️  |   ✔️   |   ❔   |   ❔    |
+|   CentOS 7   |   ✔️  |   ✔️   |   ✔️  |   ❔    |
+|   Fedora 25  |   ❔   |   ✔️   |   ❔   |   ❔   |
+|   Fedora 26  |   ❔   |   ✔️   |   ❔   |   ❔   |
+|   Fedora 27  |   ❔   |   ✔️   |   ❔   |   ❔   |
+|  Arch Linux  |   ✔️  |   ✔️   |   ❌[(❔)](https://github.com/Angristan/OpenVPN-install/issues/99)   |   ✔️   |
 
-- **Debian 7** (i386, amd64)
-- **Debian 8** (i386, amd64)
-- **Debian 9** (i386, amd64, armhf, arm64)
-- **Ubuntu 14.04 LTS** (i386, amd64)
-- **Ubuntu 16.04 LTS** (i386, amd64)
-- **Ubuntu 17.10** (i386, amd64, armhf, arm64)
-- **Fedora 25** (amd64)
-- **Fedora 26** (amd64)
-- **Fedora 27** (amd64)
-- **CentOS 6** (i386, amd64)
-- **CentOS 7** (i386, amd64, arm64)
-- **Arch Linux** (i686, amd64, arm64)
+- ✔️ = tested and compatible
+
+- ❔ = untested
+
+- ❌ = tested and not compatible
+
 
 (It should also work on Debian unstable/testing and Ubuntu beta).
 
