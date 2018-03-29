@@ -22,10 +22,16 @@ fi
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
-	VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
+	# VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
+	source /etc/os-release
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
-	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]]; then
+	# if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]]; then
+	case "$VERSION_ID" in 
+	7|8|9|14.04|16.04|17.10)
+		:
+		;;
+	*)
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
 		echo ""
@@ -39,7 +45,8 @@ if [[ -e /etc/debian_version ]]; then
 			echo "Ok, bye !"
 			exit 4
 		fi
-	fi
+	esac
+	# fi
 elif [[ -e /etc/fedora-release ]]; then
 	OS=fedora
 	IPTABLES='/etc/iptables/iptables.rules'
