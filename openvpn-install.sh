@@ -117,6 +117,8 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 		case $option in
 			1)
 			echo ""
+			echo "Here are the files that already exist,do not repeat that"
+			tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 			echo "Tell me a name for the client cert"
 			echo "Please, use one word only, no special characters"
 			read -p "Client name: " -e -i newclient CLIENT
