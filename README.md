@@ -96,6 +96,7 @@ The script will ask you which DNS resolvers you want to use when connected to th
 Here are the possibilities :
 
 - Current system resolvers, those that are in `/etc/resolv.conf`
+- [Cloudflare](https://1.1.1.1/), recommended, fastest resolvers available (Anycast servers)
 - [Quad9](https://www.quad9.net), recommended, security and privacy oriented, fast worldwide (Anycast servers)
 - [FDN's DNS Servers](http://www.fdn.fr/actions/dns/), recommended if you're in western europe (France)
 - [DNS.WATCH DNS Servers](https://dns.watch/index), recommended if you're in western europe (Germany)
