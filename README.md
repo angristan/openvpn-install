@@ -60,7 +60,7 @@ The script is made to work on these OS and architectures :
 - **Debian 8** (i386, amd64)
 - **Debian 9** (i386, amd64, armhf, arm64)
 - **Ubuntu 14.04 LTS** (i386, amd64)
-- **Ubuntu 16.04 LTS** (i386, amd64)
+- **Ubuntu 16.04 LTS** (i386, amd64, armhf)
 - **Ubuntu 17.10** (i386, amd64, armhf, arm64)
 - **Fedora 25** (amd64)
 - **Fedora 26** (amd64)
