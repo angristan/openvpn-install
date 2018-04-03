@@ -254,6 +254,10 @@ SHA-1 is not safe anymore, so I use SHA-256 which is safe and widely used.
 
 TLS-Auth is not enabled by default by OpenVPN, but it is in this script.
 
+## Say thanks
+
+You can [say thanks](https://saythanks.io/to/Angristan) if you want!
+
 ## Credits & Licence
 
 Thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors) and of course Nyr's orginal work.
