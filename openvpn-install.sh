@@ -3,7 +3,6 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Arch Linux
 # https://github.com/Angristan/OpenVPN-install
 
-
 if [[ "$EUID" -ne 0 ]]; then
 	echo "Sorry, you need to run this as root"
 	exit 1
@@ -57,6 +56,13 @@ else
 	exit 4
 fi
 
+if [[ "$OS" = 'arch' || "$OS" = 'fedora' ]]; then
+	OVPN_ROOT=/etc/openvpn/server
+else
+	OVPN_ROOT=/etc/openvpn
+fi
+
+
 newclient () {
 	# Where to write the custom client.ovpn?
 	if [ -e /home/$1 ]; then  # if $1 is a user name
@@ -67,19 +73,19 @@ newclient () {
 		homeDir="/root"
 	fi
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt $homeDir/$1.ovpn
+	cp ${OVPN_ROOT}/client-template.txt $homeDir/$1.ovpn
 	echo "<ca>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/ca.crt >> $homeDir/$1.ovpn
+	cat ${OVPN_ROOT}/easy-rsa/pki/ca.crt >> $homeDir/$1.ovpn
 	echo "</ca>" >> $homeDir/$1.ovpn
 	echo "<cert>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> $homeDir/$1.ovpn
+	cat ${OVPN_ROOT}/easy-rsa/pki/issued/$1.crt >> $homeDir/$1.ovpn
 	echo "</cert>" >> $homeDir/$1.ovpn
 	echo "<key>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> $homeDir/$1.ovpn
+	cat ${OVPN_ROOT}/easy-rsa/pki/private/$1.key >> $homeDir/$1.ovpn
 	echo "</key>" >> $homeDir/$1.ovpn
 	echo "key-direction 1" >> $homeDir/$1.ovpn
 	echo "<tls-auth>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/tls-auth.key >> $homeDir/$1.ovpn
+	cat ${OVPN_ROOT}/tls-auth.key >> $homeDir/$1.ovpn
 	echo "</tls-auth>" >> $homeDir/$1.ovpn
 }
 
@@ -93,7 +99,7 @@ fi
 # Get Internet network interface with default route
 NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
-if [[ -e /etc/openvpn/server.conf ]]; then
+if [[ -e ${OVPN_ROOT}/server.conf ]]; then
 	while :
 	do
 	clear
@@ -113,7 +119,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			echo "Tell me a name for the client cert"
 			echo "Please, use one word only, no special characters"
 			read -p "Client name: " -e -i newclient CLIENT
-			cd /etc/openvpn/easy-rsa/
+			cd ${OVPN_ROOT}/easy-rsa/
 			./easyrsa build-client-full $CLIENT nopass
 			# Generates the custom client.ovpn
 			newclient "$CLIENT"
@@ -122,7 +128,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			exit
 			;;
 			2)
-			NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
+			NUMBEROFCLIENTS=$(tail -n +2 ${OVPN_ROOT}/easy-rsa/pki/index.txt | grep -c "^V")
 			if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
 				echo ""
 				echo "You have no existing clients!"
@@ -130,22 +136,22 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			fi
 			echo ""
 			echo "Select the existing client certificate you want to revoke"
-			tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+			tail -n +2 ${OVPN_ROOT}/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 			if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
 				read -p "Select one client [1]: " CLIENTNUMBER
 			else
 				read -p "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
 			fi
-			CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-			cd /etc/openvpn/easy-rsa/
+			CLIENT=$(tail -n +2 ${OVPN_ROOT}/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+			cd ${OVPN_ROOT}/easy-rsa/
 			./easyrsa --batch revoke $CLIENT
 			EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 			rm -rf pki/reqs/$CLIENT.req
 			rm -rf pki/private/$CLIENT.key
 			rm -rf pki/issued/$CLIENT.crt
-			rm -rf /etc/openvpn/crl.pem
-			cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-			chmod 644 /etc/openvpn/crl.pem
+			rm -rf ${OVPN_ROOT}/crl.pem
+			cp ${OVPN_ROOT}/easy-rsa/pki/crl.pem ${OVPN_ROOT}/crl.pem
+			chmod 644 ${OVPN_ROOT}/crl.pem
 			echo ""
 			echo "Certificate for client $CLIENT revoked"
 			echo "Exiting..."
@@ -155,7 +161,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			echo ""
 			read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 			if [[ "$REMOVE" = 'y' ]]; then
-				PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
+				PORT=$(grep '^port ' ${OVPN_ROOT}/server.conf | cut -d " " -f 2)
 				if pgrep firewalld; then
 					# Using both permanent and not permanent rules to avoid a firewalld reload.
 					firewall-cmd --zone=public --remove-port=$PORT/udp
@@ -188,7 +194,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				else
 					yum remove openvpn -y
 				fi
-				rm -rf /etc/openvpn
+				rm -rf ${OVPN_ROOT}
 				rm -rf /usr/share/doc/openvpn*
 				echo ""
 				echo "OpenVPN removed!"
@@ -453,17 +459,17 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	fi
 
 	# An old version of easy-rsa was available by default in some openvpn packages
-	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
-		rm -rf /etc/openvpn/easy-rsa/
+	if [[ -d ${OVPN_ROOT}/easy-rsa/ ]]; then
+		rm -rf ${OVPN_ROOT}/easy-rsa/
 	fi
 	# Get easy-rsa
 	wget -O ~/EasyRSA-3.0.4.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.4/EasyRSA-3.0.4.tgz
 	tar xzf ~/EasyRSA-3.0.4.tgz -C ~/
-	mv ~/EasyRSA-3.0.4/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
-	chown -R root:root /etc/openvpn/easy-rsa/
+	mv ~/EasyRSA-3.0.4/ ${OVPN_ROOT}/
+	mv ${OVPN_ROOT}/EasyRSA-3.0.4/ ${OVPN_ROOT}/easy-rsa/
+	chown -R root:root ${OVPN_ROOT}/easy-rsa/
 	rm -rf ~/EasyRSA-3.0.4.tgz
-	cd /etc/openvpn/easy-rsa/
+	cd ${OVPN_ROOT}/easy-rsa/
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	SERVER_NAME="server_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
@@ -477,18 +483,18 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	./easyrsa build-client-full $CLIENT nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# generate tls-auth key
-	openvpn --genkey --secret /etc/openvpn/tls-auth.key
+	openvpn --genkey --secret ${OVPN_ROOT}/tls-auth.key
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/$SERVER_NAME.crt pki/private/$SERVER_NAME.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/$SERVER_NAME.crt pki/private/$SERVER_NAME.key ${OVPN_ROOT}/easy-rsa/pki/crl.pem ${OVPN_ROOT}
 	# Make cert revocation list readable for non-root
-	chmod 644 /etc/openvpn/crl.pem
+	chmod 644 ${OVPN_ROOT}/crl.pem
 
 	# Generate server.conf
-	echo "port $PORT" > /etc/openvpn/server.conf
+	echo "port $PORT" > ${OVPN_ROOT}/server.conf
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "proto udp" >> /etc/openvpn/server.conf
+		echo "proto udp" >> ${OVPN_ROOT}/server.conf
 	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "proto tcp" >> /etc/openvpn/server.conf
+		echo "proto tcp" >> ${OVPN_ROOT}/server.conf
 	fi
 	echo "dev tun
 user nobody
@@ -498,48 +504,48 @@ persist-tun
 keepalive 10 120
 topology subnet
 server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
+ifconfig-pool-persist ipp.txt" >> ${OVPN_ROOT}/server.conf
 	# DNS resolvers
 	case $DNS in
 		1)
 		# Obtain the resolvers from resolv.conf and use them for OpenVPN
 		grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read line; do
-			echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
+			echo "push \"dhcp-option DNS $line\"" >> ${OVPN_ROOT}/server.conf
 		done
 		;;
 		2) # Cloudflare
-		echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf	
+		echo 'push "dhcp-option DNS 1.0.0.1"' >> ${OVPN_ROOT}/server.conf
+		echo 'push "dhcp-option DNS 1.1.1.1"' >> ${OVPN_ROOT}/server.conf	
 		;;
 		3) # Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 9.9.9.9"' >> ${OVPN_ROOT}/server.conf
 		;;
 		4) # FDN
-		echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.12"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 80.67.169.40"' >> ${OVPN_ROOT}/server.conf
+		echo 'push "dhcp-option DNS 80.67.169.12"' >> ${OVPN_ROOT}/server.conf
 		;;
 		5) # DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 84.200.69.80"' >> ${OVPN_ROOT}/server.conf
+		echo 'push "dhcp-option DNS 84.200.70.40"' >> ${OVPN_ROOT}/server.conf
 		;;
 		6) # OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 208.67.222.222"' >> ${OVPN_ROOT}/server.conf
+		echo 'push "dhcp-option DNS 208.67.220.220"' >> ${OVPN_ROOT}/server.conf
 		;;
 		7) # Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 8.8.8.8"' >> ${OVPN_ROOT}/server.conf
+		echo 'push "dhcp-option DNS 8.8.4.4"' >> ${OVPN_ROOT}/server.conf
 		;;
 		8) # Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 77.88.8.8"' >> ${OVPN_ROOT}/server.conf
+		echo 'push "dhcp-option DNS 77.88.8.1"' >> ${OVPN_ROOT}/server.conf
 		;;
 		9) # AdGuard DNS
-		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 176.103.130.130"' >> ${OVPN_ROOT}/server.conf
+		echo 'push "dhcp-option DNS 176.103.130.131"' >> ${OVPN_ROOT}/server.conf
 		;;
 	esac
-echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
+echo 'push "redirect-gateway def1 bypass-dhcp" '>> ${OVPN_ROOT}/server.conf
 echo "crl-verify crl.pem
 ca ca.crt
 cert $SERVER_NAME.crt
@@ -552,7 +558,7 @@ tls-server
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 status openvpn.log
-verb 3" >> /etc/openvpn/server.conf
+verb 3" >> ${OVPN_ROOT}/server.conf
 
 	# Create the sysctl configuration file if needed (mainly for Arch Linux)
 	if [[ ! -e $SYSCTL ]]; then
@@ -620,7 +626,7 @@ verb 3" >> /etc/openvpn/server.conf
 		if pgrep systemd-journal; then
 				#Workaround to fix OpenVPN service on OpenVZ
 				sed -i 's|LimitNPROC|#LimitNPROC|' /lib/systemd/system/openvpn\@.service
-				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /lib/systemd/system/openvpn\@.service
+				sed -i 's|${OVPN_ROOT}/server|${OVPN_ROOT}|' /lib/systemd/system/openvpn\@.service
 				sed -i 's|%i.conf|server.conf|' /lib/systemd/system/openvpn\@.service
 				systemctl daemon-reload
 				systemctl restart openvpn
@@ -630,17 +636,8 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 	else
 		if pgrep systemd-journal; then
-			if [[ "$OS" = 'arch' || "$OS" = 'fedora' ]]; then
-				#Workaround to avoid rewriting the entire script for Arch & Fedora
-				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /usr/lib/systemd/system/openvpn-server@.service
-				sed -i 's|%i.conf|server.conf|' /usr/lib/systemd/system/openvpn-server@.service
-				systemctl daemon-reload
-				systemctl restart openvpn-server@openvpn.service
-				systemctl enable openvpn-server@openvpn.service
-			else
-				systemctl restart openvpn@server.service
-				systemctl enable openvpn@server.service
-			fi
+			systemctl restart openvpn@server.service
+			systemctl enable openvpn@server.service
 		else
 			service openvpn restart
 			chkconfig openvpn on
@@ -661,11 +658,11 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 	fi
 	# client-template.txt is created so we have a template to add further users later
-	echo "client" > /etc/openvpn/client-template.txt
+	echo "client" > ${OVPN_ROOT}/client-template.txt
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "proto udp" >> /etc/openvpn/client-template.txt
+		echo "proto udp" >> ${OVPN_ROOT}/client-template.txt
 	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "proto tcp-client" >> /etc/openvpn/client-template.txt
+		echo "proto tcp-client" >> ${OVPN_ROOT}/client-template.txt
 	fi
 	echo "remote $IP $PORT
 dev tun
@@ -682,7 +679,7 @@ tls-client
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 setenv opt block-outside-dns
-verb 3" >> /etc/openvpn/client-template.txt
+verb 3" >> ${OVPN_ROOT}/client-template.txt
 
 	# Generate the custom client.ovpn
 	newclient "$CLIENT"
