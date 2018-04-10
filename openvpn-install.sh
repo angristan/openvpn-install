@@ -146,6 +146,8 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			rm -rf /etc/openvpn/crl.pem
 			cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 			chmod 644 /etc/openvpn/crl.pem
+			rm -rf $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
+			rm -rf /root/$CLIENT.ovpn 2>/dev/null
 			echo ""
 			echo "Certificate for client $CLIENT revoked"
 			echo "Exiting..."
@@ -188,6 +190,12 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				else
 					yum remove openvpn -y
 				fi
+				OVPNS=$(ls /etc/openvpn/easy-rsa/pki/issued | awk -F "." {'print $1'})
+				for i in $OVPNS
+				do
+				rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
+				rm /root/$i.ovpn 2>/dev/null
+				done
 				rm -rf /etc/openvpn
 				rm -rf /usr/share/doc/openvpn*
 				echo ""
