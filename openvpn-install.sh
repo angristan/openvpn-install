@@ -72,7 +72,7 @@ newclient () {
 	cat /etc/openvpn/easy-rsa/pki/ca.crt >> $homeDir/$1.ovpn
 	echo "</ca>" >> $homeDir/$1.ovpn
 	echo "<cert>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> $homeDir/$1.ovpn
+	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt | awk '/BEGIN/,/END/' >> $homeDir/$1.ovpn
 	echo "</cert>" >> $homeDir/$1.ovpn
 	echo "<key>" >> $homeDir/$1.ovpn
 	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> $homeDir/$1.ovpn
