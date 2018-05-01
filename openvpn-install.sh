@@ -3,17 +3,19 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Arch Linux
 # https://github.com/Angristan/OpenVPN-install
 
-
+# Verify root
 if [[ "$EUID" -ne 0 ]]; then
 	echo "Sorry, you need to run this as root"
 	exit 1
 fi
 
+# Verify tun
 if [[ ! -e /dev/net/tun ]]; then
 	echo "TUN is not available"
 	exit 2
 fi
 
+# Check if CentOS 5
 if grep -qs "CentOS release 5" "/etc/redhat-release"; then
 	echo "CentOS 5 is too old and not supported"
 	exit 3
@@ -218,20 +220,24 @@ else
 	# OpenVPN setup and first user creation
 	echo "I need to ask you a few questions before starting the setup"
 	echo "You can leave the default options and just press enter if you are ok with them"
+
 	echo ""
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)"
 	echo "Otherwise, it should be your public IPv4 address."
 	read -rp "IP address: " -e -i $IP IP
+	
 	echo ""
 	echo "What port do you want for OpenVPN?"
 	read -rp "Port: " -e -i 1194 PORT
+	
 	echo ""
 	echo "What protocol do you want for OpenVPN?"
 	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
 	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
 		read -rp "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
 	done
+	
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
@@ -243,7 +249,7 @@ else
 	echo "   7) Google (Anycast: worldwide)"
 	echo "   8) Yandex Basic (Russia)"
 	echo "   9) AdGuard DNS (Russia)"
-	echo "   10) Custom"
+	echo "  10) Custom"
 	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 10 ]; do
 		read -rp "DNS [1-10]: " -e -i 1 DNS
 	done
@@ -256,6 +262,7 @@ else
 			read -rp "Secondary DNS: " -e DNS2
 		done
 	fi
+	
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
 	echo "the encryption in OpenVPN and the choices I made in this script."
@@ -298,6 +305,7 @@ else
 		CIPHER="cipher SEED-CBC"
 		;;
 	esac
+	
 	echo ""
 	echo "Choose what size of Diffie-Hellman key you want to use:"
 	echo "   1) 2048 bits (fastest)"
@@ -317,6 +325,7 @@ else
 		DH_KEY_SIZE="4096"
 		;;
 	esac
+	
 	echo ""
 	echo "Choose what size of RSA key you want to use:"
 	echo "   1) 2048 bits (fastest)"
@@ -336,12 +345,14 @@ else
 		RSA_KEY_SIZE="4096"
 		;;
 	esac
+	
 	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
 		echo "Please, use one word only, no special characters"
 		read -rp "Client name: " -e -i client CLIENT
 	done
+	
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
 	read -n1 -rp "Press any key to continue..."
