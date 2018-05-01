@@ -244,8 +244,8 @@ else
 	echo "   8) Yandex Basic (Russia)"
 	echo "   9) AdGuard DNS (Russia)"
 	echo "   10) Custom"
-	until [[ "$DNS" -gt 0 && "$DNS" -le 10 && "$DNS" =~ ^[0-9]$ ]]; do
-		read -rp "DNS [1-8]: " -e -i 1 DNS
+	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 10 ]; do
+		read -rp "DNS [1-10]: " -e -i 1 DNS
 	done
 	if [[ $DNS = "10" ]]; then
 		# Get DNS IP and validate
