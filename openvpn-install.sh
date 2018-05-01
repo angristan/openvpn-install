@@ -22,7 +22,7 @@ fi
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
-	VERSION_ID=$(cat /etc/os-release | grep "VERSION_ID")
+	VERSION_ID=$(grep "VERSION_ID" < /etc/os-release)
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]]; then
@@ -33,7 +33,7 @@ if [[ -e /etc/debian_version ]]; then
 		echo "then you can continue, a recent version of OpenVPN is available on these."
 		echo "Keep in mind they are not supported, though."
 		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -p "Continue ? [y/n]: " -e CONTINUE
+			read -rp "Continue ? [y/n]: " -e CONTINUE
 		done
 		if [[ "$CONTINUE" = "n" ]]; then
 			echo "Ok, bye !"
@@ -59,28 +59,30 @@ fi
 
 newclient () {
 	# Where to write the custom client.ovpn?
-	if [ -e /home/$1 ]; then  # if $1 is a user name
+	if [ -e "/home/$1" ]; then  # if $1 is a user name
 		homeDir="/home/$1"
-	elif [ ${SUDO_USER} ]; then   # if not, use SUDO_USER
+	elif [ "${SUDO_USER}" ]; then   # if not, use SUDO_USER
 		homeDir="/home/${SUDO_USER}"
 	else  # if not SUDO_USER, use /root
 		homeDir="/root"
 	fi
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt $homeDir/$1.ovpn
-	echo "<ca>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/ca.crt >> $homeDir/$1.ovpn
-	echo "</ca>" >> $homeDir/$1.ovpn
-	echo "<cert>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/issued/$1.crt >> $homeDir/$1.ovpn
-	echo "</cert>" >> $homeDir/$1.ovpn
-	echo "<key>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/easy-rsa/pki/private/$1.key >> $homeDir/$1.ovpn
-	echo "</key>" >> $homeDir/$1.ovpn
-	echo "key-direction 1" >> $homeDir/$1.ovpn
-	echo "<tls-auth>" >> $homeDir/$1.ovpn
-	cat /etc/openvpn/tls-auth.key >> $homeDir/$1.ovpn
-	echo "</tls-auth>" >> $homeDir/$1.ovpn
+	cp /etc/openvpn/client-template.txt "$homeDir/$1.ovpn"
+	{
+		echo "<ca>"
+		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
+		echo "</ca>"
+		echo "<cert>"
+		cat "/etc/openvpn/easy-rsa/pki/issued/$1.crt"
+		echo "</cert>"
+		echo "<key>"
+		cat "/etc/openvpn/easy-rsa/pki/private/$1.key"
+		echo "</key>"
+		echo "key-direction 1"
+		echo "<tls-auth>"
+		cat "/etc/openvpn/tls-auth.key"
+		echo "</tls-auth>"
+	} >> "$homeDir/$1.ovpn"
 }
 
 # Try to get our IP from the system and fallback to the Internet.
@@ -106,14 +108,14 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 		echo "   2) Revoke existing user cert"
 		echo "   3) Remove OpenVPN"
 		echo "   4) Exit"
-		read -p "Select an option [1-4]: " option
+		read -rp "Select an option [1-4]: " option
 		case $option in
 			1)
 			echo ""
 			echo "Tell me a name for the client cert"
 			echo "Please, use one word only, no special characters"
-			read -p "Client name: " -e -i newclient CLIENT
-			cd /etc/openvpn/easy-rsa/
+			read -rp "Client name: " -e -i newclient CLIENT
+			cd /etc/openvpn/easy-rsa/ || return
 			./easyrsa build-client-full $CLIENT nopass
 			# Generates the custom client.ovpn
 			newclient "$CLIENT"
@@ -132,22 +134,22 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			echo "Select the existing client certificate you want to revoke"
 			tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 			if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
-				read -p "Select one client [1]: " CLIENTNUMBER
+				read -rp "Select one client [1]: " CLIENTNUMBER
 			else
-				read -p "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
+				read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
 			fi
 			CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-			cd /etc/openvpn/easy-rsa/
+			cd /etc/openvpn/easy-rsa/ || return
 			./easyrsa --batch revoke $CLIENT
 			EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-			rm -rf pki/reqs/$CLIENT.req
-			rm -rf pki/private/$CLIENT.key
-			rm -rf pki/issued/$CLIENT.crt
-			rm -rf /etc/openvpn/crl.pem
+			rm -rf "pki/reqs/$CLIENT.req"
+			rm -rf "pki/private/$CLIENT.key"
+			rm -rf "pki/issued/$CLIENT.crt"
+			rm -rf "/etc/openvpn/crl.pem"
 			cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 			chmod 644 /etc/openvpn/crl.pem
-			rm -rf $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
-			rm -rf /root/$CLIENT.ovpn 2>/dev/null
+			rm -rf "$(find /home -maxdepth 2 | grep $CLIENT.ovpn)" 2>/dev/null
+			rm -rf "/root/$CLIENT.ovpn" 2>/dev/null
 			echo ""
 			echo "Certificate for client $CLIENT revoked"
 			echo "Exiting..."
@@ -155,7 +157,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			;;
 			3)
 			echo ""
-			read -p "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+			read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 			if [[ "$REMOVE" = 'y' ]]; then
 				PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
 				if pgrep firewalld; then
@@ -194,7 +196,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				for i in $OVPNS
 				do
 				rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
-				rm /root/$i.ovpn 2>/dev/null
+				rm "/root/$i.ovpn" 2>/dev/null
 				done
 				rm -rf /etc/openvpn
 				rm -rf /usr/share/doc/openvpn*
@@ -220,15 +222,15 @@ else
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)"
 	echo "Otherwise, it should be your public IPv4 address."
-	read -p "IP address: " -e -i $IP IP
+	read -rp "IP address: " -e -i $IP IP
 	echo ""
 	echo "What port do you want for OpenVPN?"
-	read -p "Port: " -e -i 1194 PORT
+	read -rp "Port: " -e -i 1194 PORT
 	echo ""
 	echo "What protocol do you want for OpenVPN?"
 	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
 	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
-		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
+		read -rp "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
 	done
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
@@ -241,8 +243,8 @@ else
 	echo "   7) Google (Anycast: worldwide)"
 	echo "   8) Yandex Basic (Russia)"
 	echo "   9) AdGuard DNS (Russia)"
-	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" && $DNS != "8" ]]; do
-		read -p "DNS [1-8]: " -e -i 1 DNS
+	until [[ "$DNS" -gt 0 && "$DNS" -le 9 && "$DNS" =~ ^[0-9]$ ]]; do
+		read -rp "DNS [1-8]: " -e -i 1 DNS
 	done
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
@@ -261,7 +263,7 @@ else
 	echo "   6) CAMELLIA-256-CBC"
 	echo "   7) SEED-CBC"
 	while [[ $CIPHER != "1" && $CIPHER != "2" && $CIPHER != "3" && $CIPHER != "4" && $CIPHER != "5" && $CIPHER != "6" && $CIPHER != "7" ]]; do
-		read -p "Cipher [1-7]: " -e -i 1 CIPHER
+		read -rp "Cipher [1-7]: " -e -i 1 CIPHER
 	done
 	case $CIPHER in
 		1)
@@ -292,7 +294,7 @@ else
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
 	while [[ $DH_KEY_SIZE != "1" && $DH_KEY_SIZE != "2" && $DH_KEY_SIZE != "3" ]]; do
-		read -p "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE
+		read -rp "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE
 	done
 	case $DH_KEY_SIZE in
 		1)
@@ -311,7 +313,7 @@ else
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
 	while [[ $RSA_KEY_SIZE != "1" && $RSA_KEY_SIZE != "2" && $RSA_KEY_SIZE != "3" ]]; do
-		read -p "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE
+		read -rp "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE
 	done
 	case $RSA_KEY_SIZE in
 		1)
@@ -328,11 +330,11 @@ else
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
 		echo "Please, use one word only, no special characters"
-		read -p "Client name: " -e -i client CLIENT
+		read -rp "Client name: " -e -i client CLIENT
 	done
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
-	read -n1 -r -p "Press any key to continue..."
+	read -n1 -rp "Press any key to continue..."
 
 	if [[ "$OS" = 'debian' ]]; then
 		apt-get install ca-certificates gpg -y
@@ -437,7 +439,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 		echo ""
 		echo "Continuing will update your installed packages and install needed ones."
 		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -p "Continue ? [y/n]: " -e -i y CONTINUE
+			read -rp "Continue ? [y/n]: " -e -i y CONTINUE
 		done
 		if [[ "$CONTINUE" = "n" ]]; then
 			echo "Ok, bye !"
@@ -471,10 +473,10 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -rf ~/EasyRSA-3.0.4.tgz
-	cd /etc/openvpn/easy-rsa/
+	cd /etc/openvpn/easy-rsa/ || return
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
-	SERVER_CN="cn_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-	SERVER_NAME="server_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+	SERVER_CN="cn_$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 16 | head -n 1)"
+	SERVER_NAME="server_$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 16 | head -n 1)"
 	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
 	# Create the PKI, set up the CA, the DH params and the server + client certificates
@@ -511,7 +513,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 	case $DNS in
 		1)
 		# Obtain the resolvers from resolv.conf and use them for OpenVPN
-		grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read line; do
+		grep -v '#' /etc/resolv.conf | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read -r line; do
 			echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
 		done
 		;;
@@ -660,10 +662,10 @@ verb 3" >> /etc/openvpn/server.conf
 		echo ""
 		echo "Looks like your server is behind a NAT!"
 		echo ""
-        echo "If your server is NATed (e.g. LowEndSpirit, Scaleway, or behind a router),"
-        echo "then I need to know the address that can be used to access it from outside."
-        echo "If that's not the case, just ignore this and leave the next field blank"
-        read -p "External IP or domain name: " -e USEREXTERNALIP
+		echo "If your server is NATed (e.g. LowEndSpirit, Scaleway, or behind a router),"
+		echo "then I need to know the address that can be used to access it from outside."
+		echo "If that's not the case, just ignore this and leave the next field blank"
+		read -rp "External IP or domain name: " -e USEREXTERNALIP
 		if [[ "$USEREXTERNALIP" != "" ]]; then
 			IP=$USEREXTERNALIP
 		fi
