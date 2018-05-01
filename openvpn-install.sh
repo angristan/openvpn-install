@@ -243,9 +243,19 @@ else
 	echo "   7) Google (Anycast: worldwide)"
 	echo "   8) Yandex Basic (Russia)"
 	echo "   9) AdGuard DNS (Russia)"
-	until [[ "$DNS" -gt 0 && "$DNS" -le 9 && "$DNS" =~ ^[0-9]$ ]]; do
+	echo "   10) Custom"
+	until [[ "$DNS" -gt 0 && "$DNS" -le 10 && "$DNS" =~ ^[0-9]$ ]]; do
 		read -rp "DNS [1-8]: " -e -i 1 DNS
 	done
+	if [[ $DNS = "10" ]]; then
+		# Get DNS IP and validate
+		until [[ "$DNS1" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; do
+			read -rp "Primary DNS: " -e DNS1
+		done
+		until [[ "$DNS2" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; do
+			read -rp "Secondary DNS: " -e DNS2
+		done
+	fi
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
 	echo "the encryption in OpenVPN and the choices I made in this script."
@@ -547,6 +557,10 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		9) # AdGuard DNS
 		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
+		;;
+		10) # Custom DNS
+		echo """push "dhcp-option DNS $DNS1"""" >> /etc/openvpn/server.conf
+		echo """push "dhcp-option DNS $DNS2"""" >> /etc/openvpn/server.conf
 		;;
 	esac
 echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
