@@ -140,14 +140,14 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			cd /etc/openvpn/easy-rsa/
 			./easyrsa --batch revoke $CLIENT
 			EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-			rm -rf pki/reqs/$CLIENT.req
-			rm -rf pki/private/$CLIENT.key
-			rm -rf pki/issued/$CLIENT.crt
-			rm -rf /etc/openvpn/crl.pem
+			rm -f pki/reqs/$CLIENT.req
+			rm -f pki/private/$CLIENT.key
+			rm -f pki/issued/$CLIENT.crt
+			rm -f /etc/openvpn/crl.pem
 			cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 			chmod 644 /etc/openvpn/crl.pem
-			rm -rf $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
-			rm -rf /root/$CLIENT.ovpn 2>/dev/null
+			rm -f $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
+			rm -f /root/$CLIENT.ovpn 2>/dev/null
 			echo ""
 			echo "Certificate for client $CLIENT revoked"
 			echo "Exiting..."
@@ -470,7 +470,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	mv ~/EasyRSA-3.0.4/ /etc/openvpn/
 	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
 	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -rf ~/EasyRSA-3.0.4.tgz
+	rm -f ~/EasyRSA-3.0.4.tgz
 	cd /etc/openvpn/easy-rsa/
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
