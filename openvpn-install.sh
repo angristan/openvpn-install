@@ -690,7 +690,6 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	elif [[ "$PROTOCOL" = '2' ]]; then
 		echo "proto tcp" >> /etc/openvpn/server.conf
 		echo "socket-flags TCP_NODELAY" >> /etc/openvpn/server.conf
-		echo "push "socket-flags TCP_NODELAY"" >> /etc/openvpn/server.conf
 	fi
 	echo "dev tun
 user nobody
@@ -884,6 +883,7 @@ verb 3" >> /etc/openvpn/server.conf
 		echo "proto udp" >> /etc/openvpn/client-template.txt
 	elif [[ "$PROTOCOL" = '2' ]]; then
 		echo "proto tcp-client" >> /etc/openvpn/client-template.txt
+		echo "socket-flags TCP_NODELAY" >> /etc/openvpn/client-template.txt
 	fi
 	echo "remote $IP $PORT
 dev tun
