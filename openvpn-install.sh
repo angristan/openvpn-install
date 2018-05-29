@@ -242,8 +242,8 @@ else
 	echo "   7) Google (Anycast: worldwide)"
 	echo "   8) Yandex Basic (Russia)"
 	echo "   9) AdGuard DNS (Russia)"
-	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" && $DNS != "8" ]]; do
-		read -p "DNS [1-8]: " -e -i 1 DNS
+	while [[ $DNS != "1" && $DNS != "2" && $DNS != "3" && $DNS != "4" && $DNS != "5" && $DNS != "6" && $DNS != "7" && $DNS != "8" && $DNS != "9" ]]; do
+		read -p "DNS [1-9]: " -e -i 1 DNS
 	done
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
