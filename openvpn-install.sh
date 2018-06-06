@@ -168,6 +168,9 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					iptables-save > $IPTABLES
 				fi
 				iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
+				if [[ "$IPV6" = 'y' ]]; then
+					ip6tables -t nat -D POSTROUTING -o $NIC -s fd6c:62d9:eb8c::/112 -j MASQUERADE
+				fi
 				iptables-save > $IPTABLES
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
@@ -230,6 +233,11 @@ else
 	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
 	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
 		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
+	done
+	echo ""
+	echo "Do you want to enable IPv6 support?"
+	while [[ $IPV6 != "y" && $IPV6 != "n" ]]; do
+		read -p "IPv6 support? [y/n]: " -e -i n IPV6
 	done
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
@@ -555,8 +563,18 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
 		;;
 	esac
-echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
-echo "crl-verify crl.pem
+	echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
+
+	if [[ "$IPV6" = 'y' ]]; then
+		echo 'server-ipv6 fd6c:62d9:eb8c::/112
+proto udp6
+tun-ipv6
+push tun-ipv6
+push "route-ipv6 2000::/3"
+push "redirect-gateway ipv6"' >> /etc/openvpn/server.conf
+	fi
+
+	echo "crl-verify crl.pem
 ca ca.crt
 cert $SERVER_NAME.crt
 key $SERVER_NAME.key
@@ -575,15 +593,18 @@ verb 3" >> /etc/openvpn/server.conf
 		touch $SYSCTL
 	fi
 
-	# Enable net.ipv4.ip_forward for the system
-	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
-	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
-		echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+	# Enable routing
+	echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+	if [[ "$IPV6" = 'y' ]]; then
+		echo 'net.ipv6.ip_forward=1' >> $SYSCTL
 	fi
 	# Avoid an unneeded reboot
-	echo 1 > /proc/sys/net/ipv4/ip_forward
+	sysctl -p
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
+	if [[ "$IPV6" = 'y' ]]; then
+		ip6tables -t nat -A POSTROUTING -o $NIC -s fd6c:62d9:eb8c::/112 -j MASQUERADE
+	fi
 	# Save persitent iptables rules
 	iptables-save > $IPTABLES
 	if pgrep firewalld; then
@@ -613,6 +634,19 @@ verb 3" >> /etc/openvpn/server.conf
 		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 		# Save persitent OpenVPN rules
         iptables-save > $IPTABLES
+	fi
+	if [[ "$IPV6" = 'y' ]]; then
+		if ip6tables -L -n | grep -qE 'REJECT|DROP'; then
+			if [[ "$PROTOCOL" = 'UDP' ]]; then
+				ip6tables -I INPUT -p udp --dport $PORT -j ACCEPT
+			elif [[ "$PROTOCOL" = 'TCP' ]]; then
+				ip6tables -I INPUT -p tcp --dport $PORT -j ACCEPT
+			fi
+			ip6tables -I FORWARD -s fd6c:62d9:eb8c::/112 -j ACCEPT
+			ip6tables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+			# Save persitent OpenVPN rules
+			iptables-save > $IPTABLES
+		fi
 	fi
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
