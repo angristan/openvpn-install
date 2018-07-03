@@ -725,8 +725,8 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		done
 		;;
 		2) # Cloudflare
+		echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf	
 		;;
 		3) # Quad9
 		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
