@@ -502,10 +502,18 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 
 	# Generate server.conf
 	echo "port $PORT" > /etc/openvpn/server.conf
-	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "proto udp" >> /etc/openvpn/server.conf
-	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "proto tcp" >> /etc/openvpn/server.conf
+	if [[ "$IPV6" = 'n' ]]; then
+		if [[ "$PROTOCOL" = 'UDP' ]]; then
+			echo "proto udp" >> /etc/openvpn/server.conf
+		elif [[ "$PROTOCOL" = 'TCP' ]]; then
+			echo "proto tcp" >> /etc/openvpn/server.conf
+		fi
+	elif [ "$IPV6" = 'y' ]]; then
+		if [[ "$PROTOCOL" = 'UDP' ]]; then
+			echo "proto udp6" >> /etc/openvpn/server.conf
+		elif [[ "$PROTOCOL" = 'TCP' ]]; then
+			echo "proto tcp6" >> /etc/openvpn/server.conf
+		fi
 	fi
 	echo "dev tun
 user nobody
@@ -567,7 +575,6 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 
 	if [[ "$IPV6" = 'y' ]]; then
 		echo 'server-ipv6 fd6c:62d9:eb8c::/112
-proto udp6
 tun-ipv6
 push tun-ipv6
 push "route-ipv6 2000::/3"
