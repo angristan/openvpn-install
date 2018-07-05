@@ -508,7 +508,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 		elif [[ "$PROTOCOL" = 'TCP' ]]; then
 			echo "proto tcp" >> /etc/openvpn/server.conf
 		fi
-	elif [ "$IPV6" = 'y' ]]; then
+	elif [[ "$IPV6" = 'y' ]]; then
 		if [[ "$PROTOCOL" = 'UDP' ]]; then
 			echo "proto udp6" >> /etc/openvpn/server.conf
 		elif [[ "$PROTOCOL" = 'TCP' ]]; then
