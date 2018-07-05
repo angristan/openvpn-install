@@ -603,7 +603,7 @@ verb 3" >> /etc/openvpn/server.conf
 	# Enable routing
 	echo 'net.ipv4.ip_forward=1' >> $SYSCTL
 	if [[ "$IPV6" = 'y' ]]; then
-		echo 'net.ipv6.ip_forward=1' >> $SYSCTL
+		echo 'net.ipv6.conf.all.forwarding=1' >> $SYSCTL
 	fi
 	# Avoid an unneeded reboot
 	sysctl -p
