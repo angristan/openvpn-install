@@ -257,7 +257,7 @@ TLS-Auth is not enabled by default by OpenVPN, but it is in this script.
 
 ## Check for DNS leaks
 
-Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your IP should show up, or the one from your VPN provider.
+Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your server's IP should show up.
 
 ## Say thanks
 
