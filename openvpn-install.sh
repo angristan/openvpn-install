@@ -582,6 +582,22 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
+
+	# Allo forward on Ubuntu with UFW
+	if [[ $(lsb_release -si) == "Ubuntu" ]];then
+		# If the DEFAULT_FORWARD_POLICY is not accept
+		if ! grep -qe '^DEFAULT_FORWARD_POLICY=\"ACCEPT\"' /etc/default/ufw;then
+			# If the there is an uncommented DEFAULT_FORWARD_POLICY line
+			if ! grep -qe '^DEFAULT_FORWARD_POLICY' /etc/default/ufw;then
+				# Set it to ACCEPT
+				sed -i 's|^DEFAULT_FORWARD_POLICY=\".*\"|DEFAULT_FORWARD_POLICY=\"ACCEPT\"|' /etc/default/ufw
+			else
+				# Just add the correct line
+				echo 'DEFAULT_FORWARD_POLICY="ACCEPT"' >> /etc/default/ufw
+			fi
+		fi
+	fi
+	
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
 	# Save persitent iptables rules
