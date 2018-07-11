@@ -261,6 +261,10 @@ SHA-1 is not safe anymore, so I use SHA-256 which is safe and widely used.
 
 TLS-Auth is not enabled by default by OpenVPN, but it is in this script.
 
+## Check for DNS leaks
+
+Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your server's IP should show up.
+
 ## Say thanks
 
 You can [say thanks](https://saythanks.io/to/Angristan) if you want!

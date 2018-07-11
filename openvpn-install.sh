@@ -730,6 +730,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		;;
 		3) # Quad9
 		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 149.112.112.112"' >> /etc/openvpn/server.conf
 		;;
 		4) # FDN
 		echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
