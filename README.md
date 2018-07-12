@@ -61,7 +61,7 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 | Ubuntu 14.04 |   ✔️  |   ✔️   |   ❌   |   ❌  |
 | Ubuntu 16.04 |   ✔️  |   ✔️   |   ❌   |   ❌  |
 | [Ubuntu 17.10](https://github.com/Angristan/OpenVPN-install/issues/125) |   ❌  |   ❌   |   ❌   |   ❌   |
-| Ubuntu 18.04 |   ❔  |   ❔️   |   ❔   |   ❔  |
+| Ubuntu 18.04 |   ❔  |   ✔️️   |   ❔   |   ❔  |
 |   CentOS 6   |   ✔️  |   ✔️   |   ❔   |   ❔    |
 |   CentOS 7   |   ✔️  |   ✔️   |   ✔️  |   ❔    |
 |   Fedora 25  |   ❔   |   ✔️   |   ❔   |   ❔   |
