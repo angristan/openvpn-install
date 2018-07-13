@@ -25,7 +25,7 @@ fi
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
-	VERSION_ID=$(grep "VERSION_ID" < /etc/os-release)
+	VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
@@ -280,7 +280,7 @@ else
 	echo "   5) CAMELLIA-192-CBC"
 	echo "   6) CAMELLIA-256-CBC"
 	echo "   7) SEED-CBC"
-	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 7 ]; do
+	until [[ "$CIPHER" =~ ^[0-9]+$ ]] && [ "$CIPHER" -ge 1 -a "$CIPHER" -le 7 ]; do
 		read -rp "Cipher [1-7]: " -e -i 1 CIPHER
 	done
 	case $CIPHER in
@@ -311,7 +311,7 @@ else
 	echo "   1) 2048 bits (fastest)"
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
-	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 3 ]; do
+	until [[ "$DH_KEY_SIZE" =~ ^[0-9]+$ ]] && [ "$DH_KEY_SIZE" -ge 1 -a "$DH_KEY_SIZE" -le 3 ]; do
 		read -rp "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE
 	done
 	case $DH_KEY_SIZE in
@@ -330,7 +330,7 @@ else
 	echo "   1) 2048 bits (fastest)"
 	echo "   2) 3072 bits (recommended, best compromise)"
 	echo "   3) 4096 bits (most secure)"
-	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 3 ]; do
+	until [[ "$RSA_KEY_SIZE" =~ ^[0-9]+$ ]] && [ "$RSA_KEY_SIZE" -ge 1 -a "$RSA_KEY_SIZE" -le 3 ]; do
 		read -rp "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE
 	done
 	case $RSA_KEY_SIZE in
