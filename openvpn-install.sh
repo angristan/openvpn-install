@@ -169,7 +169,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
 				if [[ "$IPV6" = 'y' ]]; then
-					ip6tables -t nat -D POSTROUTING -o $NIC -s fd6c:62d9:eb8c::/112 -j MASQUERADE
+					ip6tables -t nat -D POSTROUTING -o $NIC -s fd42:42:42:42::/112 -j MASQUERADE
 				fi
 				iptables-save > $IPTABLES
 				if hash sestatus 2>/dev/null; then
@@ -574,7 +574,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 	echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
 
 	if [[ "$IPV6" = 'y' ]]; then
-		echo 'server-ipv6 fd6c:62d9:eb8c::/112
+		echo 'server-ipv6 fd42:42:42:42::/112
 tun-ipv6
 push tun-ipv6
 push "route-ipv6 2000::/3"
@@ -610,7 +610,7 @@ verb 3" >> /etc/openvpn/server.conf
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
 	if [[ "$IPV6" = 'y' ]]; then
-		ip6tables -t nat -A POSTROUTING -o $NIC -s fd6c:62d9:eb8c::/112 -j MASQUERADE
+		ip6tables -t nat -A POSTROUTING -o $NIC -s fd42:42:42:42::/112 -j MASQUERADE
 	fi
 	# Save persitent iptables rules
 	iptables-save > $IPTABLES
@@ -649,7 +649,7 @@ verb 3" >> /etc/openvpn/server.conf
 			elif [[ "$PROTOCOL" = 'TCP' ]]; then
 				ip6tables -I INPUT -p tcp --dport $PORT -j ACCEPT
 			fi
-			ip6tables -I FORWARD -s fd6c:62d9:eb8c::/112 -j ACCEPT
+			ip6tables -I FORWARD -s fd42:42:42:42::/112 -j ACCEPT
 			ip6tables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 			# Save persitent OpenVPN rules
 			iptables-save > $IPTABLES
