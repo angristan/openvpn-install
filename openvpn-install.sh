@@ -250,6 +250,7 @@ else
 	until [[ "$PROTOCOL" == "UDP" || "$PROTOCOL" == "TCP" ]]; do
 		read -rp "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
 	done
+
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
@@ -261,9 +262,24 @@ else
 	echo "   7) Google (Anycast: worldwide)"
 	echo "   8) Yandex Basic (Russia)"
 	echo "   9) AdGuard DNS (Russia)"
-	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 9 ]; do
-		read -rp "DNS [1-9]: " -e -i 1 DNS
+	echo "  10) Custom"
+	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 10 ]; do
+		read -rp "DNS [1-10]: " -e -i 1 DNS
 	done
+	if [[ $DNS == "10" ]]; then
+		# Get DNS IP and validate
+		until [[ "$DNS1" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; do
+			read -rp "Primary DNS: " -e DNS1
+		done
+		echo "Optionally add secondary DNS (recommended)"
+		until [[ "$DNS2" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; do
+			read -rp "Secondary DNS: " -e DNS2
+			if [[ "$DNS2" == "" ]]; then
+				break
+			fi
+		done
+	fi
+
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
 	echo "the encryption in OpenVPN and the choices I made in this script."
@@ -571,6 +587,12 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		9) # AdGuard DNS
 		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
+		;;
+		10) # Custom DNS
+		echo """push "dhcp-option DNS $DNS1"""" >> /etc/openvpn/server.conf
+		if [[ "$DNS2" != "" ]]; then
+			echo """push "dhcp-option DNS $DNS2"""" >> /etc/openvpn/server.conf
+		fi
 		;;
 	esac
 echo 'push "redirect-gateway def1 bypass-dhcp" ' >> /etc/openvpn/server.conf
