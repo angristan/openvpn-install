@@ -268,11 +268,11 @@ else
 	done
 	if [[ $DNS == "10" ]]; then
 		# Get DNS IP and validate
-		until [[ "$DNS1" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; do
+		until [[ "$DNS1" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
 			read -rp "Primary DNS: " -e DNS1
 		done
 		echo "Optionally add secondary DNS (recommended)"
-		until [[ "$DNS2" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; do
+		until [[ "$DNS2" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
 			read -rp "Secondary DNS: " -e DNS2
 			if [[ "$DNS2" == "" ]]; then
 				break
