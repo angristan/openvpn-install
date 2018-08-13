@@ -345,6 +345,15 @@ else
 		;;
 	esac
 	echo ""
+	echo "Choose server log level:"
+	echo "   1) Normal (verbose level 3)"
+	echo "   2) High (verbose level 4)"
+	echo "   3) Debug (verbose level 6)"	
+	echo "   4) Off (verbose level 0, logs to /dev/null)"
+	while [[ $SERVER_LOG_LEVEL != "1" && $SERVER_LOG_LEVEL != "2" && $SERVER_LOG_LEVEL != "3" && $SERVER_LOG_LEVEL != "4" ]]; do
+		read -p "Server log level [1-4]: " -e -i 1 SERVER_LOG_LEVEL
+	done
+	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
 		echo "Please, use one word only, no special characters"
@@ -584,9 +593,26 @@ auth SHA256
 $CIPHER
 tls-server
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
-status openvpn.log
+tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256" >> /etc/openvpn/server.conf
+	case $SERVER_LOG_LEVEL in
+		1) # Normal
+		echo "status openvpn.log
 verb 3" >> /etc/openvpn/server.conf
+		;;
+		2) # High
+		echo "status openvpn.log
+verb 4" >> /etc/openvpn/server.conf
+		;;		
+		3) # Debug
+		echo "status openvpn.log
+verb 6" >> /etc/openvpn/server.conf
+		;;
+		4) # Off
+		echo "log /dev/null
+status /dev/null
+verb 0" >> /etc/openvpn/server.conf
+		;;
+	esac
 
 	# Create the sysctl configuration file if needed (mainly for Arch Linux)
 	if [[ ! -e $SYSCTL ]]; then
