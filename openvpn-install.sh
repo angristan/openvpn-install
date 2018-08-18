@@ -81,6 +81,10 @@ function initialCheck () {
 	checkOS
 }
 
+function getNIC () {
+	return $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+}
+
 function newclient () {
 	echo ""
 	echo "Do you want to protect the configuration file with a password?"
@@ -152,7 +156,7 @@ function newclient () {
 initialCheck
 
 # Get Internet network interface with default route
-NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+NIC=$(getNIC)
 
 if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
