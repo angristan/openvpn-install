@@ -3,18 +3,41 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Arch Linux
 # https://github.com/Angristan/OpenVPN-install
 
+#########################################
+############    FUNCTIONS    ############
+#########################################
 
-# Verify root
-if [[ "$EUID" -ne 0 ]]; then
-	echo "Sorry, you need to run this as root"
-	exit 1
-fi
+function tunAvailable () {
+	if [[ -e /dev/net/tun ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
 
-# Verify tun
-if [[ ! -e /dev/net/tun ]]; then
-	echo "TUN is not available"
-	exit 2
-fi
+function isRoot () {
+	if [[ "$EUID" -eq 0 ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+function initialCheck () {
+	if ! isRoot; then
+		echo "Sorry, you need to run this as root"
+		exit 1
+	elif ! tunAvailable; then
+		echo "TUN is not available"
+		exit 2
+	fi
+}
+
+##########################################
+###############    MAIN    ###############
+##########################################
+
+initialCheck
 
 # Check if CentOS 5
 if grep -qs "CentOS release 5" "/etc/redhat-release"; then
