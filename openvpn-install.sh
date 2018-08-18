@@ -60,35 +60,68 @@ else
 	exit 4
 fi
 
-newclient () {
+function newclient () {
+	echo ""
+	echo "Do you want to protect the configuration file with a password?"
+	echo "(e.g. encrypt the private key with a password)"
+	echo "   1) Add a passwordless client"
+	echo "   2) Use a password for the client"
+
+	until [[ "$pass" =~ ^[1-2]$ ]]; do
+		read -rp "Select an option [1-2]: " -e -i 1 local pass
+	done
+	
+	echo ""
+	echo "Tell me a name for the client cert"
+	echo "Use one word only, no special characters"
+
+	until [[ "$client" =~ ^[a-zA-Z0-9_]+$ ]]; do
+		read -rp "Client name: " -e local client
+	done
+
+	cd /etc/openvpn/easy-rsa/ || return
+	case $pass in
+		1)
+		./easyrsa build-client-full $client nopass
+		;;
+		2)
+		echo "⚠️ You will be asked for the client password below ⚠️"
+		./easyrsa build-client-full $client
+		;;
+	esac
+
 	# Where to write the custom client.ovpn?
-	if [ -e "/home/$1" ]; then  # if $1 is a user name
-		homeDir="/home/$1"
+	if [ -e "/home/$client" ]; then  # if $1 is a user name
+		homeDir="/home/$client"
 	elif [ "${SUDO_USER}" ]; then   # if not, use SUDO_USER
 		homeDir="/home/${SUDO_USER}"
 	else  # if not SUDO_USER, use /root
 		homeDir="/root"
 	fi
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt "$homeDir/$1.ovpn"
+	cp /etc/openvpn/client-template.txt "$homeDir/$client.ovpn"
 	{
 		echo "<ca>"
 		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
 		echo "</ca>"
 
 		echo "<cert>"
-		cat "/etc/openvpn/easy-rsa/pki/issued/$1.crt"
+		cat "/etc/openvpn/easy-rsa/pki/issued/$client.crt"
 		echo "</cert>"
 
 		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$1.key"
+		cat "/etc/openvpn/easy-rsa/pki/private/$client.key"
 		echo "</key>"
 		echo "key-direction 1"
 
 		echo "<tls-auth>"
 		cat "/etc/openvpn/tls-auth.key"
 		echo "</tls-auth>"
-	} >> "$homeDir/$1.ovpn"
+	} >> "$homeDir/$client.ovpn"
+
+	echo ""
+	echo "Client $client added, certs available at $homeDir/$client.ovpn"
+	exit
 }
 
 # Get Internet network interface with default route
@@ -112,38 +145,9 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 
 		case $option in
 			1)
-			echo ""
-			echo "Do you want to protect the configuration file with a password?"
-			echo "(e.g. encrypt the private key with a password)"
-			echo "   1) Add a passwordless client"
-			echo "   2) Use a password for the client"
-			until [[ "$pass" =~ ^[1-2]$ ]]; do
-				read -rp "Select an option [1-2]: " -e -i 1 pass
-			done
-			echo ""
-			echo "Tell me a name for the client cert"
-			echo "Use one word only, no special characters"
-			until [[ "$CLIENT" =~ ^[a-zA-Z0-9_]+$ ]]; do
-				read -rp "Client name: " -e CLIENT
-			done
-
-			cd /etc/openvpn/easy-rsa/ || return
-			case $pass in
-				1)
-				./easyrsa build-client-full $CLIENT nopass
-				;;
-				2)
-				echo "⚠️ You will be asked for the client password below ⚠️"
-				./easyrsa build-client-full $CLIENT
-				;;
-			esac
-
 			# Generates the custom client.ovpn
-			newclient "$CLIENT"
+			newclient
 
-			echo ""
-			echo "Client $CLIENT added, certs available at $homeDir/$CLIENT.ovpn"
-			exit
 			;;
 			2)
 			NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
