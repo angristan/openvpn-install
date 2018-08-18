@@ -114,7 +114,9 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			echo "(e.g. encrypt the private key with a password)"
 			echo "   1) Add a passwordless client"
 			echo "   2) Use a password for the client"
-			read -p "Select an option [1-2]: " pass
+			until [[ "$pass" =~ ^[1-2]$ ]]; do
+				read -rp "Select an option [1-2]: " -e -i 1 pass
+			done
 			echo ""
 			echo "Tell me a name for the client cert"
 			echo "Please, use one word only, no special characters"
@@ -334,7 +336,9 @@ else
 	echo "(e.g. encrypt the private key with a password)"
 	echo "   1) Add a passwordless client"
 	echo "   2) Use a password for the client"
-	read -p "Select an option [1-2]: " pass
+	until [[ "$pass" =~ ^[1-2]$ ]]; do
+		read -rp "Select an option [1-2]: " -e -i 1 pass
+	done
 	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
 	while [[ $CLIENT = "" ]]; do
