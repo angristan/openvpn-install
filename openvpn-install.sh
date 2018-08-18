@@ -23,14 +23,62 @@ function isRoot () {
 	fi
 }
 
+function checkOS () {
+	# Check if CentOS 5
+	if grep -qs "CentOS release 5" "/etc/redhat-release"; then
+		echo "CentOS 5 is too old and not supported"
+		exit 1
+	fi
+
+	if [[ -e /etc/debian_version ]]; then
+		OS="debian"
+		# Getting the version number, to verify that a recent version of OpenVPN is available
+		VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
+		IPTABLES='/etc/iptables/iptables.rules'
+		SYSCTL='/etc/sysctl.conf'
+		if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
+			echo "Your version of Debian/Ubuntu is not supported."
+			echo "I can't install a recent version of OpenVPN on your system."
+			echo ""
+			echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
+			echo "then you can continue, a recent version of OpenVPN is available on these."
+			echo "Keep in mind they are not supported, though."
+			while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+				read -rp "Continue ? [y/n]: " -e local CONTINUE
+			done
+			if [[ "$CONTINUE" = "n" ]]; then
+				echo "Ok, bye !"
+				exit 1
+			fi
+		fi
+	elif [[ -e /etc/fedora-release ]]; then
+		OS=fedora
+		IPTABLES='/etc/iptables/iptables.rules'
+		SYSCTL='/etc/sysctl.d/openvpn.conf'
+	elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release ]]; then
+		OS=centos
+		IPTABLES='/etc/iptables/iptables.rules'
+		SYSCTL='/etc/sysctl.conf'
+	elif [[ -e /etc/arch-release ]]; then
+		OS=arch
+		IPTABLES='/etc/iptables/iptables.rules'
+		SYSCTL='/etc/sysctl.d/openvpn.conf'
+	else
+		echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
+		exit 1
+	fi
+}
+
 function initialCheck () {
 	if ! isRoot; then
 		echo "Sorry, you need to run this as root"
 		exit 1
 	elif ! tunAvailable; then
 		echo "TUN is not available"
-		exit 2
+		exit 1
 	fi
+
+	checkOS
 }
 
 ##########################################
@@ -39,49 +87,6 @@ function initialCheck () {
 
 initialCheck
 
-# Check if CentOS 5
-if grep -qs "CentOS release 5" "/etc/redhat-release"; then
-	echo "CentOS 5 is too old and not supported"
-	exit 3
-fi
-
-if [[ -e /etc/debian_version ]]; then
-	OS="debian"
-	# Getting the version number, to verify that a recent version of OpenVPN is available
-	VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.conf'
-	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
-		echo "Your version of Debian/Ubuntu is not supported."
-		echo "I can't install a recent version of OpenVPN on your system."
-		echo ""
-		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
-		echo "then you can continue, a recent version of OpenVPN is available on these."
-		echo "Keep in mind they are not supported, though."
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -rp "Continue ? [y/n]: " -e CONTINUE
-		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
-			exit 4
-		fi
-	fi
-elif [[ -e /etc/fedora-release ]]; then
-	OS=fedora
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
-elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release ]]; then
-	OS=centos
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.conf'
-elif [[ -e /etc/arch-release ]]; then
-	OS=arch
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
-else
-	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
-	exit 4
-fi
 
 function newclient () {
 	echo ""
