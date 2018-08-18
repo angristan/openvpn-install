@@ -122,6 +122,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			cd /etc/openvpn/easy-rsa/
 			case $pass in
 				1)
+				echo "⚠️ You will be asked for the client password below"
 				./easyrsa build-client-full $CLIENT nopass
 				;;
 				2)
@@ -500,6 +501,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	./easyrsa build-server-full $SERVER_NAME nopass
 	case $pass in
 		1)
+			echo "⚠️ You will be asked for the client password below"
 			./easyrsa build-client-full $CLIENT nopass
 		;;
 		2)
