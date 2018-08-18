@@ -81,13 +81,6 @@ function initialCheck () {
 	checkOS
 }
 
-##########################################
-###############    MAIN    ###############
-##########################################
-
-initialCheck
-
-
 function newclient () {
 	echo ""
 	echo "Do you want to protect the configuration file with a password?"
@@ -151,6 +144,12 @@ function newclient () {
 	echo "Client $client added, certs available at $homeDir/$client.ovpn"
 	exit
 }
+
+##########################################
+###############    MAIN    ###############
+##########################################
+
+initialCheck
 
 # Get Internet network interface with default route
 NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
