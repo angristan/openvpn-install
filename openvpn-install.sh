@@ -122,9 +122,11 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			done
 			echo ""
 			echo "Tell me a name for the client cert"
-			echo "Please, use one word only, no special characters"
+			echo "Use one word only, no special characters"
+			until [[ "$CLIENT" =~ ^[a-zA-Z0-9_]+$ ]]; do
+				read -rp "Client name: " -e CLIENT
+			done
 
-			read -rp "Client name: " -e -i newclient CLIENT
 			cd /etc/openvpn/easy-rsa/ || return
 			case $pass in
 				1)
@@ -390,11 +392,9 @@ else
 	done
 	echo ""
 	echo "Finally, tell me a name for the client certificate and configuration"
-	while [[ $CLIENT = "" ]]; do
-		echo "Please, use one word only, no special characters"
-		read -rp "Client name: " -e -i client CLIENT
-		# Remove special characters
-		CLIENT=$(echo $CLIENT | tr -dc '[:alnum:]\n\r')
+	echo "Use one word only, no special characters"
+	until [[ "$CLIENT" =~ ^[a-zA-Z0-9_]+$ ]]; do
+		read -rp "Client name: " -e CLIENT
 	done
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
