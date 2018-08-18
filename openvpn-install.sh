@@ -219,23 +219,25 @@ else
 	echo ""
 	echo "What port do you want for OpenVPN?"
 	echo "   1) Default: 1194"
-	echo "   2) Random"
-	echo "   3) Custom"
-	while [[ $PORT != "1" && $PORT != "2" && $PORT != "3" ]]; do
-		read -p "Port [1-3]: " -e -i 1 PORT
+	echo "   2) Custom"
+	echo "   3) Random [49152-65535]"
+	until [[ "$PORT_CHOICE" =~ ^[1-3]$ ]]; do
+		read -p "Port choice [1-3]: " -e -i 1 PORT_CHOICE
 	done
-	case $PORT in
-	1)
-	PORT="1194"
-	;;
-	2)
-	# Generate random number within private ports range
-	PORT=$(shuf -i49152-65535 -n1)
-	echo "Random Port: $PORT"
-	;;
-	3)
-	read -p "Custom Port: " -e -i 1194 PORT
-	;;
+	case $PORT_CHOICE in
+		1)
+			PORT="1194"
+		;;
+		2)
+			until [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 -a "$PORT" -le 65535 ]; do
+				read -p "Custom port [1-65535]: " -e -i 1194 PORT
+			done
+		;;
+		3)
+			# Generate random number within private ports range
+			PORT=$(shuf -i49152-65535 -n1)
+			echo "Random Port: $PORT"
+		;;
 	esac
 	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
