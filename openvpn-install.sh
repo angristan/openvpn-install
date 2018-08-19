@@ -7,18 +7,14 @@
 ############    FUNCTIONS    ############
 #########################################
 
-function tunAvailable () {
-	if [[ -e /dev/net/tun ]]; then
-		return 0
-	else
+function isRoot () {
+	if [ "$EUID" -ne 0 ]; then
 		return 1
 	fi
 }
 
-function isRoot () {
-	if [[ "$EUID" -eq 0 ]]; then
-		return 0
-	else
+function tunAvailable () {
+	if [ ! -e /dev/net/tun ]; then
 		return 1
 	fi
 }
