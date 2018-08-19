@@ -69,7 +69,8 @@ function initialCheck () {
 	if ! isRoot; then
 		echo "Sorry, you need to run this as root"
 		exit 1
-	elif ! tunAvailable; then
+	fi
+	if ! tunAvailable; then
 		echo "TUN is not available"
 		exit 1
 	fi
