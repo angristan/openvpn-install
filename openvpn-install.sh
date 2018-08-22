@@ -637,7 +637,8 @@ $CIPHER
 tls-server
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
-status openvpn.log
+status /var/log/openvpn/status.log
+log-append /var/log/openvpn/server.log
 verb 3" >> /etc/openvpn/server.conf
 
 	# Create the sysctl configuration file if needed (mainly for Arch Linux)
