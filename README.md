@@ -268,6 +268,4 @@ You can [say thanks](https://saythanks.io/to/Angristan) if you want!
 
 Thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors) and of course Nyr's orginal work.
 
-[Old repo](https://github.com/Angristan/OpenVPN-install-fork-old)
-
 [MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
