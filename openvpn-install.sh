@@ -3,96 +3,166 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Arch Linux
 # https://github.com/Angristan/OpenVPN-install
 
+#########################################
+############    FUNCTIONS    ############
+#########################################
 
-# Verify root
-if [[ "$EUID" -ne 0 ]]; then
-	echo "Sorry, you need to run this as root"
-	exit 1
-fi
-
-# Verify tun
-if [[ ! -e /dev/net/tun ]]; then
-	echo "TUN is not available"
-	exit 2
-fi
-
-# Check if CentOS 5
-if grep -qs "CentOS release 5" "/etc/redhat-release"; then
-	echo "CentOS 5 is too old and not supported"
-	exit 3
-fi
-
-if [[ -e /etc/debian_version ]]; then
-	OS="debian"
-	# Getting the version number, to verify that a recent version of OpenVPN is available
-	VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.conf'
-	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
-		echo "Your version of Debian/Ubuntu is not supported."
-		echo "I can't install a recent version of OpenVPN on your system."
-		echo ""
-		echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
-		echo "then you can continue, a recent version of OpenVPN is available on these."
-		echo "Keep in mind they are not supported, though."
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -rp "Continue ? [y/n]: " -e CONTINUE
-		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
-			exit 4
-		fi
+function isRoot () {
+	if [ "$EUID" -ne 0 ]; then
+		return 1
 	fi
-elif [[ -e /etc/fedora-release ]]; then
-	OS=fedora
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
-elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release ]]; then
-	OS=centos
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.conf'
-elif [[ -e /etc/arch-release ]]; then
-	OS=arch
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
-else
-	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
-	exit 4
-fi
+}
 
-newclient () {
+function tunAvailable () {
+	if [ ! -e /dev/net/tun ]; then
+		return 1
+	fi
+}
+
+function checkOS () {
+	# Check if CentOS 5
+	if grep -qs "CentOS release 5" "/etc/redhat-release"; then
+		echo "CentOS 5 is too old and not supported"
+		exit 1
+	fi
+
+	if [[ -e /etc/debian_version ]]; then
+		OS="debian"
+		# Getting the version number, to verify that a recent version of OpenVPN is available
+		VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
+		IPTABLES='/etc/iptables/iptables.rules'
+		SYSCTL='/etc/sysctl.conf'
+		if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
+			echo "Your version of Debian/Ubuntu is not supported."
+			echo "I can't install a recent version of OpenVPN on your system."
+			echo ""
+			echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
+			echo "then you can continue, a recent version of OpenVPN is available on these."
+			echo "Keep in mind they are not supported, though."
+			while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+				read -rp "Continue ? [y/n]: " -e local CONTINUE
+			done
+			if [[ "$CONTINUE" = "n" ]]; then
+				echo "Ok, bye !"
+				exit 1
+			fi
+		fi
+	elif [[ -e /etc/fedora-release ]]; then
+		OS=fedora
+		IPTABLES='/etc/iptables/iptables.rules'
+		SYSCTL='/etc/sysctl.d/openvpn.conf'
+	elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release ]]; then
+		OS=centos
+		IPTABLES='/etc/iptables/iptables.rules'
+		SYSCTL='/etc/sysctl.conf'
+	elif [[ -e /etc/arch-release ]]; then
+		OS=arch
+		IPTABLES='/etc/iptables/iptables.rules'
+		SYSCTL='/etc/sysctl.d/openvpn.conf'
+	else
+		echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
+		exit 1
+	fi
+}
+
+function initialCheck () {
+	if ! isRoot; then
+		echo "Sorry, you need to run this as root"
+		exit 1
+	fi
+	if ! tunAvailable; then
+		echo "TUN is not available"
+		exit 1
+	fi
+
+	checkOS
+}
+
+function getNIC () {
+	return $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+}
+
+function installEasyRsa () {
+	wget -O ~/EasyRSA-3.0.4.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.4/EasyRSA-3.0.4.tgz
+	tar xzf ~/EasyRSA-3.0.4.tgz -C ~/
+	mv ~/EasyRSA-3.0.4/ /etc/openvpn/
+	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
+	chown -R root:root /etc/openvpn/easy-rsa/
+	rm -f ~/EasyRSA-3.0.4.tgz
+}
+
+function newclient () {
+	echo ""
+	echo "Do you want to protect the configuration file with a password?"
+	echo "(e.g. encrypt the private key with a password)"
+	echo "   1) Add a passwordless client"
+	echo "   2) Use a password for the client"
+
+	until [[ "$pass" =~ ^[1-2]$ ]]; do
+		read -rp "Select an option [1-2]: " -e -i 1 local pass
+	done
+	
+	echo ""
+	echo "Tell me a name for the client cert"
+	echo "Use one word only, no special characters"
+
+	until [[ "$client" =~ ^[a-zA-Z0-9_]+$ ]]; do
+		read -rp "Client name: " -e local client
+	done
+
+	cd /etc/openvpn/easy-rsa/ || return
+	case $pass in
+		1)
+		./easyrsa build-client-full $client nopass
+		;;
+		2)
+		echo "⚠️ You will be asked for the client password below ⚠️"
+		./easyrsa build-client-full $client
+		;;
+	esac
+
 	# Where to write the custom client.ovpn?
-	if [ -e "/home/$1" ]; then  # if $1 is a user name
-		homeDir="/home/$1"
+	if [ -e "/home/$client" ]; then  # if $1 is a user name
+		homeDir="/home/$client"
 	elif [ "${SUDO_USER}" ]; then   # if not, use SUDO_USER
 		homeDir="/home/${SUDO_USER}"
 	else  # if not SUDO_USER, use /root
 		homeDir="/root"
 	fi
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt "$homeDir/$1.ovpn"
+	cp /etc/openvpn/client-template.txt "$homeDir/$client.ovpn"
 	{
 		echo "<ca>"
 		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
 		echo "</ca>"
 
 		echo "<cert>"
-		cat "/etc/openvpn/easy-rsa/pki/issued/$1.crt"
+		cat "/etc/openvpn/easy-rsa/pki/issued/$client.crt"
 		echo "</cert>"
 
 		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$1.key"
+		cat "/etc/openvpn/easy-rsa/pki/private/$client.key"
 		echo "</key>"
 		echo "key-direction 1"
 
 		echo "<tls-auth>"
 		cat "/etc/openvpn/tls-auth.key"
 		echo "</tls-auth>"
-	} >> "$homeDir/$1.ovpn"
+	} >> "$homeDir/$client.ovpn"
+
+	echo ""
+	echo "Client $client added, certs available at $homeDir/$client.ovpn"
+	exit
 }
 
+##########################################
+###############    MAIN    ###############
+##########################################
+
+initialCheck
+
 # Get Internet network interface with default route
-NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+NIC=$(getNIC)
 
 if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
@@ -112,38 +182,9 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 
 		case $option in
 			1)
-			echo ""
-			echo "Do you want to protect the configuration file with a password?"
-			echo "(e.g. encrypt the private key with a password)"
-			echo "   1) Add a passwordless client"
-			echo "   2) Use a password for the client"
-			until [[ "$pass" =~ ^[1-2]$ ]]; do
-				read -rp "Select an option [1-2]: " -e -i 1 pass
-			done
-			echo ""
-			echo "Tell me a name for the client cert"
-			echo "Use one word only, no special characters"
-			until [[ "$CLIENT" =~ ^[a-zA-Z0-9_]+$ ]]; do
-				read -rp "Client name: " -e CLIENT
-			done
-
-			cd /etc/openvpn/easy-rsa/ || return
-			case $pass in
-				1)
-				./easyrsa build-client-full $CLIENT nopass
-				;;
-				2)
-				echo "⚠️ You will be asked for the client password below ⚠️"
-				./easyrsa build-client-full $CLIENT
-				;;
-			esac
-
 			# Generates the custom client.ovpn
-			newclient "$CLIENT"
+			newclient
 
-			echo ""
-			echo "Client $CLIENT added, certs available at $homeDir/$CLIENT.ovpn"
-			exit
 			;;
 			2)
 			NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
@@ -530,13 +571,9 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
 		rm -rf /etc/openvpn/easy-rsa/
 	fi
-	# Get easy-rsa
-	wget -O ~/EasyRSA-3.0.4.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.4/EasyRSA-3.0.4.tgz
-	tar xzf ~/EasyRSA-3.0.4.tgz -C ~/
-	mv ~/EasyRSA-3.0.4/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
-	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -f ~/EasyRSA-3.0.4.tgz
+	# Install easy-rsa
+	installEasyRsa
+
 	cd /etc/openvpn/easy-rsa/ || return
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
@@ -773,11 +810,7 @@ setenv opt block-outside-dns
 verb 3" >> /etc/openvpn/client-template.txt
 
 	# Generate the custom client.ovpn
-	newclient "$CLIENT"
-	echo ""
-	echo "Finished!"
-	echo ""
-	echo "Your client config is available at $homeDir/$CLIENT.ovpn"
+	newclient
 	echo "If you want to add more clients, you simply need to run this script another time!"
 fi
 exit 0;
