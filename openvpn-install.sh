@@ -533,8 +533,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	# Get easy-rsa
 	wget -O ~/EasyRSA-3.0.4.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.4/EasyRSA-3.0.4.tgz
 	tar xzf ~/EasyRSA-3.0.4.tgz -C ~/
-	mv ~/EasyRSA-3.0.4/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
+	mv ~/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -f ~/EasyRSA-3.0.4.tgz
 	cd /etc/openvpn/easy-rsa/
