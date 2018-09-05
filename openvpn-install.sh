@@ -127,7 +127,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				read -rp "Client name: " -e CLIENT
 			done
 
-			cd /etc/openvpn/easy-rsa/ || return
+			cd /etc/openvpn/easy-rsa/
 			case $pass in
 				1)
 				./easyrsa build-client-full $CLIENT nopass
@@ -163,7 +163,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			fi
 
 			CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-			cd /etc/openvpn/easy-rsa/ || return
+			cd /etc/openvpn/easy-rsa/
 			./easyrsa --batch revoke $CLIENT
 			EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 			rm -f pki/reqs/$CLIENT.req
@@ -537,7 +537,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -f ~/EasyRSA-3.0.4.tgz
-	cd /etc/openvpn/easy-rsa/ || return
+	cd /etc/openvpn/easy-rsa/
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
