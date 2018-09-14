@@ -159,7 +159,7 @@ function newClient () {
 	exit
 }
 
-function revokeClient() {
+function revokeClient () {
 	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
 	if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
 		echo ""
@@ -196,7 +196,7 @@ function revokeClient() {
 	exit
 }
 
-function removeOpenVPN() {
+function removeOpenVPN () {
 	echo ""
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 
