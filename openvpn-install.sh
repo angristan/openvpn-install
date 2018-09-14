@@ -593,7 +593,8 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		done
 		;;
 		2)
-
+		installLocalDNS
+		echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
 		;;
 		3) # Cloudflare
 		echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
@@ -784,3 +785,92 @@ verb 3" >> /etc/openvpn/client-template.txt
 	echo "If you want to add more clients, you simply need to run this script another time!"
 fi
 exit 0;
+
+function installLocalDNS () {
+	if [[ ! -e /etc/unbound/unbound.conf ]]; then
+
+		if [[ "$OS" = "debian" ]]; then
+			# Install Unbound
+			apt-get update
+			apt-get install -y unbound
+
+			# Configuration
+			echo 'hide-identity: yes
+hide-version: yes
+use-caps-for-id: yes
+prefetch: yes' >> /etc/unbound/unbound.conf
+
+			# Restart Unbound
+			service unbound restart
+
+			# Needed for the chattr command
+			apt-get install -y e2fsprogs
+
+		elif [[ "$OS" = "centos" ]]; then
+			# Install Unbound
+			yum install -y unbound
+
+			# Configuration
+			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
+			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
+
+			# Enable service at boot
+			systemctl enable unbound
+
+			# Start the service
+			systemctl start unbound
+
+		elif [[ "$OS" = "fedora" ]]; then
+			# Install Unbound
+			dnf install -y unbound
+
+			# Configuration
+			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
+
+			# Enable service at boot
+			systemctl enable unbound
+
+			# Start the service
+			systemctl start unbound
+
+		elif [[ "$OS" = "arch" ]]; then
+			# Install Unbound
+			pacman -Syu unbound expat
+
+			#Permissions for the DNSSEC keys
+  			chown root:unbound /etc/unbound
+  			chmod 775 /etc/unbound
+
+  			# Get root servers list
+  			wget https://www.internic.net/domain/named.root -O /etc/unbound/root.hints
+
+  			# Configuration
+  			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
+			echo 'server:
+root-hints: root.hints
+auto-trust-anchor-file: trusted-key.key
+interface: 127.0.0.1
+access-control: 127.0.0.1 allow
+port: 53
+do-daemonize: yes
+num-threads: 2
+use-caps-for-id: yes
+harden-glue: yes
+hide-identity: yes
+hide-version: yes
+qname-minimisation: yes
+prefetch: yes' > /etc/unbound/unbound.conf
+
+			# Enable service at boot
+			systemctl enable unbound
+
+			# Start the service
+  			systemctl start unbound
+		fi
+	else
+				echo "Unbound is already installed."
+	fi
+}
