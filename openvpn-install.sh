@@ -805,9 +805,6 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			# Restart Unbound
 			service unbound restart
 
-			# Needed for the chattr command
-			apt-get install -y e2fsprogs
-
 		elif [[ "$OS" = "centos" ]]; then
 			# Install Unbound
 			yum install -y unbound
