@@ -876,6 +876,10 @@ prefetch: yes' > /etc/unbound/unbound.conf
 			# Start the service
   			systemctl start unbound
 		fi
+
+		# DNS Rebinding fix
+		PRIVATE_ADDRESSES="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 127.0.0.0/8"
+		echo "private-address: $PRIVATE_ADDRESSES" >> /etc/unbound/unbound.conf
 	else
 				echo "Unbound is already installed."
 	fi
