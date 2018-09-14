@@ -85,12 +85,13 @@ function getNIC () {
 }
 
 function installEasyRsa () {
-	wget -O ~/EasyRSA-3.0.4.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.4/EasyRSA-3.0.4.tgz
-	tar xzf ~/EasyRSA-3.0.4.tgz -C ~/
-	mv ~/EasyRSA-3.0.4/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
+	local version='3.0.4'
+	wget -O ~/EasyRSA-$version.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v$version/EasyRSA-$version.tgz
+	tar xzf ~/EasyRSA-$version.tgz -C ~/
+	mv ~/EasyRSA-$version/ /etc/openvpn/
+	mv /etc/openvpn/EasyRSA-$version/ /etc/openvpn/easy-rsa/
 	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -f ~/EasyRSA-3.0.4.tgz
+	rm -f ~/EasyRSA-$version.tgz
 }
 
 function newClient () {
