@@ -187,28 +187,12 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 
 		if [[ $CONTINUE = "y" ]]; then
 
-			if [ -d "/etc/unbound/unbound.conf.d" ]; then
-				# Debian / Ubuntu
-				UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
-				if ! grep -qs "^include: \"/etc/unbound/unbound.conf.d/\*.conf\"" /etc/unbound/unbound.conf; then
-					echo 'include: "/etc/unbound/unbound.conf.d/*.conf"' >> /etc/unbound/unbound.conf
-				fi
-			elif [ -d "/etc/unbound/conf.d" ]; then
-				# CentOS / Fedora
-				UNBOUND_CONF_D="/etc/unbound/conf.d"
-				if ! grep -qs "^include: /etc/unbound/conf.d/\*.conf" /etc/unbound/unbound.conf; then
-					echo 'include: /etc/unbound/conf.d/*.conf' >> /etc/unbound/unbound.conf
-				fi
-			else
-				UNBOUND_CONF_D="/etc/unbound/conf.d"
-				mkdir -p $UNBOUND_CONF_D
-				echo 'include: "/etc/unbound/conf.d/*.conf"' >> /etc/unbound/unbound.conf
-			fi
+			echo 'include: /etc/unbound/openvpn.conf' >> /etc/unbound/unbound.conf
 
 			# Add OpenVPN integration
 			echo 'server:
 	interface: 10.8.0.1
-	access-control: 10.8.0.1/24 allow' >> ${UNBOUND_CONF_D}/openvpn.conf
+	access-control: 10.8.0.1/24 allow' >> /etc/unbound/openvpn.conf
 
 			# Restart the service
 			systemctl restart unbound
@@ -354,17 +338,11 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				rm -rf /etc/openvpn
 				rm -rf /usr/share/doc/openvpn*
 
-				if [[ -e /etc/unbound/unbound.conf ]]; then
+				if [[ -e /etc/unbound/openvpn.conf ]]; then
 
-					if [ -d "/etc/unbound/conf.d" ]; then
-						UNBOUND_CONF_D="/etc/unbound/conf.d"
-						sed -i 's|include: \/etc\/unbound\/conf.d\/\*.conf||' /etc/unbound/unbound.conf
-					elif [ -d "/etc/unbound/unbound.conf.d" ]; then
-						UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
-						sed -i 's|include: "\/etc\/unbound\/unbound.conf.d\/\*.conf"||' /etc/unbound/unbound.conf
-					fi
+					sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
 
-					rm ${UNBOUND_CONF_D}/openvpn.conf >> /dev/null 2>&1
+					rm /etc/openvpn/openvpn.conf
 
 					until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
 						echo ""
