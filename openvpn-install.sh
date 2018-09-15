@@ -158,8 +158,9 @@ qname-minimisation: yes
 prefetch: yes' > /etc/unbound/unbound.conf
 		fi
 
-		# DNS Rebinding fix
-		echo "private-address: 10.0.0.0/8
+if [[ ! "$OS" =~ (fedora|centos) ]];then
+  # DNS Rebinding fix
+  echo "private-address: 10.0.0.0/8
 private-address: 172.16.0.0/12
 private-address: 192.168.0.0/16
 private-address: 169.254.0.0/16
@@ -167,6 +168,7 @@ private-address: fd00::/8
 private-address: fe80::/10
 private-address: 127.0.0.0/8
 private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
+fi
 
 		# Enable service at boot
 		systemctl enable unbound
