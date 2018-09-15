@@ -365,9 +365,11 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 
 					rm ${UNBOUND_CONF_D}/openvpn.conf
 
-					read -rp "Do you want to remove Unbound, too? [y/n]: " -e REMOVE
+					until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
+						read -rp "Do you want to remove Unbound, too? [y/n]: " -e REMOVE_UNBOUND
+					done
 
-					if [[ "$REMOVE" = 'y' ]]; then
+					if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
 						if [[ "$OS" = 'debian' ]]; then
 							apt-get autoremove --purge -y unbound
 						elif [[ "$OS" = 'arch' ]]; then
