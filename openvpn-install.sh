@@ -189,7 +189,7 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 			# Add OpenVPN integration
 			echo 'server:
 	interface: 10.8.0.1
-	access-control: 10.8.0.1/24 allow' >> /etc/unbound/unbound.conf
+	access-control: 10.8.0.1/24 allow' >> /etc/unbound/conf.d/openvpn.conf
 
 			# Restart the service
 			systemctl restart unbound
