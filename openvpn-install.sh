@@ -192,7 +192,7 @@ private-address: 169.254.0.0/16
 private-address: fd00::/8
 private-address: fe80::/10
 private-address: 127.0.0.0/8
-private-address: ::ffff:0:0/96' >> /etc/unbound/openvpn.conf
+private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 
 		# Restart the service
 		systemctl restart unbound
