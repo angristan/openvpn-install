@@ -91,6 +91,109 @@ newclient () {
 	} >> "$homeDir/$1.ovpn"
 }
 
+function installLocalDNS () {
+	if [[ ! -e /etc/unbound/unbound.conf ]]; then
+
+		if [[ "$OS" = "debian" ]]; then
+			# Install Unbound
+			apt-get update
+			apt-get install -y unbound
+
+			# Configuration
+			echo 'interface: 10.8.0.1
+access-control: 10.8.0.1/24 allow
+hide-identity: yes
+hide-version: yes
+use-caps-for-id: yes
+prefetch: yes' >> /etc/unbound/unbound.conf
+
+		elif [[ "$OS" = "centos" ]]; then
+			# Install Unbound
+			yum install -y unbound
+
+			# Configuration
+			sed -i 's|# interface: 0.0.0.0|interface: 10.8.0.1' /etc/unbound/unbound.conf
+			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow' /etc/unbound/unbound.conf
+			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
+			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
+
+		elif [[ "$OS" = "fedora" ]]; then
+			# Install Unbound
+			dnf install -y unbound
+
+			# Configuration
+			sed -i 's|# interface: 0.0.0.0|interface: 10.8.0.1' /etc/unbound/unbound.conf
+			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow' /etc/unbound/unbound.conf
+			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
+
+		elif [[ "$OS" = "arch" ]]; then
+			# Install Unbound
+			pacman -Syu unbound expat
+
+			#Permissions for the DNSSEC keys
+  			chown root:unbound /etc/unbound
+  			chmod 775 /etc/unbound
+
+  			# Get root servers list
+  			wget https://www.internic.net/domain/named.root -O /etc/unbound/root.hints
+
+  			# Configuration
+  			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
+			echo 'server:
+root-hints: root.hints
+auto-trust-anchor-file: trusted-key.key
+interface: 10.8.0.1
+access-control: 10.8.0.1/24 allow
+port: 53
+do-daemonize: yes
+num-threads: 2
+use-caps-for-id: yes
+harden-glue: yes
+hide-identity: yes
+hide-version: yes
+qname-minimisation: yes
+prefetch: yes' > /etc/unbound/unbound.conf
+		fi
+
+		# DNS Rebinding fix
+		PRIVATE_ADDRESSES="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 127.0.0.0/8"
+		echo "private-address: $PRIVATE_ADDRESSES" >> /etc/unbound/unbound.conf
+
+		# Enable service at boot
+		systemctl enable unbound
+
+		# Restart the service
+		systemctl restart unbound
+	else
+		echo ""
+		echo "Unbound is already installed."
+		echo "You can allow the script to configure it automatically for OpenVPN integration:"
+		echo "an `include:` statement will be added to `unbound.conf` with the necessary changes in a separate `openvpn-server.conf` file."
+		echo "No other changes are made to the current configuration."
+
+		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+			read -rp "Apply configuration changes? [y/n]: " -e local CONTINUE
+		done
+
+		if [[ $CONTINUE = "y" ]]; then
+			# Add include: statement
+			awk '{ print } !flag && /server:/ { print "        include: /etc/unbound/openvpn-server.conf"; flag = 1 }' /etc/unbound/unbound.conf > /etc/unbound/unbound.conf
+
+			# Add OpenVPN integration
+			echo 'interface: 10.8.0.1
+access-control: 10.8.0.1/24 allow' > /etc/unbound/openvpn-server.conf
+
+			# Restart the service
+			systemctl restart unbound
+		else
+			echo "OpenVPN will be configured to use 10.8.0.1 IP for clients DNS"
+			echo "You need to manually configure Unbound to listen on this interface and accept connections from the subnet"
+	fi
+}
+
 # Get Internet network interface with default route
 NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
@@ -810,105 +913,4 @@ verb 3" >> /etc/openvpn/client-template.txt
 fi
 exit 0;
 
-function installLocalDNS () {
-	if [[ ! -e /etc/unbound/unbound.conf ]]; then
 
-		if [[ "$OS" = "debian" ]]; then
-			# Install Unbound
-			apt-get update
-			apt-get install -y unbound
-
-			# Configuration
-			echo 'interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-hide-identity: yes
-hide-version: yes
-use-caps-for-id: yes
-prefetch: yes' >> /etc/unbound/unbound.conf
-
-		elif [[ "$OS" = "centos" ]]; then
-			# Install Unbound
-			yum install -y unbound
-
-			# Configuration
-			sed -i 's|# interface: 0.0.0.0|interface: 10.8.0.1' /etc/unbound/unbound.conf
-			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow' /etc/unbound/unbound.conf
-			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
-			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
-
-		elif [[ "$OS" = "fedora" ]]; then
-			# Install Unbound
-			dnf install -y unbound
-
-			# Configuration
-			sed -i 's|# interface: 0.0.0.0|interface: 10.8.0.1' /etc/unbound/unbound.conf
-			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow' /etc/unbound/unbound.conf
-			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
-
-		elif [[ "$OS" = "arch" ]]; then
-			# Install Unbound
-			pacman -Syu unbound expat
-
-			#Permissions for the DNSSEC keys
-  			chown root:unbound /etc/unbound
-  			chmod 775 /etc/unbound
-
-  			# Get root servers list
-  			wget https://www.internic.net/domain/named.root -O /etc/unbound/root.hints
-
-  			# Configuration
-  			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
-			echo 'server:
-root-hints: root.hints
-auto-trust-anchor-file: trusted-key.key
-interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-port: 53
-do-daemonize: yes
-num-threads: 2
-use-caps-for-id: yes
-harden-glue: yes
-hide-identity: yes
-hide-version: yes
-qname-minimisation: yes
-prefetch: yes' > /etc/unbound/unbound.conf
-		fi
-
-		# DNS Rebinding fix
-		PRIVATE_ADDRESSES="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 127.0.0.0/8"
-		echo "private-address: $PRIVATE_ADDRESSES" >> /etc/unbound/unbound.conf
-
-		# Enable service at boot
-		systemctl enable unbound
-
-		# Restart the service
-		systemctl restart unbound
-	else
-		echo ""
-		echo "Unbound is already installed."
-		echo "You can allow the script to configure it automatically for OpenVPN integration:"
-		echo "an `include:` statement will be added to `unbound.conf` with the necessary changes in a separate `openvpn-server.conf` file."
-		echo "No other changes are made to the current configuration."
-
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -rp "Apply configuration changes? [y/n]: " -e local CONTINUE
-		done
-
-		if [[ $CONTINUE = "y" ]]; then
-			# Add include: statement
-			awk '{ print } !flag && /server:/ { print "        include: /etc/unbound/openvpn-server.conf"; flag = 1 }' /etc/unbound/unbound.conf > /etc/unbound/unbound.conf
-
-			# Add OpenVPN integration
-			echo 'interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow' > /etc/unbound/openvpn-server.conf
-
-			# Restart the service
-			systemctl restart unbound
-		else
-			echo "OpenVPN will be configured to use 10.8.0.1 IP for clients DNS"
-			echo "You need to manually configure Unbound to listen on this interface and accept connections from the subnet"
-	fi
-}
