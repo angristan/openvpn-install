@@ -134,14 +134,14 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			pacman -Syu unbound expat
 
 			#Permissions for the DNSSEC keys
-  			chown root:unbound /etc/unbound
-  			chmod 775 /etc/unbound
+			chown root:unbound /etc/unbound
+			chmod 775 /etc/unbound
 
-  			# Get root servers list
-  			wget https://www.internic.net/domain/named.root -O /etc/unbound/root.hints
+			# Get root servers list
+			wget https://www.internic.net/domain/named.root -O /etc/unbound/root.hints
 
-  			# Configuration
-  			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
+			# Configuration
+			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
 			echo 'server:
 root-hints: root.hints
 auto-trust-anchor-file: trusted-key.key
@@ -174,32 +174,28 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 		# Restart the service
 		systemctl restart unbound
 	else
-		echo ""
-		echo "Unbound is already installed."
-		echo "You can allow the script to configure it in order to use it from your OpenVPN clients"
-		echo "We will simply add a second server to /etc/unbound/unbound.conf for the OpenVPN subnet."
-		echo "No changes are made to the current configuration."
-		echo ""
+		# Unbound is already installed
+		echo 'include: /etc/unbound/openvpn.conf' >> /etc/unbound/unbound.conf
 
-		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -rp "Apply configuration changes? [y/n]: " -e CONTINUE
-		done
+		# Add OpenVPN integration
+		echo 'server:
+interface: 10.8.0.1
+access-control: 10.8.0.1/24 allow
+hide-identity: yes
+hide-version: yes
+use-caps-for-id: yes
+prefetch: yes
+private-address: 10.0.0.0/8
+private-address: 172.16.0.0/12
+private-address: 192.168.0.0/16
+private-address: 169.254.0.0/16
+private-address: fd00::/8
+private-address: fe80::/10
+private-address: 127.0.0.0/8
+private-address: ::ffff:0:0/96' >> /etc/unbound/openvpn.conf
 
-		if [[ $CONTINUE = "y" ]]; then
-
-			echo 'include: /etc/unbound/openvpn.conf' >> /etc/unbound/unbound.conf
-
-			# Add OpenVPN integration
-			echo 'server:
-	interface: 10.8.0.1
-	access-control: 10.8.0.1/24 allow' >> /etc/unbound/openvpn.conf
-
-			# Restart the service
-			systemctl restart unbound
-		else
-			echo "OpenVPN clients will be configured to use 10.8.0.1 as DNS resolver."
-			echo "You need to manually configure Unbound to listen on this interface and accept connections from the subnet."
-		fi
+		# Restart the service
+		systemctl restart unbound
 	fi
 }
 
@@ -445,6 +441,21 @@ else
 	echo "   10) AdGuard DNS (Russia)"
 	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 10 ]; do
 		read -rp "DNS [1-10]: " -e -i 1 DNS
+			if [[ $DNS == 2 ]] && [[ ! -e /etc/unbound/unbound.conf ]]; then
+				echo ""
+				echo "Unbound is already installed."
+				echo "You can allow the script to configure it in order to use it from your OpenVPN clients"
+				echo "We will simply add a second server to /etc/unbound/unbound.conf for the OpenVPN subnet."
+				echo "No changes are made to the current configuration."
+				echo ""
+
+				while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+					read -rp "Apply configuration changes to Unbound? [y/n]: " -e CONTINUE
+				done
+				if [[ $CONTINUE = "n" ]];then
+					DNS=""
+				fi
+			fi
 	done
 	echo ""
 	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
