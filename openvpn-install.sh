@@ -197,7 +197,7 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 			# Add OpenVPN integration
 			echo 'server:
 	interface: 10.8.0.1
-	access-control: 10.8.0.1/24 allow' >> /etc/unbound/${UNBOUND_CONF_D}/openvpn.conf
+	access-control: 10.8.0.1/24 allow' >> ${UNBOUND_CONF_D}/openvpn.conf
 
 			# Restart the service
 			systemctl restart unbound
@@ -353,7 +353,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 						UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
 					fi
 
-					rm /etc/unbound/${UNBOUND_CONF_D}/openvpn.conf
+					rm ${UNBOUND_CONF_D}/openvpn.conf
 
 					read -rp "Do you want to remove Unbound, too? [y/n]: " -e REMOVE
 
