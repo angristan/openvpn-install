@@ -363,9 +363,10 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 						sed -i 's|include: "\/etc\/unbound\/unbound.conf.d\/\*.conf"||' /etc/unbound/unbound.conf
 					fi
 
-					rm ${UNBOUND_CONF_D}/openvpn.conf
+					rm ${UNBOUND_CONF_D}/openvpn.conf >> /dev/null 2>&1
 
 					until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
+						echo ""
 						read -rp "Do you want to remove Unbound, too? [y/n]: " -e REMOVE_UNBOUND
 					done
 
