@@ -186,10 +186,18 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 
 		if [[ $CONTINUE = "y" ]]; then
 
+			if [ -d "/etc/unbound/conf.d" ]; then
+				# Debian / Ubuntu
+				UNBOUND_CONF_D="/etc/unbound/conf.d"
+			elif [ -d "/etc/unbound/unbound.conf.d" ]; then
+				# CentOS / Fedora
+				UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
+			else
+
 			# Add OpenVPN integration
 			echo 'server:
 	interface: 10.8.0.1
-	access-control: 10.8.0.1/24 allow' >> /etc/unbound/conf.d/openvpn.conf
+	access-control: 10.8.0.1/24 allow' >> /etc/unbound/${UNBOUND_CONF_D}/openvpn.conf
 
 			# Restart the service
 			systemctl restart unbound
@@ -335,10 +343,17 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				rm -rf /etc/openvpn
 				rm -rf /usr/share/doc/openvpn*
 
-				if [[ -e /etc/unbound/openvpn-server.conf ]]; then
-					# Remove Unbound integration with OpenVPN
-					rm /etc/unbound/openvpn-server.conf
-					sed -i '/openvpn-server.conf/d' /etc/unbound/unbound.conf
+				if [[ -e /etc/unbound/unbound.conf ]]; then
+
+					if [ -d "/etc/unbound/conf.d" ]; then
+						# Debian / Ubuntu
+						UNBOUND_CONF_D="/etc/unbound/conf.d"
+					elif [ -d "/etc/unbound/unbound.conf.d" ]; then
+						# CentOS / Fedora
+						UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
+					fi
+
+					rm /etc/unbound/${UNBOUND_CONF_D}/openvpn.conf
 
 					read -rp "Do you want to remove Unbound, too? [y/n]: " -e -i n REMOVE
 
