@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Arch Linux
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Fedora
 # https://github.com/Angristan/OpenVPN-install
 
 
@@ -58,12 +58,8 @@ elif [[ -e /etc/centos-release ]]; then
 	OS=centos
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
-elif [[ -e /etc/arch-release ]]; then
-	OS=arch
-	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
 else
-	echo "Looks like you aren't running this installer on a Debian, Ubuntu, CentOS or ArchLinux system"
+	echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora or CentOS system"
 	exit 4
 fi
 
@@ -130,34 +126,6 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
-
-		elif [[ "$OS" = "arch" ]]; then
-			# Install Unbound
-			pacman -Syu unbound expat
-
-			#Permissions for the DNSSEC keys
-			chown root:unbound /etc/unbound
-			chmod 775 /etc/unbound
-
-			# Get root servers list
-			wget https://www.internic.net/domain/named.root -O /etc/unbound/root.hints
-
-			# Configuration
-			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
-			echo 'server:
-root-hints: root.hints
-auto-trust-anchor-file: trusted-key.key
-interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-port: 53
-do-daemonize: yes
-num-threads: 2
-use-caps-for-id: yes
-harden-glue: yes
-hide-identity: yes
-hide-version: yes
-qname-minimisation: yes
-prefetch: yes' > /etc/unbound/unbound.conf
 		fi
 
 		if [[ ! "$OS" =~ (fedora|centos) ]];then
@@ -322,8 +290,6 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				fi
 				if [[ "$OS" = 'debian' ]]; then
 					apt-get autoremove --purge -y openvpn
-				elif [[ "$OS" = 'arch' ]]; then
-					pacman -R openvpn --noconfirm
 				else
 					yum remove openvpn -y
 				fi
@@ -353,8 +319,6 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
 						if [[ "$OS" = 'debian' ]]; then
 							apt-get autoremove --purge -y unbound
-						elif [[ "$OS" = 'arch' ]]; then
-							pacman -R unbound --noconfirm
 						else
 							yum remove unbound -y
 						fi
@@ -646,30 +610,6 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 			systemctl disable firewalld
 			systemctl mask firewalld
 		fi
-	else
-		# Else, the distro is ArchLinux
-		echo ""
-		echo ""
-		echo "As you're using ArchLinux, I need to update the packages on your system to install those I need."
-		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
-		echo ""
-		echo "Continuing will update your installed packages and install needed ones."
-		until [[ $CONTINUE == "y" || $CONTINUE == "n" ]]; do
-			read -rp "Continue ? [y/n]: " -e -i y CONTINUE
-		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
-			exit 4
-		fi
-
-		if [[ "$OS" = 'arch' ]]; then
-			# Install dependencies
-			pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
-			iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
-			systemctl daemon-reload
-			systemctl enable iptables
-			systemctl start iptables
-		fi
 	fi
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
@@ -799,7 +739,7 @@ verb 3" >> /etc/openvpn/server.conf
 # Create log dir
 mkdir -p /var/log/openvpn
 
-	# Create the sysctl configuration file if needed (mainly for Arch Linux)
+	# Create the sysctl configuration file if needed
 	if [[ ! -e $SYSCTL ]]; then
 		touch $SYSCTL
 	fi
@@ -882,8 +822,8 @@ mkdir -p /var/log/openvpn
 		fi
 	else
 		if pgrep systemd-journal; then
-			if [[ "$OS" = 'arch' || "$OS" = 'fedora' ]]; then
-				#Workaround to avoid rewriting the entire script for Arch & Fedora
+			if [[ "$OS" = 'fedora' ]]; then
+				# Workaround to avoid rewriting the entire script for Fedora
 				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /usr/lib/systemd/system/openvpn-server@.service
 				sed -i 's|%i.conf|server.conf|' /usr/lib/systemd/system/openvpn-server@.service
 				systemctl daemon-reload
