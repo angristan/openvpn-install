@@ -863,6 +863,28 @@ prefetch: yes' > /etc/unbound/unbound.conf
 		# Restart the service
 		systemctl restart unbound
 	else
-				echo "Unbound is already installed."
+		echo ""
+		echo "Unbound is already installed."
+		echo "You can allow the script to configure it automatically for OpenVPN integration:"
+		echo "an `include:` statement will be added to `unbound.conf` with the necessary changes in a separate `openvpn-server.conf` file."
+		echo "No other changes are made to the current configuration."
+
+		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+			read -rp "Apply configuration changes? [y/n]: " -e local CONTINUE
+		done
+
+		if [[ $CONTINUE = "y" ]]; then
+			# Add include: statement
+			awk '{ print } !flag && /server:/ { print "        include: /etc/unbound/openvpn-server.conf"; flag = 1 }' /etc/unbound/unbound.conf > /etc/unbound/unbound.conf
+
+			# Add OpenVPN integration
+			echo 'interface: 10.8.0.1
+access-control: 10.8.0.1/24 allow' > /etc/unbound/openvpn-server.conf
+
+			# Restart the service
+			systemctl restart unbound
+		else
+			echo "OpenVPN will be configured to use 10.8.0.1 IP for clients DNS"
+			echo "You need to manually configure Unbound to listen on this interface"
 	fi
 }
