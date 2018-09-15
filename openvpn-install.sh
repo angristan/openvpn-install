@@ -340,9 +340,10 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 
 				if [[ -e /etc/unbound/openvpn.conf ]]; then
 
+					# Remove OpenVPN-related config
 					sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
-
-					rm /etc/openvpn/openvpn.conf
+					rm /etc/unbound/openvpn.conf
+					systemctl restart unbound
 
 					until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
 						echo ""
