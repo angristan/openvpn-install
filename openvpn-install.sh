@@ -441,7 +441,7 @@ else
 	echo "   10) AdGuard DNS (Russia)"
 	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 10 ]; do
 		read -rp "DNS [1-10]: " -e -i 1 DNS
-			if [[ $DNS == 2 ]] && [[ ! -e /etc/unbound/unbound.conf ]]; then
+			if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
 				echo ""
 				echo "Unbound is already installed."
 				echo "You can allow the script to configure it in order to use it from your OpenVPN clients"
@@ -454,6 +454,7 @@ else
 				done
 				if [[ $CONTINUE = "n" ]];then
 					DNS=""
+					CONTINUE=""
 				fi
 			fi
 	done
