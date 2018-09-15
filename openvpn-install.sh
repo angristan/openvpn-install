@@ -181,7 +181,7 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 		echo "No other changes are made to the current configuration."
 
 		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -rp "Apply configuration changes? [y/n]: " -e local CONTINUE
+			read -rp "Apply configuration changes? [y/n]: " -e CONTINUE
 		done
 
 		if [[ $CONTINUE = "y" ]]; then
