@@ -191,6 +191,7 @@ access-control: 10.8.0.1/24 allow' > /etc/unbound/openvpn-server.conf
 		else
 			echo "OpenVPN will be configured to use 10.8.0.1 IP for clients DNS"
 			echo "You need to manually configure Unbound to listen on this interface and accept connections from the subnet"
+		fi
 	fi
 }
 
