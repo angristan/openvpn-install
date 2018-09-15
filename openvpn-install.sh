@@ -315,7 +315,7 @@ else
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
-	echo "   2) Local DNS Resolver (Unbound will be installed)"
+	echo "   2) Local DNS Resolver (Unbound will be configured)"
 	echo "   3) Cloudflare (Anycast: worldwide)"
 	echo "   4) Quad9 (Anycast: worldwide)"
 	echo "   5) FDN (France)"
