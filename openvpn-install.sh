@@ -158,23 +158,17 @@ qname-minimisation: yes
 prefetch: yes' > /etc/unbound/unbound.conf
 		fi
 
-if [[ ! "$OS" =~ (fedora|centos) ]];then
-  # DNS Rebinding fix
-  echo "private-address: 10.0.0.0/8
-private-address: 172.16.0.0/12
-private-address: 192.168.0.0/16
-private-address: 169.254.0.0/16
-private-address: fd00::/8
-private-address: fe80::/10
-private-address: 127.0.0.0/8
-private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
-fi
-
-		# Enable service at boot
-		systemctl enable unbound
-
-		# Restart the service
-		systemctl restart unbound
+		if [[ ! "$OS" =~ (fedora|centos) ]];then
+			# DNS Rebinding fix
+			echo "private-address: 10.0.0.0/8
+		private-address: 172.16.0.0/12
+		private-address: 192.168.0.0/16
+		private-address: 169.254.0.0/16
+		private-address: fd00::/8
+		private-address: fe80::/10
+		private-address: 127.0.0.0/8
+		private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
+		fi
 	else
 		# Unbound is already installed
 		echo 'include: /etc/unbound/openvpn.conf' >> /etc/unbound/unbound.conf
@@ -195,9 +189,13 @@ private-address: fd00::/8
 private-address: fe80::/10
 private-address: 127.0.0.0/8
 private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
+	fi
 
-		# Restart the service
-		systemctl restart unbound
+	if pgrep systemd-journal; then
+		systemctl enable unbound
+		systemctl start unbound
+	else
+		service unbound restart
 	fi
 }
 
@@ -341,7 +339,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					# Remove OpenVPN-related config
 					sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
 					rm /etc/unbound/openvpn.conf
-					systemctl restart unbound
+					service unbound restart
 
 					until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
 						echo ""
