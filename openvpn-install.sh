@@ -177,7 +177,7 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 		echo ""
 		echo "Unbound is already installed."
 		echo "You can allow the script to configure it automatically for OpenVPN integration:"
-		echo "an `include:` statement will be added to `unbound.conf` with the necessary changes in a separate `openvpn-server.conf` file."
+		echo "an 'include:' statement will be added to 'unbound.conf' with the necessary changes in a separate 'openvpn-server.conf' file."
 		echo "No other changes are made to the current configuration."
 
 		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
