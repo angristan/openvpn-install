@@ -179,6 +179,7 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 		echo "You can allow the script to configure it in order to use it from your OpenVPN clients"
 		echo "We will simply add a second server to /etc/unbound/unbound.conf for the OpenVPN subnet."
 		echo "No changes are made to the current configuration."
+		echo ""
 
 		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
 			read -rp "Apply configuration changes? [y/n]: " -e CONTINUE
