@@ -192,7 +192,7 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 			elif [ -d "/etc/unbound/unbound.conf.d" ]; then
 				# CentOS / Fedora
 				UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
-			else
+			fi
 
 			# Add OpenVPN integration
 			echo 'server:
