@@ -324,7 +324,7 @@ else
 	echo "   8) Google (Anycast: worldwide)"
 	echo "   9) Yandex Basic (Russia)"
 	echo "   10) AdGuard DNS (Russia)"
-	until [[ "$DNS" =~ ^[0-10]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 10 ]; do
+	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 10 ]; do
 		read -rp "DNS [1-10]: " -e -i 1 DNS
 	done
 	echo ""
