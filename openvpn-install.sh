@@ -355,7 +355,7 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 
 					rm /etc/unbound/${UNBOUND_CONF_D}/openvpn.conf
 
-					read -rp "Do you want to remove Unbound, too? [y/n]: " -e -i n REMOVE
+					read -rp "Do you want to remove Unbound, too? [y/n]: " -e REMOVE
 
 					if [[ "$REMOVE" = 'y' ]]; then
 						if [[ "$OS" = 'debian' ]]; then
