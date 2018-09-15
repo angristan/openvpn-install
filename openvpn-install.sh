@@ -187,22 +187,22 @@ private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 
 		if [[ $CONTINUE = "y" ]]; then
 
-			if [ -d "/etc/unbound/conf.d" ]; then
+			if [ -d "/etc/unbound/unbound.conf.d" ]; then
 				# Debian / Ubuntu
-				UNBOUND_CONF_D="/etc/unbound/conf.d"
+				UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
 				if ! grep -qs "^include: \"/etc/unbound/unbound.conf.d/\*.conf\"" /etc/unbound/unbound.conf; then
 					echo 'include: "/etc/unbound/unbound.conf.d/*.conf"' >> /etc/unbound/unbound.conf
 				fi
-			elif [ -d "/etc/unbound/unbound.conf.d" ]; then
+			elif [ -d "/etc/unbound/conf.d" ]; then
 				# CentOS / Fedora
-				UNBOUND_CONF_D="/etc/unbound/unbound.conf.d"
+				UNBOUND_CONF_D="/etc/unbound/conf.d"
 				if ! grep -qs "^include: /etc/unbound/conf.d/\*.conf" /etc/unbound/unbound.conf; then
 					echo 'include: /etc/unbound/conf.d/*.conf' >> /etc/unbound/unbound.conf
 				fi
 			else
 				UNBOUND_CONF_D="/etc/unbound/conf.d"
 				mkdir -p $UNBOUND_CONF_D
-				echo 'include: "/etc/unbound/unbound.conf.d/*.conf"' >> /etc/unbound/unbound.conf
+				echo 'include: "/etc/unbound/conf.d/*.conf"' >> /etc/unbound/unbound.conf
 			fi
 
 			# Add OpenVPN integration
