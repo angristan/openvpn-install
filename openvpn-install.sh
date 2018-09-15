@@ -112,7 +112,7 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			yum install -y unbound
 
 			# Configuration
-			echo 'interface: 10.8.0.1' >> /etc/unbound/unbound.conf
+			sed -i 's|# interface: 0.0.0.0$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
 			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
@@ -123,7 +123,7 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			dnf install -y unbound
 
 			# Configuration
-			echo 'interface: 10.8.0.1' >> /etc/unbound/unbound.conf
+			sed -i 's|# interface: 0.0.0.0$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
 			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
