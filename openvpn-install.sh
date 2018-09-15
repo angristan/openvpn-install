@@ -22,7 +22,7 @@ if [[ -e /etc/debian_version ]]; then
 	VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
-	if [[ "$VERSION_ID" != 'VERSION_ID="7"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
+	if [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
 		echo ""
@@ -561,12 +561,6 @@ else
 	if [[ "$OS" = 'debian' ]]; then
 		apt-get install ca-certificates gnupg -y
 		# We add the OpenVPN repo to get the latest version.
-		# Debian 7
-		if [[ "$VERSION_ID" = 'VERSION_ID="7"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable wheezy main" > /etc/apt/sources.list.d/openvpn.list
-			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt-get update
-		fi
 		# Debian 8
 		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list

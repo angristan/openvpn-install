@@ -56,7 +56,6 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 
 The script is made to work on these OS and architectures :
 
-- **Debian 7** (i386, amd64)
 - **Debian 8** (i386, amd64)
 - **Debian 9** (i386, amd64, armhf, arm64)
 - **Ubuntu 14.04 LTS** (i386, amd64)
