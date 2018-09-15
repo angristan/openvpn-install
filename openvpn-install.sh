@@ -940,5 +940,3 @@ verb 3" >> /etc/openvpn/client-template.txt
 	echo "If you want to add more clients, you simply need to run this script another time!"
 fi
 exit 0;
-
-
