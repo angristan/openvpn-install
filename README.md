@@ -98,6 +98,7 @@ The script will ask you which DNS resolvers you want to use when connected to th
 Here are the possibilities :
 
 - Current system resolvers, those that are in `/etc/resolv.conf`
+- Self-hosted resolver thanks to Unbound
 - [Cloudflare](https://1.1.1.1/), recommended, fastest resolvers available (Anycast servers)
 - [Quad9](https://www.quad9.net), recommended, security and privacy oriented, fast worldwide (Anycast servers)
 - [FDN's DNS Servers](http://www.fdn.fr/actions/dns/), recommended if you're in western europe (France)
@@ -106,7 +107,6 @@ Here are the possibilities :
 - [Google Public DNS](https://en.wikipedia.org/wiki/Google_Public_DNS), not recommended, but fast worldwide (Anycast servers)
 - [Yandex Basic DNS](https://dns.yandex.com/), not recommended, but fast in Russia
 - [AdGuard DNS](https://github.com/AdguardTeam/AdguardDNS), located in Russia, blocks ads and trackers
-- Soon : local resolver :D
 
 Any other fast, trustable and neutral servers proposition is welcome.
 
