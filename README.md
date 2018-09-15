@@ -66,7 +66,6 @@ The script is made to work on these OS and architectures :
 - **Fedora 25** (amd64)
 - **Fedora 26** (amd64)
 - **Fedora 27** (amd64)
-- **CentOS 6** (i386, amd64)
 - **CentOS 7** (i386, amd64, arm64)
 - **Arch Linux** (i686, amd64, arm64)
 

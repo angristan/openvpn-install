@@ -16,12 +16,6 @@ if [[ ! -e /dev/net/tun ]]; then
 	exit 2
 fi
 
-# Check if CentOS 5
-if grep -qs "CentOS release 5" "/etc/redhat-release"; then
-	echo "CentOS 5 is too old and not supported"
-	exit 3
-fi
-
 if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
@@ -36,10 +30,10 @@ if [[ -e /etc/debian_version ]]; then
 		echo "then you can continue, a recent version of OpenVPN is available on these."
 		echo "Keep in mind they are not supported, though."
 		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
-			read -rp "Continue ? [y/n]: " -e CONTINUE
+			read -rp "Continue? [y/n]: " -e CONTINUE
 		done
 		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
+			echo "Ok, bye!"
 			exit 4
 		fi
 	fi
@@ -47,7 +41,20 @@ elif [[ -e /etc/fedora-release ]]; then
 	OS=fedora
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.d/openvpn.conf'
-elif [[ -e /etc/centos-release || -e /etc/redhat-release || -e /etc/system-release ]]; then
+elif [[ -e /etc/centos-release ]]; then
+	if ! grep -qs "^CentOS Linux release 7" /etc/centos-release; then
+		echo "Your version of CentOS is not supported."
+		echo "The script only support CentOS 7."
+		echo ""
+		unset CONTINUE
+		while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+			read -rp "Continue anyway? [y/n]: " -e CONTINUE
+		done
+		if [[ "$CONTINUE" = "n" ]]; then
+			echo "Ok, bye!"
+			exit 5
+		fi
+	fi
 	OS=centos
 	IPTABLES='/etc/iptables/iptables.rules'
 	SYSCTL='/etc/sysctl.conf'
