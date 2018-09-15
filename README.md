@@ -62,9 +62,8 @@ The script is made to work on these OS and architectures :
 - **Ubuntu 16.04 LTS** (i386, amd64, armhf)
 - **Ubuntu 17.10** (i386, amd64, armhf, arm64)
 - **Ubuntu 18.04 LTS** (i386, amd64, armhf, arm64)
-- **Fedora 25** (amd64)
-- **Fedora 26** (amd64)
 - **Fedora 27** (amd64)
+- **Fedora 28** (amd64)
 - **CentOS 7** (i386, amd64, arm64)
 
 (It should also work on Debian unstable/testing and Ubuntu beta).
