@@ -455,8 +455,8 @@ else
 					read -rp "Apply configuration changes to Unbound? [y/n]: " -e CONTINUE
 				done
 				if [[ $CONTINUE = "n" ]];then
-					DNS=""
-					CONTINUE=""
+					unset DNS
+					unset CONTINUE
 				fi
 			fi
 	done
