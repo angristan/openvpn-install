@@ -367,7 +367,9 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 
 					until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
 						echo ""
-						read -rp "Do you want to remove Unbound, too? [y/n]: " -e REMOVE_UNBOUND
+						echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
+						echo "You can keep using Unbound as before."
+						read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
 					done
 
 					if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
