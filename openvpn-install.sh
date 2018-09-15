@@ -95,11 +95,8 @@ function installLocalDNS () {
 	if [[ ! -e /etc/unbound/unbound.conf ]]; then
 
 		if [[ "$OS" = "debian" ]]; then
-			# Install Unbound
-			apt-get update
 			apt-get install -y unbound
 
-			# Configuration
 			echo 'interface: 10.8.0.1
 access-control: 10.8.0.1/24 allow
 hide-identity: yes
@@ -108,7 +105,6 @@ use-caps-for-id: yes
 prefetch: yes' >> /etc/unbound/unbound.conf
 
 		elif [[ "$OS" = "centos" ]]; then
-			# Install Unbound
 			yum install -y unbound
 
 			# Configuration
@@ -119,7 +115,6 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
 
 		elif [[ "$OS" = "fedora" ]]; then
-			# Install Unbound
 			dnf install -y unbound
 
 			# Configuration
@@ -430,7 +425,7 @@ else
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
-	echo "   2) Local DNS Resolver (Unbound will be configured)"
+	echo "   2) Self-hosted DNS Resolver (Unbound)"
 	echo "   3) Cloudflare (Anycast: worldwide)"
 	echo "   4) Quad9 (Anycast: worldwide)"
 	echo "   5) FDN (France)"
@@ -748,6 +743,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		done
 		;;
 		2)
+		# Install Unbound
 		installLocalDNS
 		echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
 		;;
