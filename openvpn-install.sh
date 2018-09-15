@@ -225,6 +225,30 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				done
 				rm -rf /etc/openvpn
 				rm -rf /usr/share/doc/openvpn*
+
+				if [[ -e /etc/unbound/openvpn-server.conf ]]; then
+					# Remove Unbound integration with OpenVPN
+					rm /etc/unbound/openvpn-server.conf
+					sed -i '/openvpn-server.conf/d' /etc/unbound/unbound.conf
+
+					read -rp "Do you want to remove Unbound, too? [y/n]: " -e -i n REMOVE
+
+					if [[ "$REMOVE" = 'y' ]]; then
+						if [[ "$OS" = 'debian' ]]; then
+							apt-get autoremove --purge -y unbound
+						elif [[ "$OS" = 'arch' ]]; then
+							pacman -R unbound --noconfirm
+						else
+							yum remove unbound -y
+						fi
+
+						echo ""
+						echo "Unbound removed!"
+					else
+						echo ""
+						echo "Unbound not removed!"
+					fi
+				fi
 				echo ""
 				echo "OpenVPN removed!"
 			else
