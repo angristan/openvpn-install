@@ -219,22 +219,14 @@ else
 	# Autodetect IP address and pre-fill for the user
 	IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
 	read -p "IP address: " -e -i $IP IP
-	echo ""
-	echo "What port do you want for OpenVPN?"
-	read -p "Port: " -e -i 1194 PORT
 	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
 		echo "This server is behind NAT. What is the public IPv4 address or hostname?"
 		read -p "Public IP address / hostname: " -e PUBLICIP
 	fi
-	echo ""
-	echo "What protocol do you want for OpenVPN?"
-	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
-	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
-		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
-	done
 	ping6 -c4 ipv6.google.com > /dev/null 2>&1;
+	echo ""
 	if [[ $? == 0 ]]; then
 		echo "Your host appears to have IPv6 connectivity."
 	else
@@ -244,6 +236,15 @@ else
 	echo "Do you want to enable IPv6 support?"
 	while [[ $IPV6 != "y" && $IPV6 != "n" ]]; do
 		read -p "IPv6 support? [y/n]: " -e -i n IPV6
+	done
+	echo ""
+	echo "What port do you want for OpenVPN?"
+	read -p "Port: " -e -i 1194 PORT
+	echo ""
+	echo "What protocol do you want for OpenVPN?"
+	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
+	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
+		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
 	done
 	echo ""
 	echo "What DNS do you want to use with the VPN?"
