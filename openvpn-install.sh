@@ -236,7 +236,7 @@ else
 	fi
 	echo ""
 	while [[ $IPV6 != "y" && $IPV6 != "n" ]]; do
-		read -p "Do you want to enable IPv6 support? [y/n]: " -e -i n IPV6
+		read -p "Do you want to enable IPv6 support? [y/n]: " -e IPV6
 	done
 	echo ""
 	echo "What port do you want for OpenVPN?"
