@@ -80,7 +80,7 @@ This fork includes the following features :
 - Better DNS resolvers, see below
 - Choice between TCP and UDP (UDP is still recommended)
 - IPv6 (NATed) support
-- Run server in [unprivileged mode](https://github.com/Angristan/OpenVPN-install/blob/master/openvpn-install.sh#L426), reducing risks to the system
+- Run server in unprivileged mode, reducing risks to the system
 - [Block DNS leak on Windows 10](https://community.openvpn.net/openvpn/ticket/605)
 - No comp-lzo, as [compression is a vector for oracle attacks, e.g. CRIME or BREACH](https://github.com/BetterCrypto/Applied-Crypto-Hardening/pull/91#issuecomment-75388575)
 - [Arch Linux support](https://github.com/Angristan/OpenVPN-install/pull/2)
