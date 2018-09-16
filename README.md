@@ -107,6 +107,16 @@ Here are the possibilities :
 
 Any other fast, trustable and neutral servers proposition is welcome.
 
+## FAQ
+
+**Q:** The script has been udpated since I installed OpenVPN. How do I update?
+
+**A:** You can't. Managing updates and new features from the script would require way too much work. Your only solution is to uninstall OpenVPN and reinstall with the updated script.
+
+You can, of course, it's even recommended, update the `openvpn` package with your package manager.
+
+---
+
 ## Encryption
 
 The main reason why I made this fork is to improve the encryption. Indeed, OpenVPN's default parameters are weak (and that's what [Nyr's script](https://github.com/Nyr/openvpn-install) uses).
