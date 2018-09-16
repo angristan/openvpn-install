@@ -381,7 +381,27 @@ else
 	done
 	echo ""
 	echo "What port do you want for OpenVPN?"
-	read -p "Port: " -e -i 1194 PORT
+	echo "   1) Default: 1194"
+	echo "   2) Custom"
+	echo "   3) Random [49152-65535]"
+	until [[ "$PORT_CHOICE" =~ ^[1-3]$ ]]; do
+		read -p "Port choice [1-3]: " -e -i 1 PORT_CHOICE
+	done
+	case $PORT_CHOICE in
+		1)
+			PORT="1194"
+		;;
+		2)
+			until [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 -a "$PORT" -le 65535 ]; do
+				read -p "Custom port [1-65535]: " -e -i 1194 PORT
+			done
+		;;
+		3)
+			# Generate random number within private ports range
+			PORT=$(shuf -i49152-65535 -n1)
+			echo "Random Port: $PORT"
+		;;
+	esac
 	echo ""
 	echo "What protocol do you want for OpenVPN?"
 	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
