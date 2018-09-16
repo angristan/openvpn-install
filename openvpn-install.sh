@@ -280,6 +280,9 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					iptables-save > $IPTABLES
 				fi
 				iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
+				if [[ "$IPV6" = 'y' ]]; then
+					ip6tables -t nat -D POSTROUTING -o $NIC -s fd42:42:42:42::/112 -j MASQUERADE
+				fi
 				iptables-save > $IPTABLES
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
@@ -357,6 +360,25 @@ else
 	# Autodetect IP address and pre-fill for the user
 	IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
 	read -rp "IP address: " -e -i $IP IP
+	# If $IP is a private IP address, the server must be behind NAT
+	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
+		echo ""
+		echo "This server is behind NAT. What is the public IPv4 address or hostname?"
+		read -rp "Public IP address / hostname: " -e PUBLICIP
+	fi
+	echo ""
+	echo "Checking for IPv6 connectivity..."
+	ping6 -c4 ipv6.google.com > /dev/null 2>&1;
+	echo ""
+	if [[ $? == 0 ]]; then
+		echo "Your host appears to have IPv6 connectivity."
+	else
+		echo "Your host does not appear to have IPv6 connectivity."
+	fi
+	echo ""
+	while [[ $IPV6 != "y" && $IPV6 != "n" ]]; do
+		read -rp "Do you want to enable IPv6 support? [y/n]: " -e IPV6
+	done
 	echo ""
 	echo "What port do you want for OpenVPN?"
 	echo "   1) Default: 1194"
@@ -380,13 +402,6 @@ else
 			echo "Random Port: $PORT"
 		;;
 	esac
-
-	# If $IP is a private IP address, the server must be behind NAT
-	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
-		echo ""
-		echo "This server is behind NAT. What is the public IPv4 address or hostname?"
-		read -rp "Public IP address / hostname: " -e PUBLICIP
-	fi
 	echo ""
 	echo "What protocol do you want for OpenVPN?"
 	echo "Unless UDP is blocked, you should not use TCP (unnecessarily slower)"
@@ -523,13 +538,14 @@ else
 	read -n1 -r -p "Press any key to continue..."
 
 	if [[ "$OS" = 'debian' ]]; then
+		apt-get update
 		apt-get install ca-certificates gnupg -y
 		# We add the OpenVPN repo to get the latest version.
 		# Debian 8
 		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt update
+			apt-get update
 		fi
 		# Ubuntu 14.04
 		if [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
@@ -658,7 +674,19 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
 
 	# Generate server.conf
 	echo "port $PORT" > /etc/openvpn/server.conf
-	echo "proto $(echo $PROTOCOL | tr '[:upper:]' '[:lower:]')" >> /etc/openvpn/server.conf
+	if [[ "$IPV6" = 'n' ]]; then
+		if [[ "$PROTOCOL" = 'UDP' ]]; then
+			echo "proto udp" >> /etc/openvpn/server.conf
+		elif [[ "$PROTOCOL" = 'TCP' ]]; then
+			echo "proto tcp" >> /etc/openvpn/server.conf
+		fi
+	elif [[ "$IPV6" = 'y' ]]; then
+		if [[ "$PROTOCOL" = 'UDP' ]]; then
+			echo "proto udp6" >> /etc/openvpn/server.conf
+		elif [[ "$PROTOCOL" = 'TCP' ]]; then
+			echo "proto tcp6" >> /etc/openvpn/server.conf
+		fi
+	fi
 	echo "dev tun
 user nobody
 group $NOGROUP
@@ -721,8 +749,17 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
 		;;
 	esac
-echo 'push "redirect-gateway def1 bypass-dhcp" ' >> /etc/openvpn/server.conf
-echo "crl-verify crl.pem
+	echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
+
+	if [[ "$IPV6" = 'y' ]]; then
+		echo 'server-ipv6 fd42:42:42:42::/112
+tun-ipv6
+push tun-ipv6
+push "route-ipv6 2000::/3"
+push "redirect-gateway ipv6"' >> /etc/openvpn/server.conf
+	fi
+
+	echo "crl-verify crl.pem
 ca ca.crt
 cert $SERVER_NAME.crt
 key $SERVER_NAME.key
@@ -744,18 +781,19 @@ mkdir -p /var/log/openvpn
 		touch $SYSCTL
 	fi
 
-	# Enable net.ipv4.ip_forward for the system
-	sed -i '/\<net.ipv4.ip_forward\>/c\net.ipv4.ip_forward=1' $SYSCTL
-	if ! grep -q "\<net.ipv4.ip_forward\>" $SYSCTL; then
-		echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+	# Enable routing
+	echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+	if [[ "$IPV6" = 'y' ]]; then
+		echo 'net.ipv6.conf.all.forwarding=1' >> $SYSCTL
 	fi
 
 	# Avoid an unneeded reboot
-	echo 1 > /proc/sys/net/ipv4/ip_forward
-
+	sysctl --system
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-
+	if [[ "$IPV6" = 'y' ]]; then
+		ip6tables -t nat -A POSTROUTING -o $NIC -s fd42:42:42:42::/112 -j MASQUERADE
+	fi
 	# Save persitent iptables rules
 	iptables-save > $IPTABLES
 
@@ -788,7 +826,19 @@ mkdir -p /var/log/openvpn
 		# Save persitent OpenVPN rules
 		iptables-save > $IPTABLES
 	fi
-
+	if [[ "$IPV6" = 'y' ]]; then
+		if ip6tables -L -n | grep -qE 'REJECT|DROP'; then
+			if [[ "$PROTOCOL" = 'UDP' ]]; then
+				ip6tables -I INPUT -p udp --dport $PORT -j ACCEPT
+			elif [[ "$PROTOCOL" = 'TCP' ]]; then
+				ip6tables -I INPUT -p tcp --dport $PORT -j ACCEPT
+			fi
+			ip6tables -I FORWARD -s fd42:42:42:42::/112 -j ACCEPT
+			ip6tables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+			# Save persitent OpenVPN rules
+			iptables-save > $IPTABLES
+		fi
+	fi
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
 		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
