@@ -615,7 +615,7 @@ verb 3" >> /etc/openvpn/server.conf
 		echo 'net.ipv6.conf.all.forwarding=1' >> $SYSCTL
 	fi
 	# Avoid an unneeded reboot
-	sysctl -p
+	sysctl --system
 	# Set NAT for the VPN subnet
 	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
 	if [[ "$IPV6" = 'y' ]]; then
