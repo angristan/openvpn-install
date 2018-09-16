@@ -21,7 +21,7 @@ if [[ -e /etc/debian_version ]]; then
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
 	IPTABLES='/etc/iptables/iptables.rules'
-	if [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
+	if [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
 		echo ""
@@ -260,27 +260,16 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 			read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 			if [[ "$REMOVE" = 'y' ]]; then
 				PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
-				if pgrep firewalld; then
-					# Using both permanent and not permanent rules to avoid a firewalld reload.
-					firewall-cmd --zone=public --remove-port=$PORT/udp
-					firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
-					firewall-cmd --permanent --zone=public --remove-port=$PORT/udp
-					firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
-				fi
-				if iptables -L -n | grep -qE 'REJECT|DROP'; then
-					if [[ "$PROTOCOL" = 'udp' ]]; then
-						iptables -D INPUT -p udp --dport $PORT -j ACCEPT
-					else
-						iptables -D INPUT -p tcp --dport $PORT -j ACCEPT
-					fi
-					iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
-					iptables-save > $IPTABLES
-				fi
-				iptables -t nat -D POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-				if [[ "$IPV6" = 'y' ]]; then
-					ip6tables -t nat -D POSTROUTING -o $NIC -s fd42:42:42:42::/112 -j MASQUERADE
-				fi
-				iptables-save > $IPTABLES
+
+				# Remove ipatbles rules related to the script
+				systemctl stop iptables-openvpn
+				# Cleanup
+				systemctl disable iptables-openvpn
+				rm /etc/systemd/system/iptables-openvpn.service
+				systemctl daemon-reload
+				rm /etc/iptables/add-openvpn-rules.sh
+				rm /etc/iptables/rm-openvpn-rules.sh
+
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 						if [[ "$PORT" != '1194' ]]; then
@@ -544,86 +533,82 @@ else
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
-		# Ubuntu 14.04
-		if [[ "$VERSION_ID" = 'VERSION_ID="14.04"' ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable trusty main" > /etc/apt/sources.list.d/openvpn.list
-			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt-get update
-		fi
 		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
 		# The we install OpenVPN
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
-		# Install iptables service
-		if [[ ! -e /etc/systemd/system/iptables.service ]]; then
-			mkdir /etc/iptables
-			iptables-save > /etc/iptables/iptables.rules
-			echo "#!/bin/sh
-iptables -F
-iptables -X
-iptables -t nat -F
-iptables -t nat -X
-iptables -t mangle -F
-iptables -t mangle -X
-iptables -P INPUT ACCEPT
-iptables -P FORWARD ACCEPT
-iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-			chmod +x /etc/iptables/flush-iptables.sh
-			echo "[Unit]
-Description=Packet Filtering Framework
-DefaultDependencies=no
-Before=network-pre.target
-Wants=network-pre.target
-[Service]
-Type=oneshot
-ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
-ExecReload=/sbin/iptables-restore /etc/iptables/iptables.rules
-ExecStop=/etc/iptables/flush-iptables.sh
-RemainAfterExit=yes
-[Install]
-WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
-			systemctl daemon-reload
-			systemctl enable iptables.service
-		fi
 	elif [[ "$OS" = 'centos' || "$OS" = 'fedora' ]]; then
 		if [[ "$OS" = 'centos' ]]; then
 			yum install epel-release -y
 		fi
 		yum install openvpn iptables openssl wget ca-certificates curl -y
-		# Install iptables service
-		if [[ ! -e /etc/systemd/system/iptables.service ]]; then
-			mkdir /etc/iptables
-			iptables-save > /etc/iptables/iptables.rules
-			echo "#!/bin/sh
-iptables -F
-iptables -X
-iptables -t nat -F
-iptables -t nat -X
-iptables -t mangle -F
-iptables -t mangle -X
-iptables -P INPUT ACCEPT
-iptables -P FORWARD ACCEPT
-iptables -P OUTPUT ACCEPT" > /etc/iptables/flush-iptables.sh
-			chmod +x /etc/iptables/flush-iptables.sh
-			echo "[Unit]
-Description=Packet Filtering Framework
-DefaultDependencies=no
+
+		# Disable firewalld to allow iptables to start upon reboot
+		# systemctl disable firewalld
+		# systemctl mask firewalld
+	fi
+
+	# Install iptables service
+	mkdir /etc/iptables
+
+	# Script to add rules
+	echo "#!/bin/sh
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+iptables -A FORWARD -i eth0 -o tun0 -j ACCEPT
+iptables -A FORWARD -i tun0 -o eth0 -j ACCEPT" > /etc/iptables/add-openvpn-rules.sh
+
+	if [[ "$PROTOCOL" = 'UDP' ]]; then
+		echo "iptables -A INPUT -i eth0 -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+	elif [[ "$PROTOCOL" = 'TCP' ]]; then
+		echo "iptables -A INPUT -i eth0 -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+	fi
+
+	if [[ "$IPV6" = 'y' ]]; then
+		echo "ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::/112 -o eth0 -j MASQUERADE
+ip6tables -A FORWARD -i eth0 -o tun0 -j ACCEPT
+ip6tables -A FORWARD -i tun0 -o eth0 -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+	fi
+
+	# Script to remove rules
+	echo "#!/bin/sh
+iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+iptables -D FORWARD -i eth0 -o tun0 -j ACCEPT
+iptables -D FORWARD -i tun0 -o eth0 -j ACCEPT" > /etc/iptables/rm-openvpn-rules.sh
+
+	if [[ "$PROTOCOL" = 'UDP' ]]; then
+		echo "iptables -D INPUT -i eth0 -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+	elif [[ "$PROTOCOL" = 'TCP' ]]; then
+		echo "iptables -D INPUT -i eth0 -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+	fi
+
+	if [[ "$IPV6" = 'y' ]]; then
+		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o eth0 -j MASQUERADE
+ip6tables -D FORWARD -i eth0 -o tun0 -j ACCEPT
+ip6tables -D FORWARD -i tun0 -o eth0 -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+	fi
+
+	chmod +x /etc/iptables/add-openvpn-rules.sh
+	chmod +x /etc/iptables/rm-openvpn-rules.sh
+
+	# Handle the rules via a systemd script
+	echo "[Unit]
+Description=iptables rules for OpenVPN
 Before=network-pre.target
 Wants=network-pre.target
+
 [Service]
 Type=oneshot
-ExecStart=/sbin/iptables-restore /etc/iptables/iptables.rules
-ExecReload=/sbin/iptables-restore /etc/iptables/iptables.rules
-ExecStop=/etc/iptables/flush-iptables.sh
+ExecStart=/etc/iptables/add-openvpn-rules.sh
+ExecStop=/etc/iptables/rm-openvpn-rules.sh
 RemainAfterExit=yes
+
 [Install]
-WantedBy=multi-user.target" > /etc/systemd/system/iptables.service
-			systemctl daemon-reload
-			systemctl enable iptables.service
-			# Disable firewalld to allow iptables to start upon reboot
-			systemctl disable firewalld
-			systemctl mask firewalld
-		fi
-	fi
+WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
+
+	# Enable service and apply rules
+	systemctl daemon-reload
+	systemctl enable iptables-openvpn
+	systemctl start iptables-openvpn
+
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
 		NOGROUP=nogroup
@@ -781,56 +766,7 @@ verb 3" >> /etc/openvpn/server.conf
 
 	# Avoid an unneeded reboot
 	sysctl --system
-	# Set NAT for the VPN subnet
-	iptables -t nat -A POSTROUTING -o $NIC -s 10.8.0.0/24 -j MASQUERADE
-	if [[ "$IPV6" = 'y' ]]; then
-		ip6tables -t nat -A POSTROUTING -o $NIC -s fd42:42:42:42::/112 -j MASQUERADE
-	fi
-	# Save persitent iptables rules
-	iptables-save > $IPTABLES
 
-	if pgrep firewalld; then
-		# We don't use --add-service=openvpn because that would only work with
-		# the default port. Using both permanent and not permanent rules to
-		# avoid a firewalld reload.
-		if [[ "$PROTOCOL" = 'UDP' ]]; then
-			firewall-cmd --zone=public --add-port=$PORT/udp
-			firewall-cmd --permanent --zone=public --add-port=$PORT/udp
-		elif [[ "$PROTOCOL" = 'TCP' ]]; then
-			firewall-cmd --zone=public --add-port=$PORT/tcp
-			firewall-cmd --permanent --zone=public --add-port=$PORT/tcp
-		fi
-		firewall-cmd --zone=trusted --add-source=10.8.0.0/24
-		firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
-	fi
-
-	if iptables -L -n | grep -qE 'REJECT|DROP'; then
-		# If iptables has at least one REJECT rule, we asume this is needed.
-		# Not the best approach but I can't think of other and this shouldn't
-		# cause problems.
-		if [[ "$PROTOCOL" = 'UDP' ]]; then
-			iptables -I INPUT -p udp --dport $PORT -j ACCEPT
-		elif [[ "$PROTOCOL" = 'TCP' ]]; then
-			iptables -I INPUT -p tcp --dport $PORT -j ACCEPT
-		fi
-		iptables -I FORWARD -s 10.8.0.0/24 -j ACCEPT
-		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-		# Save persitent OpenVPN rules
-		iptables-save > $IPTABLES
-	fi
-	if [[ "$IPV6" = 'y' ]]; then
-		if ip6tables -L -n | grep -qE 'REJECT|DROP'; then
-			if [[ "$PROTOCOL" = 'UDP' ]]; then
-				ip6tables -I INPUT -p udp --dport $PORT -j ACCEPT
-			elif [[ "$PROTOCOL" = 'TCP' ]]; then
-				ip6tables -I INPUT -p tcp --dport $PORT -j ACCEPT
-			fi
-			ip6tables -I FORWARD -s fd42:42:42:42::/112 -j ACCEPT
-			ip6tables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-			# Save persitent OpenVPN rules
-			iptables-save > $IPTABLES
-		fi
-	fi
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
 		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
