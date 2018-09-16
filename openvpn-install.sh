@@ -359,7 +359,7 @@ else
 
 	# Autodetect IP address and pre-fill for the user
 	IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
-	read -p "IP address: " -e -i $IP IP
+	read -rp "IP address: " -e -i $IP IP
 	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
@@ -377,7 +377,7 @@ else
 	fi
 	echo ""
 	while [[ $IPV6 != "y" && $IPV6 != "n" ]]; do
-		read -p "Do you want to enable IPv6 support? [y/n]: " -e IPV6
+		read -rp "Do you want to enable IPv6 support? [y/n]: " -e IPV6
 	done
 	echo ""
 	echo "What port do you want for OpenVPN?"
