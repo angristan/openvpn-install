@@ -36,6 +36,8 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 
 ![](https://i.imgur.com/AlW9g7t.png)
 
+In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your prefered OpenVPN client.
+
 ## The fork
 
 This script is based on the great work of [Nyr and its contributors](https://github.com/Nyr/openvpn-install).
