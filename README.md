@@ -88,6 +88,7 @@ This fork includes the following features :
 - [Arch Linux support](https://github.com/Angristan/OpenVPN-install/pull/2)
 - Up-to-date OpenVPN thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) for CentOS and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Ubuntu and Debian. These are third-party yet trusted repositories.
 - Randomized certificate name
+- IPv6 (NATed) support
 - Other improvements !
 
 ## DNS
