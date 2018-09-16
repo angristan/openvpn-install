@@ -541,10 +541,6 @@ else
 			yum install epel-release -y
 		fi
 		yum install openvpn iptables openssl wget ca-certificates curl -y
-
-		# Disable firewalld to allow iptables to start upon reboot
-		# systemctl disable firewalld
-		# systemctl mask firewalld
 	fi
 
 	# Install iptables service
