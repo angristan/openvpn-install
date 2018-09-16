@@ -549,6 +549,7 @@ else
 	# Script to add rules
 	echo "#!/bin/sh
 iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+iptables -A INPUT -i tun0 -j ACCEPT
 iptables -A FORWARD -i eth0 -o tun0 -j ACCEPT
 iptables -A FORWARD -i tun0 -o eth0 -j ACCEPT" > /etc/iptables/add-openvpn-rules.sh
 
@@ -560,6 +561,7 @@ iptables -A FORWARD -i tun0 -o eth0 -j ACCEPT" > /etc/iptables/add-openvpn-rules
 
 	if [[ "$IPV6" = 'y' ]]; then
 		echo "ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::/112 -o eth0 -j MASQUERADE
+ip6tables -A INPUT -i tun0 -j ACCEPT
 ip6tables -A FORWARD -i eth0 -o tun0 -j ACCEPT
 ip6tables -A FORWARD -i tun0 -o eth0 -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
 	fi
@@ -567,6 +569,7 @@ ip6tables -A FORWARD -i tun0 -o eth0 -j ACCEPT" >> /etc/iptables/add-openvpn-rul
 	# Script to remove rules
 	echo "#!/bin/sh
 iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+iptables -D INPUT -i tun0 -j ACCEPT
 iptables -D FORWARD -i eth0 -o tun0 -j ACCEPT
 iptables -D FORWARD -i tun0 -o eth0 -j ACCEPT" > /etc/iptables/rm-openvpn-rules.sh
 
@@ -578,6 +581,7 @@ iptables -D FORWARD -i tun0 -o eth0 -j ACCEPT" > /etc/iptables/rm-openvpn-rules.
 
 	if [[ "$IPV6" = 'y' ]]; then
 		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o eth0 -j MASQUERADE
+ip6tables -D INPUT -i tun0 -j ACCEPT
 ip6tables -D FORWARD -i eth0 -o tun0 -j ACCEPT
 ip6tables -D FORWARD -i tun0 -o eth0 -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
 	fi
