@@ -21,7 +21,6 @@ if [[ -e /etc/debian_version ]]; then
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
 	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.conf'
 	if [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="14.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
@@ -40,7 +39,6 @@ if [[ -e /etc/debian_version ]]; then
 elif [[ -e /etc/fedora-release ]]; then
 	OS=fedora
 	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.d/openvpn.conf'
 elif [[ -e /etc/centos-release ]]; then
 	if ! grep -qs "^CentOS Linux release 7" /etc/centos-release; then
 		echo "Your version of CentOS is not supported."
@@ -57,7 +55,6 @@ elif [[ -e /etc/centos-release ]]; then
 	fi
 	OS=centos
 	IPTABLES='/etc/iptables/iptables.rules'
-	SYSCTL='/etc/sysctl.conf'
 else
 	echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora or CentOS system"
 	exit 4
@@ -297,13 +294,13 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 					yum remove openvpn -y
 				fi
 				OVPNS=$(ls /etc/openvpn/easy-rsa/pki/issued | awk -F "." {'print $1'})
-				for i in $OVPNS
-				do
-				rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
-				rm /root/$i.ovpn 2>/dev/null
+				for i in $OVPNS;do
+					rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
+					rm /root/$i.ovpn 2>/dev/null
 				done
 				rm -rf /etc/openvpn
 				rm -rf /usr/share/doc/openvpn*
+				rm -f /etc/sysctl.d/20-openvpn.conf
 
 				if [[ -e /etc/unbound/openvpn.conf ]]; then
 
@@ -773,18 +770,13 @@ tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 status /var/log/openvpn/status.log
 verb 3" >> /etc/openvpn/server.conf
 
-# Create log dir
-mkdir -p /var/log/openvpn
-
-	# Create the sysctl configuration file if needed
-	if [[ ! -e $SYSCTL ]]; then
-		touch $SYSCTL
-	fi
+	# Create log dir
+	mkdir -p /var/log/openvpn
 
 	# Enable routing
-	echo 'net.ipv4.ip_forward=1' >> $SYSCTL
+	echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.d/20-openvpn.conf
 	if [[ "$IPV6" = 'y' ]]; then
-		echo 'net.ipv6.conf.all.forwarding=1' >> $SYSCTL
+		echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.d/20-openvpn.conf
 	fi
 
 	# Avoid an unneeded reboot
