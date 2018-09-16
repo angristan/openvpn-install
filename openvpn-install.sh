@@ -225,6 +225,8 @@ else
 		echo "This server is behind NAT. What is the public IPv4 address or hostname?"
 		read -p "Public IP address / hostname: " -e PUBLICIP
 	fi
+	echo ""
+	echo "Checking for IPv6 connectivity..."
 	ping6 -c4 ipv6.google.com > /dev/null 2>&1;
 	echo ""
 	if [[ $? == 0 ]]; then
@@ -233,9 +235,8 @@ else
 		echo "Your host does not appear to have IPv6 connectivity."
 	fi
 	echo ""
-	echo "Do you want to enable IPv6 support?"
 	while [[ $IPV6 != "y" && $IPV6 != "n" ]]; do
-		read -p "IPv6 support? [y/n]: " -e -i n IPV6
+		read -p "Do you want to enable IPv6 support? [y/n]: " -e -i n IPV6
 	done
 	echo ""
 	echo "What port do you want for OpenVPN?"
