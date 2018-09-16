@@ -234,6 +234,12 @@ else
 	while [[ $PROTOCOL != "UDP" && $PROTOCOL != "TCP" ]]; do
 		read -p "Protocol [UDP/TCP]: " -e -i UDP PROTOCOL
 	done
+	ping6 -c4 ipv6.google.com > /dev/null 2>&1;
+	if [[ $? == 0 ]]; then
+		echo "Your host appears to have IPv6 connectivity."
+	else
+		echo "Your host does not appear to have IPv6 connectivity."
+	fi
 	echo ""
 	echo "Do you want to enable IPv6 support?"
 	while [[ $IPV6 != "y" && $IPV6 != "n" ]]; do
