@@ -6,17 +6,13 @@
 # Functions
 
 function isRoot () {
-	if [[ "$EUID" -eq 0 ]]; then
-		return 0
-	else
+	if [ "$EUID" -ne 0 ]; then
 		return 1
 	fi
 }
 
 function tunAvailable () {
-	if [[ -e /dev/net/tun ]]; then
-		return 0
-	else
+	if [ ! -e /dev/net/tun ]; then
 		return 1
 	fi
 }
@@ -76,6 +72,10 @@ function initialCheck () {
 		exit 2
 	fi
 	checkOS
+}
+
+function getNIC () {
+	return $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 }
 
 function newclient () {
@@ -222,7 +222,7 @@ private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 initialCheck
 
 # Get Internet network interface with default route
-NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+NIC=$(getNIC)
 
 if [[ -e /etc/openvpn/server.conf ]]; then
 	while :
