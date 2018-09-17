@@ -79,6 +79,16 @@ function getNIC () {
 	return $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 }
 
+function installEasyRsa () {
+	local version="3.0.4"
+	wget -O ~/EasyRSA-${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
+	tar xzf ~/EasyRSA-${version}.tgz -C ~/
+	mv ~/EasyRSA-${version}/ /etc/openvpn/
+	mv /etc/openvpn/EasyRSA-${version}/ /etc/openvpn/easy-rsa/
+	chown -R root:root /etc/openvpn/easy-rsa/
+	rm -f ~/EasyRSA-${version}.tgz
+}
+
 function newclient () {
 	echo ""
 	echo "Do you want to protect the configuration file with a password?"
@@ -646,12 +656,8 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
 	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
 		rm -rf /etc/openvpn/easy-rsa/
 	fi
-	# Get easy-rsa
-	wget -O ~/EasyRSA-3.0.4.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.4/EasyRSA-3.0.4.tgz
-	tar xzf ~/EasyRSA-3.0.4.tgz -C ~/
-	mv ~/EasyRSA-3.0.4/ /etc/openvpn/easy-rsa/
-	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -f ~/EasyRSA-3.0.4.tgz
+	# Install easy-rsa
+	installEasyRsa
 	cd /etc/openvpn/easy-rsa/
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
