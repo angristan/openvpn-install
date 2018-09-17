@@ -20,7 +20,6 @@ if [[ -e /etc/debian_version ]]; then
 	OS="debian"
 	# Getting the version number, to verify that a recent version of OpenVPN is available
 	VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
-	IPTABLES='/etc/iptables/iptables.rules'
 	if [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
 		echo "Your version of Debian/Ubuntu is not supported."
 		echo "I can't install a recent version of OpenVPN on your system."
@@ -38,7 +37,6 @@ if [[ -e /etc/debian_version ]]; then
 	fi
 elif [[ -e /etc/fedora-release ]]; then
 	OS=fedora
-	IPTABLES='/etc/iptables/iptables.rules'
 elif [[ -e /etc/centos-release ]]; then
 	if ! grep -qs "^CentOS Linux release 7" /etc/centos-release; then
 		echo "Your version of CentOS is not supported."
@@ -54,7 +52,6 @@ elif [[ -e /etc/centos-release ]]; then
 		fi
 	fi
 	OS=centos
-	IPTABLES='/etc/iptables/iptables.rules'
 else
 	echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora or CentOS system"
 	exit 4
