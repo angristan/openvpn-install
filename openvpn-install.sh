@@ -89,7 +89,7 @@ function installEasyRsa () {
 	rm -f ~/EasyRSA-${version}.tgz
 }
 
-function newclient () {
+function newClient () {
 	echo ""
 	echo "Do you want to protect the configuration file with a password?"
 	echo "(e.g. encrypt the private key with a password)"
@@ -111,11 +111,11 @@ function newclient () {
 	cd /etc/openvpn/easy-rsa/ || return
 	case $pass in
 		1)
-		./easyrsa build-client-full $client nopass
+			./easyrsa build-client-full $client nopass
 		;;
 		2)
 		echo "⚠️ You will be asked for the client password below ⚠️"
-		./easyrsa build-client-full $client
+			./easyrsa build-client-full $client
 		;;
 	esac
 
@@ -253,117 +253,119 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 
 		case $option in
 			1)
-			# Generates the custom client.ovpn
-			newclient
+				# Generates the custom client.ovpn
+				newclient
 			;;
 			2)
-			NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
-			if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
+				NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
+				if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
+					echo ""
+					echo "You have no existing clients!"
+					exit 5
+				fi
+
 				echo ""
-				echo "You have no existing clients!"
-				exit 5
-			fi
+				echo "Select the existing client certificate you want to revoke"
+				tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+				if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
+					read -rp "Select one client [1]: " CLIENTNUMBER
+				else
+					read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
+				fi
 
-			echo ""
-			echo "Select the existing client certificate you want to revoke"
-			tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-			if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
-				read -rp "Select one client [1]: " CLIENTNUMBER
-			else
-				read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
-			fi
+				CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+				cd /etc/openvpn/easy-rsa/
+				./easyrsa --batch revoke $CLIENT
+				EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
+				rm -f pki/reqs/$CLIENT.req
+				rm -f pki/private/$CLIENT.key
+				rm -f pki/issued/$CLIENT.crt
+				rm -f /etc/openvpn/crl.pem
+				cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
+				chmod 644 /etc/openvpn/crl.pem
+				rm -f $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
+				rm -f /root/$CLIENT.ovpn 2>/dev/null
 
-			CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-			cd /etc/openvpn/easy-rsa/
-			./easyrsa --batch revoke $CLIENT
-			EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-			rm -f pki/reqs/$CLIENT.req
-			rm -f pki/private/$CLIENT.key
-			rm -f pki/issued/$CLIENT.crt
-			rm -f /etc/openvpn/crl.pem
-			cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-			chmod 644 /etc/openvpn/crl.pem
-			rm -f $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
-			rm -f /root/$CLIENT.ovpn 2>/dev/null
-
-			echo ""
-			echo "Certificate for client $CLIENT revoked"
-			echo "Exiting..."
-			exit
+				echo ""
+				echo "Certificate for client $CLIENT revoked"
+				echo "Exiting..."
+				exit
 			;;
 			3)
-			echo ""
-			read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
-			if [[ "$REMOVE" = 'y' ]]; then
-				PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
+				echo ""
+				read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+				if [[ "$REMOVE" = 'y' ]]; then
+					PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
-				# Remove ipatbles rules related to the script
-				systemctl stop iptables-openvpn
-				# Cleanup
-				systemctl disable iptables-openvpn
-				rm /etc/systemd/system/iptables-openvpn.service
-				systemctl daemon-reload
-				rm /etc/iptables/add-openvpn-rules.sh
-				rm /etc/iptables/rm-openvpn-rules.sh
+					# Remove ipatbles rules related to the script
+					systemctl stop iptables-openvpn
+					# Cleanup
+					systemctl disable iptables-openvpn
+					rm /etc/systemd/system/iptables-openvpn.service
+					systemctl daemon-reload
+					rm /etc/iptables/add-openvpn-rules.sh
+					rm /etc/iptables/rm-openvpn-rules.sh
 
-				if hash sestatus 2>/dev/null; then
-					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
-						if [[ "$PORT" != '1194' ]]; then
-							semanage port -d -t openvpn_port_t -p udp $PORT
+					if hash sestatus 2>/dev/null; then
+						if sestatus | grep "Current mode" | grep -qs "enforcing"; then
+							if [[ "$PORT" != '1194' ]]; then
+								semanage port -d -t openvpn_port_t -p udp $PORT
+							fi
 						fi
 					fi
-				fi
-				if [[ "$OS" = 'debian' ]]; then
-					apt-get autoremove --purge -y openvpn
-				else
-					yum remove openvpn -y
-				fi
-				OVPNS=$(ls /etc/openvpn/easy-rsa/pki/issued | awk -F "." {'print $1'})
-				for i in $OVPNS;do
-					rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
-					rm /root/$i.ovpn 2>/dev/null
-				done
-				rm -rf /etc/openvpn
-				rm -rf /usr/share/doc/openvpn*
-				rm -f /etc/sysctl.d/20-openvpn.conf
-
-				if [[ -e /etc/unbound/openvpn.conf ]]; then
-
-					# Remove OpenVPN-related config
-					sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
-					rm /etc/unbound/openvpn.conf
-					service unbound restart
-
-					until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
-						echo ""
-						echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
-						echo "You can keep using Unbound as before."
-						read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
-					done
-
-					if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
-						if [[ "$OS" = 'debian' ]]; then
-							apt-get autoremove --purge -y unbound
-						else
-							yum remove unbound -y
-						fi
-
-						echo ""
-						echo "Unbound removed!"
+					if [[ "$OS" = 'debian' ]]; then
+						apt-get autoremove --purge -y openvpn
 					else
-						echo ""
-						echo "Unbound not removed!"
+						yum remove openvpn -y
 					fi
+					OVPNS=$(ls /etc/openvpn/easy-rsa/pki/issued | awk -F "." {'print $1'})
+					for i in $OVPNS;do
+						rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
+						rm /root/$i.ovpn 2>/dev/null
+					done
+					rm -rf /etc/openvpn
+					rm -rf /usr/share/doc/openvpn*
+					rm -f /etc/sysctl.d/20-openvpn.conf
+
+					if [[ -e /etc/unbound/openvpn.conf ]]; then
+
+						# Remove OpenVPN-related config
+						sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
+						rm /etc/unbound/openvpn.conf
+						service unbound restart
+
+						until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
+							echo ""
+							echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
+							echo "You can keep using Unbound as before."
+							read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
+						done
+
+						if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
+							if [[ "$OS" = 'debian' ]]; then
+								apt-get autoremove --purge -y unbound
+							else
+								yum remove unbound -y
+							fi
+
+							echo ""
+							echo "Unbound removed!"
+						else
+							echo ""
+							echo "Unbound not removed!"
+						fi
+					fi
+					echo ""
+					echo "OpenVPN removed!"
+				else
+					echo ""
+					echo "Removal aborted!"
 				fi
-				echo ""
-				echo "OpenVPN removed!"
-			else
-				echo ""
-				echo "Removal aborted!"
-			fi
-			exit
+				exit
 			;;
-			4) exit;;
+			4)
+				exit
+			;;
 		esac
 	done
 else
@@ -482,25 +484,25 @@ else
 	done
 	case $CIPHER in
 		1)
-		CIPHER="cipher AES-128-CBC"
+			CIPHER="cipher AES-128-CBC"
 		;;
 		2)
-		CIPHER="cipher AES-192-CBC"
+			CIPHER="cipher AES-192-CBC"
 		;;
 		3)
-		CIPHER="cipher AES-256-CBC"
+			CIPHER="cipher AES-256-CBC"
 		;;
 		4)
-		CIPHER="cipher CAMELLIA-128-CBC"
+			CIPHER="cipher CAMELLIA-128-CBC"
 		;;
 		5)
-		CIPHER="cipher CAMELLIA-192-CBC"
+			CIPHER="cipher CAMELLIA-192-CBC"
 		;;
 		6)
-		CIPHER="cipher CAMELLIA-256-CBC"
+			CIPHER="cipher CAMELLIA-256-CBC"
 		;;
 		7)
-		CIPHER="cipher SEED-CBC"
+			CIPHER="cipher SEED-CBC"
 		;;
 	esac
 	echo ""
@@ -513,13 +515,13 @@ else
 	done
 	case $DH_KEY_SIZE in
 		1)
-		DH_KEY_SIZE="2048"
+			DH_KEY_SIZE="2048"
 		;;
 		2)
-		DH_KEY_SIZE="3072"
+			DH_KEY_SIZE="3072"
 		;;
 		3)
-		DH_KEY_SIZE="4096"
+			DH_KEY_SIZE="4096"
 		;;
 	esac
 	echo ""
@@ -532,13 +534,13 @@ else
 	done
 	case $RSA_KEY_SIZE in
 		1)
-		RSA_KEY_SIZE="2048"
+			RSA_KEY_SIZE="2048"
 		;;
 		2)
-		RSA_KEY_SIZE="3072"
+			RSA_KEY_SIZE="3072"
 		;;
 		3)
-		RSA_KEY_SIZE="4096"
+			RSA_KEY_SIZE="4096"
 		;;
 	esac
 	echo ""
@@ -726,41 +728,41 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		done
 		;;
 		2)
-		# Install Unbound
-		installLocalDNS
-		echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
+			# Install Unbound
+			installLocalDNS
+			echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
 		;;
 		3) # Cloudflare
-		echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf	
+			echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf	
 		;;
 		4) # Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.112"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 149.112.112.112"' >> /etc/openvpn/server.conf
 		;;
 		5) # FDN
-		echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.12"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 80.67.169.12"' >> /etc/openvpn/server.conf
 		;;
 		6) # DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 84.200.69.80"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 84.200.70.40"' >> /etc/openvpn/server.conf
 		;;
 		7) # OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
 		;;
 		8) # Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
 		;;
 		9) # Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
 		;;
 		10) # AdGuard DNS
-		echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
 		;;
 	esac
 	echo 'push "redirect-gateway def1 bypass-dhcp" '>> /etc/openvpn/server.conf
@@ -882,4 +884,4 @@ verb 3" >> /etc/openvpn/client-template.txt
 	newclient
 	echo "If you want to add more clients, you simply need to run this script another time!"
 fi
-exit 0;
+exit 0
