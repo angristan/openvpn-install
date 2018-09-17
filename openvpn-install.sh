@@ -21,7 +21,7 @@ function tunAvailable () {
 	fi
 }
 
-function checkOS() {
+function checkOS () {
 	if [[ -e /etc/debian_version ]]; then
 		OS="debian"
 		# Getting the version number, to verify that a recent version of OpenVPN is available
@@ -77,10 +77,6 @@ function initialCheck () {
 	fi
 	checkOS
 }
-
-# Main
-
-initialCheck
 
 function newclient () {
 	echo ""
@@ -220,6 +216,10 @@ private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 		service unbound restart
 	fi
 }
+
+# Main
+
+initialCheck
 
 # Get Internet network interface with default route
 NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
