@@ -851,11 +851,7 @@ setenv opt block-outside-dns
 verb 3" >> /etc/openvpn/client-template.txt
 
 	# Generate the custom client.ovpn
-	newclient "$CLIENT"
-	echo ""
-	echo "Finished!"
-	echo ""
-	echo "Your client config is available at $homeDir/$CLIENT.ovpn"
+	newclient
 	echo "If you want to add more clients, you simply need to run this script another time!"
 fi
 exit 0;
