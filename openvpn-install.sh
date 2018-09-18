@@ -545,42 +545,42 @@ else
 
 	# Script to add rules
 	echo "#!/bin/sh
-iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
 iptables -A INPUT -i tun0 -j ACCEPT
-iptables -A FORWARD -i eth0 -o tun0 -j ACCEPT
-iptables -A FORWARD -i tun0 -o eth0 -j ACCEPT" > /etc/iptables/add-openvpn-rules.sh
+iptables -A FORWARD -i $NIC -o tun0 -j ACCEPT
+iptables -A FORWARD -i tun0 -o $NIC -j ACCEPT" > /etc/iptables/add-openvpn-rules.sh
 
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "iptables -A INPUT -i eth0 -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+		echo "iptables -A INPUT -i $NIC -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
 	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "iptables -A INPUT -i eth0 -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+		echo "iptables -A INPUT -i $NIC -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
 	fi
 
 	if [[ "$IPV6" = 'y' ]]; then
-		echo "ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::/112 -o eth0 -j MASQUERADE
+		echo "ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
 ip6tables -A INPUT -i tun0 -j ACCEPT
-ip6tables -A FORWARD -i eth0 -o tun0 -j ACCEPT
-ip6tables -A FORWARD -i tun0 -o eth0 -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+ip6tables -A FORWARD -i $NIC -o tun0 -j ACCEPT
+ip6tables -A FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
 	fi
 
 	# Script to remove rules
 	echo "#!/bin/sh
-iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
 iptables -D INPUT -i tun0 -j ACCEPT
-iptables -D FORWARD -i eth0 -o tun0 -j ACCEPT
-iptables -D FORWARD -i tun0 -o eth0 -j ACCEPT" > /etc/iptables/rm-openvpn-rules.sh
+iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
+iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT" > /etc/iptables/rm-openvpn-rules.sh
 
 	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "iptables -D INPUT -i eth0 -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+		echo "iptables -D INPUT -i $NIC -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
 	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "iptables -D INPUT -i eth0 -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+		echo "iptables -D INPUT -i $NIC -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
 	fi
 
 	if [[ "$IPV6" = 'y' ]]; then
-		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o eth0 -j MASQUERADE
+		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
 ip6tables -D INPUT -i tun0 -j ACCEPT
-ip6tables -D FORWARD -i eth0 -o tun0 -j ACCEPT
-ip6tables -D FORWARD -i tun0 -o eth0 -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+ip6tables -D FORWARD -i $NIC -o tun0 -j ACCEPT
+ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
 	fi
 
 	chmod +x /etc/iptables/add-openvpn-rules.sh
