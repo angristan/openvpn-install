@@ -781,37 +781,23 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 	fi
 
-	# And finally, restart OpenVPN
-	if [[ "$OS" = 'debian' ]]; then
-		# Little hack to check for systemd
-		if pgrep systemd-journal; then
-				#Workaround to fix OpenVPN service on OpenVZ
-				sed -i 's|LimitNPROC|#LimitNPROC|' /lib/systemd/system/openvpn\@.service
-				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /lib/systemd/system/openvpn\@.service
-				sed -i 's|%i.conf|server.conf|' /lib/systemd/system/openvpn\@.service
-				systemctl daemon-reload
-				systemctl restart openvpn
-				systemctl enable openvpn
-		else
-			/etc/init.d/openvpn restart
-		fi
+	# Finally, restart and enable OpenVPN
+	if [[ "$OS" = 'fedora' ]]; then
+		# Workaround to fix OpenVPN service on OpenVZ
+		sed -i 's|LimitNPROC|#LimitNPROC|' /usr/lib/systemd/system/openvpn-server@.service
+		# Another workaround to keep using /etc/openvpn/
+		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /usr/lib/systemd/system/openvpn-server@.service
+		systemctl daemon-reload
+		systemctl restart openvpn-server@server
+		systemctl enable openvpn-server@server
 	else
-		if pgrep systemd-journal; then
-			if [[ "$OS" = 'fedora' ]]; then
-				# Workaround to avoid rewriting the entire script for Fedora
-				sed -i 's|/etc/openvpn/server|/etc/openvpn|' /usr/lib/systemd/system/openvpn-server@.service
-				sed -i 's|%i.conf|server.conf|' /usr/lib/systemd/system/openvpn-server@.service
-				systemctl daemon-reload
-				systemctl restart openvpn-server@openvpn.service
-				systemctl enable openvpn-server@openvpn.service
-			else
-				systemctl restart openvpn@server.service
-				systemctl enable openvpn@server.service
-			fi
-		else
-			service openvpn restart
-			chkconfig openvpn on
-		fi
+		# Workaround to fix OpenVPN service on OpenVZ
+		sed -i 's|LimitNPROC|#LimitNPROC|' /lib/systemd/system/openvpn\@.service
+		# Another workaround to keep using /etc/openvpn/
+		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /lib/systemd/system/openvpn\@.service
+		systemctl daemon-reload
+		systemctl restart openvpn@server
+		systemctl enable openvpn@server
 	fi
 
 	# If the server is behind a NAT, use the correct IP address
