@@ -118,6 +118,12 @@ You can, of course, it's even recommended, update the `openvpn` package with you
 
 ---
 
+**Q:** IPv6 is not working on my Hetzner VM
+
+**A:** This an issue on their side. See [issue #295](https://github.com/angristan/openvpn-install/issues/295).
+
+---
+
 ## Encryption
 
 The main reason why I made this fork is to improve the encryption. Indeed, OpenVPN's default parameters are weak (and that's what [Nyr's script](https://github.com/Nyr/openvpn-install) uses).
