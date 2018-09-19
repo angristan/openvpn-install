@@ -71,7 +71,7 @@ function initialCheck () {
 	checkOS
 }
 
-function installLocalDNS () {
+function installUnbound () {
 	if [[ ! -e /etc/unbound/unbound.conf ]]; then
 
 		if [[ "$OS" = "debian" ]]; then
@@ -109,13 +109,13 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 		if [[ ! "$OS" =~ (fedora|centos) ]];then
 			# DNS Rebinding fix
 			echo "private-address: 10.0.0.0/8
-		private-address: 172.16.0.0/12
-		private-address: 192.168.0.0/16
-		private-address: 169.254.0.0/16
-		private-address: fd00::/8
-		private-address: fe80::/10
-		private-address: 127.0.0.0/8
-		private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
+private-address: 172.16.0.0/12
+private-address: 192.168.0.0/16
+private-address: 169.254.0.0/16
+private-address: fd00::/8
+private-address: fe80::/10
+private-address: 127.0.0.0/8
+private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
 		fi
 	else # Unbound is already installed
 		echo 'include: /etc/unbound/openvpn.conf' >> /etc/unbound/unbound.conf
@@ -139,7 +139,7 @@ private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 	fi
 
 		systemctl enable unbound
-		systemctl start unbound
+		systemctl restart unbound
 }
 
 function installOpenVPN () {
@@ -147,8 +147,8 @@ function installOpenVPN () {
 	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
 	echo ""
 
-	echo "I need to ask you a few questions before starting the setup"
-	echo "You can leave the default options and just press enter if you are ok with them"
+	echo "I need to ask you a few questions before starting the setup."
+	echo "You can leave the default options and just press enter if you are ok with them."
 	echo ""
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "If your server is running behind a NAT, (e.g. LowEndSpirit, Scaleway) leave the IP address as it is. (local/private IP)"
@@ -178,7 +178,7 @@ function installOpenVPN () {
 	echo ""
 	# Ask the user if they want to enable IPv6 regardless its availability.
 	while [[ $IPV6_SUPPORT != "y" && $IPV6_SUPPORT != "n" ]]; do
-		read -rp "Do you want to enable IPv6 support? [y/n]: " -e -i $SUGGESTION IPV6_SUPPORT
+		read -rp "Do you want to enable IPv6 support (NAT)? [y/n]: " -e -i $SUGGESTION IPV6_SUPPORT
 	done
 	echo ""
 	echo "What port do you want OpenVPN to listen to?"
@@ -412,8 +412,6 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 			done
 		;;
 		2)
-			# Install Unbound
-			installLocalDNS
 			echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
 		;;
 		3) # Cloudflare
@@ -511,6 +509,10 @@ verb 3" >> /etc/openvpn/server.conf
 		systemctl daemon-reload
 		systemctl restart openvpn@server
 		systemctl enable openvpn@server
+	fi
+
+	if [[ $DNS == 2 ]];then
+		installUnbound
 	fi
 
 	# Add iptables rules in two scripts
@@ -703,11 +705,53 @@ function revokeClient () {
 	echo "Certificate for client $CLIENT revoked."
 }
 
+function removeUnbound () {
+	# Remove OpenVPN-related config
+	sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
+	rm /etc/unbound/openvpn.conf
+	systemctl restart unbound
+
+	until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
+		echo ""
+		echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
+		read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
+	done
+
+	if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
+		# Stop Unbound
+		systemctl stop unbound
+
+		if [[ "$OS" = 'debian' ]]; then
+			apt-get autoremove --purge -y unbound
+		elif [[ "$OS" = 'centos' ]]; then
+			yum remove unbound -y
+		elif [[ "$OS" = 'fedora' ]]; then
+			dnf remove unbound -y
+		fi
+
+		rm -rf /etc/unbound/
+
+		echo ""
+		echo "Unbound removed!"
+	else
+		echo ""
+		echo "Unbound wasn't removed."
+	fi
+}
+
 function removeOpenVPN () {
 	echo ""
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ "$REMOVE" = 'y' ]]; then
+		# Get OpenVPN port from the configuration
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
+
+		# Stop OpenVPN
+		if [[ "$OS" = 'fedora' ]]; then
+			systemctl stop openvpn-server@server
+		else
+			systemctl stop openvpn@server
+		fi
 
 		# Remove the iptables rules related to the script
 		systemctl stop iptables-openvpn
@@ -747,34 +791,7 @@ function removeOpenVPN () {
 
 		# Unbound
 		if [[ -e /etc/unbound/openvpn.conf ]]; then
-			# Remove OpenVPN-related config
-			sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
-			rm /etc/unbound/openvpn.conf
-			service unbound restart
-
-			until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
-				echo ""
-				echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
-				read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
-			done
-
-			if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
-				if [[ "$OS" = 'debian' ]]; then
-					apt-get autoremove --purge -y unbound
-				elif [[ "$OS" = 'centos' ]]; then
-					yum remove unbound -y
-				elif [[ "$OS" = 'fedora' ]]; then
-					dnf remove unbound -y
-				fi
-
-				rm -rf /etc/unbound/
-
-				echo ""
-				echo "Unbound removed!"
-			else
-				echo ""
-				echo "Unbound wasn't removed."
-			fi
+			removeUnbound
 		fi
 		echo ""
 		echo "OpenVPN removed!"
