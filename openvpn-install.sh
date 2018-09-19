@@ -813,9 +813,11 @@ function manageMenu () {
 	echo "   2) Revoke existing user"
 	echo "   3) Remove OpenVPN"
 	echo "   4) Exit"
-	read -rp "Select an option [1-4]: " option
+	until [[ "$MENU_OPTION" =~ ^[1-4]$ ]]; do
+		read -rp "Select an option [1-4]: " MENU_OPTION
+	done
 
-	case $option in
+	case $MENU_OPTION in
 		1)
 			newClient
 		;;
