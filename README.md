@@ -6,8 +6,8 @@ This script will let you setup your own secure VPN server in just a few minutes.
 
 Here is a preview of the installer :
 
-![](https://lut.im/IzjFrfhM18/DY8KD91W0uMhEgLp.png)
-![](https://lut.im/eODTn8Sa9y/euCqh0wzXwlz3UNs.png)
+![previw_1](https://lut.im/IzjFrfhM18/DY8KD91W0uMhEgLp.png)
+![preview_2](https://lut.im/eODTn8Sa9y/euCqh0wzXwlz3UNs.png)
 
 ## Usage
 
@@ -34,7 +34,7 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 - Remove a client
 - Uninstall OpenVPN
 
-![](https://i.imgur.com/AlW9g7t.png)
+![preview_3](https://i.imgur.com/AlW9g7t.png)
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your prefered OpenVPN client.
 
@@ -56,7 +56,7 @@ On the client-side, it's less problematic, but if you want to use an OpenVPN ser
 
 ## Compatibility
 
-The script is made to work on these OS and architectures :
+The script supports these OS and architectures:
 
 - **Debian 8** (i386, amd64)
 - **Debian 9** (i386, amd64, armhf, arm64)
@@ -69,7 +69,7 @@ The script is made to work on these OS and architectures :
 
 (It should also work on Debian unstable/testing and Ubuntu beta).
 
-If your're using an Ubuntu version that is not supported by the script, be aware that it's not supported by Ubuntu either, thus it's insecure.
+The script requires `systemd`.
 
 ## Features
 
@@ -82,7 +82,7 @@ This fork includes the following features :
 - IPv6 (NATed) support
 - Run server in unprivileged mode, reducing risks to the system
 - [Block DNS leak on Windows 10](https://community.openvpn.net/openvpn/ticket/605)
-- No comp-lzo, as [compression is a vector for oracle attacks, e.g. CRIME or BREACH](https://github.com/BetterCrypto/Applied-Crypto-Hardening/pull/91#issuecomment-75388575)
+- No compression, as [compression is a vector for oracle attacks, e.g. CRIME or BREACH](https://github.com/BetterCrypto/Applied-Crypto-Hardening/pull/91#issuecomment-75388575)
 - [Arch Linux support](https://github.com/Angristan/OpenVPN-install/pull/2)
 - Up-to-date OpenVPN thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) for CentOS and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Ubuntu and Debian. These are third-party yet trusted repositories.
 - Randomized certificate name
@@ -201,8 +201,6 @@ The [SWEET32 vulnerability page](https://community.openvpn.net/openvpn/wiki/SWEE
 
 Indeed, AES is today's standard. It's the fastest and more secure cipher available today. [SEED](https://en.wikipedia.org/wiki/SEED) and [Camellia](https://en.wikipedia.org/wiki/Camellia_(cipher)) are not vulnerable to date but are slower than AES and relatively less trusted.
 
-As they have not any proven vulnerabilities, I decided to give the user the choice to use them, though I don't see any particular reason to this day to use it. Maybe someday if AES happens to be broken. Here is an example about [why Camellia is good, but AES is better and should be used](http://crypto.stackexchange.com/questions/476/why-does-nobody-use-or-break-the-camellia-cipher/477#477).
-
 Currently AES is only available in its CBC mode, which is weaker than GCM.
 
 To quote the [OpenVPN documentation](https://community.openvpn.net/openvpn/wiki/SWEET32) :
@@ -216,10 +214,6 @@ For now, these cipher are available in the setup :
 - AES-128-CBC
 - AES-192-CBC
 - AES-256-CBC
-- CAMELLIA-128-CBC
-- CAMELLIA-192-CBC
-- CAMELLIA-256-CBC
-- SEED-CBC
 
 AES-256 is 40% slower than AES-128, and there isn't any real reason to use a 256 bits key over a 128 bits key with AES. (Source : [[1]](http://security.stackexchange.com/questions/14068/why-most-people-use-256-bit-encryption-instead-of-128-bit),[[2]](http://security.stackexchange.com/questions/6141/amount-of-simple-operations-that-is-safely-out-of-reach-for-all-humanity/6149#6149)).
 
