@@ -74,7 +74,7 @@ newclient () {
 		echo "</ca>"
 
 		echo "<cert>"
-		cat "/etc/openvpn/easy-rsa/pki/issued/$1.crt"
+		cat "/etc/openvpn/easy-rsa/pki/issued/$1.crt" | awk '/BEGIN/,/END/'
 		echo "</cert>"
 
 		echo "<key>"
