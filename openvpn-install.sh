@@ -24,10 +24,9 @@ function checkOS () {
 		VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
 		if [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
 			echo "Your version of Debian/Ubuntu is not supported."
-			echo "I can't install a recent version of OpenVPN on your system."
 			echo ""
 			echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
-			echo "then you can continue, a recent version of OpenVPN is available on these."
+			echo "then you can continue."
 			echo "Keep in mind they are not supported, though."
 			while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
 				read -rp "Continue? [y/n]: " -e CONTINUE
@@ -70,93 +69,6 @@ function initialCheck () {
 		exit 2
 	fi
 	checkOS
-}
-
-function getNIC () {
-	return $(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
-}
-
-function installEasyRsa () {
-	# An old version of easy-rsa was available by default in some openvpn packages
-	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
-		rm -rf /etc/openvpn/easy-rsa/
-	fi
-
-	local version="3.0.4"
-	wget -O ~/EasyRSA-${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
-	tar xzf ~/EasyRSA-${version}.tgz -C ~/
-	mv ~/EasyRSA-${version}/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-${version}/ /etc/openvpn/easy-rsa/
-	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -f ~/EasyRSA-${version}.tgz
-}
-
-function newClient () {
-	echo ""
-	echo "Do you want to protect the configuration file with a password?"
-	echo "(e.g. encrypt the private key with a password)"
-	echo "   1) Add a passwordless client"
-	echo "   2) Use a password for the client"
-
-	until [[ "$pass" =~ ^[1-2]$ ]]; do
-		read -rp "Select an option [1-2]: " -e -i 1 local pass
-	done
-	
-	echo ""
-	echo "Tell me a name for the client cert"
-	echo "Use one word only, no special characters"
-
-	until [[ "$client" =~ ^[a-zA-Z0-9_]+$ ]]; do
-		read -rp "Client name: " -e local client
-	done
-
-	generateClient
-}
-
-function generateClient () {
-	cd /etc/openvpn/easy-rsa/ || return
-	case $pass in
-		1)
-			./easyrsa build-client-full $client nopass
-		;;
-		2)
-		echo "⚠️ You will be asked for the client password below ⚠️"
-			./easyrsa build-client-full $client
-		;;
-	esac
-
-	# Where to write the custom client.ovpn?
-	if [ -e "/home/$client" ]; then  # if $1 is a user name
-		homeDir="/home/$client"
-	elif [ "${SUDO_USER}" ]; then   # if not, use SUDO_USER
-		homeDir="/home/${SUDO_USER}"
-	else  # if not SUDO_USER, use /root
-		homeDir="/root"
-	fi
-	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt "$homeDir/$client.ovpn"
-	{
-		echo "<ca>"
-		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
-		echo "</ca>"
-
-		echo "<cert>"
-		cat "/etc/openvpn/easy-rsa/pki/issued/$client.crt"
-		echo "</cert>"
-
-		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$client.key"
-		echo "</key>"
-		echo "key-direction 1"
-
-		echo "<tls-auth>"
-		cat "/etc/openvpn/tls-auth.key"
-		echo "</tls-auth>"
-	} >> "$homeDir/$client.ovpn"
-
-	echo ""
-	echo "Client $client added, certs available at $homeDir/$client.ovpn"
-	exit
 }
 
 function installLocalDNS () {
@@ -234,147 +146,7 @@ private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 	fi
 }
 
-function revokeClient () {
-	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
-	if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
-		echo ""
-		echo "You have no existing clients!"
-		exit 5
-	fi
-
-	echo ""
-	echo "Select the existing client certificate you want to revoke"
-	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-	if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
-		read -rp "Select one client [1]: " CLIENTNUMBER
-	else
-		read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
-	fi
-
-	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-	cd /etc/openvpn/easy-rsa/
-	./easyrsa --batch revoke $CLIENT
-	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-	rm -f pki/reqs/$CLIENT.req
-	rm -f pki/private/$CLIENT.key
-	rm -f pki/issued/$CLIENT.crt
-	rm -f /etc/openvpn/crl.pem
-	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-	chmod 644 /etc/openvpn/crl.pem
-	rm -f $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
-	rm -f /root/$CLIENT.ovpn 2>/dev/null
-
-	echo ""
-	echo "Certificate for client $CLIENT revoked"
-	echo "Exiting..."
-	exit
-}
-
-function removeOpenVPN () {
-	echo ""
-	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
-	if [[ "$REMOVE" = 'y' ]]; then
-		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
-
-		# Remove ipatbles rules related to the script
-		systemctl stop iptables-openvpn
-		# Cleanup
-		systemctl disable iptables-openvpn
-		rm /etc/systemd/system/iptables-openvpn.service
-		systemctl daemon-reload
-		rm /etc/iptables/add-openvpn-rules.sh
-		rm /etc/iptables/rm-openvpn-rules.sh
-
-		if hash sestatus 2>/dev/null; then
-			if sestatus | grep "Current mode" | grep -qs "enforcing"; then
-				if [[ "$PORT" != '1194' ]]; then
-					semanage port -d -t openvpn_port_t -p udp $PORT
-				fi
-			fi
-		fi
-		if [[ "$OS" = 'debian' ]]; then
-			apt-get autoremove --purge -y openvpn
-		else
-			yum remove openvpn -y
-		fi
-		OVPNS=$(ls /etc/openvpn/easy-rsa/pki/issued | awk -F "." {'print $1'})
-		for i in $OVPNS;do
-			rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
-			rm /root/$i.ovpn 2>/dev/null
-		done
-		rm -rf /etc/openvpn
-		rm -rf /usr/share/doc/openvpn*
-		rm -f /etc/sysctl.d/20-openvpn.conf
-
-		if [[ -e /etc/unbound/openvpn.conf ]]; then
-
-			# Remove OpenVPN-related config
-			sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
-			rm /etc/unbound/openvpn.conf
-			service unbound restart
-
-			until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
-				echo ""
-				echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
-				echo "You can keep using Unbound as before."
-				read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
-			done
-
-			if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
-				if [[ "$OS" = 'debian' ]]; then
-					apt-get autoremove --purge -y unbound
-				else
-					yum remove unbound -y
-				fi
-
-				echo ""
-				echo "Unbound removed!"
-			else
-				echo ""
-				echo "Unbound not removed!"
-			fi
-		fi
-		echo ""
-		echo "OpenVPN removed!"
-	else
-		echo ""
-		echo "Removal aborted!"
-	fi
-	exit
-}
-
-function manageMenu () {
-	clear
-	echo "OpenVPN-install (github.com/Angristan/OpenVPN-install)"
-	echo ""
-	echo "Looks like OpenVPN is already installed"
-	echo ""
-
-	echo "What do you want to do?"
-	echo "   1) Add a cert for a new user"
-	echo "   2) Revoke existing user cert"
-	echo "   3) Remove OpenVPN"
-	echo "   4) Exit"
-	read -rp "Select an option [1-4]: " option
-
-	case $option in
-		1)
-			# Generates the custom client.ovpn
-			newclient
-		;;
-		2)
-			revokeClient
-		;;
-		3)
-			removeOpenVPN
-		;;
-		4)
-			exit
-		;;
-	esac
-}
-
-function installQuestions () {
+function installOpenVPN () {
 	echo "Welcome to the secure OpenVPN installer (github.com/Angristan/OpenVPN-install)"
 	echo ""
 
@@ -565,78 +337,8 @@ function installQuestions () {
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
 	read -n1 -r -p "Press any key to continue..."
-}
 
-function configureIptables () {
-	# Install iptables service
-	mkdir /etc/iptables
-
-	# Script to add rules
-	echo "#!/bin/sh
-iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
-iptables -A INPUT -i tun0 -j ACCEPT
-iptables -A FORWARD -i $NIC -o tun0 -j ACCEPT
-iptables -A FORWARD -i tun0 -o $NIC -j ACCEPT" > /etc/iptables/add-openvpn-rules.sh
-
-	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "iptables -A INPUT -i $NIC -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
-	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "iptables -A INPUT -i $NIC -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
-	fi
-
-	if [[ "$IPV6" = 'y' ]]; then
-		echo "ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
-ip6tables -A INPUT -i tun0 -j ACCEPT
-ip6tables -A FORWARD -i $NIC -o tun0 -j ACCEPT
-ip6tables -A FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
-	fi
-
-	# Script to remove rules
-	echo "#!/bin/sh
-iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
-iptables -D INPUT -i tun0 -j ACCEPT
-iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
-iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT" > /etc/iptables/rm-openvpn-rules.sh
-
-	if [[ "$PROTOCOL" = 'UDP' ]]; then
-		echo "iptables -D INPUT -i $NIC -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
-	elif [[ "$PROTOCOL" = 'TCP' ]]; then
-		echo "iptables -D INPUT -i $NIC -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
-	fi
-
-	if [[ "$IPV6" = 'y' ]]; then
-		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
-ip6tables -D INPUT -i tun0 -j ACCEPT
-ip6tables -D FORWARD -i $NIC -o tun0 -j ACCEPT
-ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
-	fi
-
-	chmod +x /etc/iptables/add-openvpn-rules.sh
-	chmod +x /etc/iptables/rm-openvpn-rules.sh
-
-	# Handle the rules via a systemd script
-	echo "[Unit]
-Description=iptables rules for OpenVPN
-Before=network-pre.target
-Wants=network-pre.target
-
-[Service]
-Type=oneshot
-ExecStart=/etc/iptables/add-openvpn-rules.sh
-ExecStop=/etc/iptables/rm-openvpn-rules.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
-
-	# Enable service and apply rules
-	systemctl daemon-reload
-	systemctl enable iptables-openvpn
-	systemctl start iptables-openvpn
-}
-
-function installOpenVPN () {
-	installQuestions
+	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
 	if [[ "$OS" = 'debian' ]]; then
 		apt-get update
@@ -665,8 +367,18 @@ function installOpenVPN () {
 		NOGROUP=nobody
 	fi
 
-	# Install easy-rsa
-	installEasyRsa
+	# An old version of easy-rsa was available by default in some openvpn packages
+	if [[ -d /etc/openvpn/easy-rsa/ ]]; then
+		rm -rf /etc/openvpn/easy-rsa/
+	fi
+
+	local version="3.0.4"
+	wget -O ~/EasyRSA-${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
+	tar xzf ~/EasyRSA-${version}.tgz -C ~/
+	mv ~/EasyRSA-${version}/ /etc/openvpn/
+	mv /etc/openvpn/EasyRSA-${version}/ /etc/openvpn/easy-rsa/
+	chown -R root:root /etc/openvpn/easy-rsa/
+	rm -f ~/EasyRSA-${version}.tgz
 
 	cd /etc/openvpn/easy-rsa/
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
@@ -723,17 +435,17 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 	# DNS resolvers
 	case $DNS in
 		1)
-		# Locate the proper resolv.conf
-		# Needed for systems running systemd-resolved
-		if grep -q "127.0.0.53" "/etc/resolv.conf"; then
-			RESOLVCONF='/run/systemd/resolve/resolv.conf'
-		else
-			RESOLVCONF='/etc/resolv.conf'
-		fi
-		# Obtain the resolvers from resolv.conf and use them for OpenVPN
-		grep -v '#' $RESOLVCONF | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read -r line; do
-			echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
-		done
+			# Locate the proper resolv.conf
+			# Needed for systems running systemd-resolved
+			if grep -q "127.0.0.53" "/etc/resolv.conf"; then
+				RESOLVCONF='/run/systemd/resolve/resolv.conf'
+			else
+				RESOLVCONF='/etc/resolv.conf'
+			fi
+			# Obtain the resolvers from resolv.conf and use them for OpenVPN
+			grep -v '#' $RESOLVCONF | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read -r line; do
+				echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
+			done
 		;;
 		2)
 			# Install Unbound
@@ -845,7 +557,71 @@ verb 3" >> /etc/openvpn/server.conf
 		systemctl enable openvpn@server
 	fi
 
-	configureIptables
+	# Install iptables service
+	mkdir /etc/iptables
+
+	# Script to add rules
+	echo "#!/bin/sh
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
+iptables -A INPUT -i tun0 -j ACCEPT
+iptables -A FORWARD -i $NIC -o tun0 -j ACCEPT
+iptables -A FORWARD -i tun0 -o $NIC -j ACCEPT" > /etc/iptables/add-openvpn-rules.sh
+
+	if [[ "$PROTOCOL" = 'UDP' ]]; then
+		echo "iptables -A INPUT -i $NIC -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+	elif [[ "$PROTOCOL" = 'TCP' ]]; then
+		echo "iptables -A INPUT -i $NIC -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+	fi
+
+	if [[ "$IPV6" = 'y' ]]; then
+		echo "ip6tables -t nat -A POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
+ip6tables -A INPUT -i tun0 -j ACCEPT
+ip6tables -A FORWARD -i $NIC -o tun0 -j ACCEPT
+ip6tables -A FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/add-openvpn-rules.sh
+	fi
+
+	# Script to remove rules
+	echo "#!/bin/sh
+iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
+iptables -D INPUT -i tun0 -j ACCEPT
+iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
+iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT" > /etc/iptables/rm-openvpn-rules.sh
+
+	if [[ "$PROTOCOL" = 'UDP' ]]; then
+		echo "iptables -D INPUT -i $NIC -p udp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+	elif [[ "$PROTOCOL" = 'TCP' ]]; then
+		echo "iptables -D INPUT -i $NIC -p tcp --dport $PORT -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+	fi
+
+	if [[ "$IPV6" = 'y' ]]; then
+		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
+ip6tables -D INPUT -i tun0 -j ACCEPT
+ip6tables -D FORWARD -i $NIC -o tun0 -j ACCEPT
+ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/rm-openvpn-rules.sh
+	fi
+
+	chmod +x /etc/iptables/add-openvpn-rules.sh
+	chmod +x /etc/iptables/rm-openvpn-rules.sh
+
+	# Handle the rules via a systemd script
+	echo "[Unit]
+Description=iptables rules for OpenVPN
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+ExecStart=/etc/iptables/add-openvpn-rules.sh
+ExecStop=/etc/iptables/rm-openvpn-rules.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
+
+	# Enable service and apply rules
+	systemctl daemon-reload
+	systemctl enable iptables-openvpn
+	systemctl start iptables-openvpn
 
 	# If the server is behind a NAT, use the correct IP address
 	if [[ "$PUBLICIP" != "" ]]; then
@@ -881,12 +657,217 @@ verb 3" >> /etc/openvpn/client-template.txt
 	echo "If you want to add more clients, you simply need to run this script another time!"
 }
 
+function newClient () {
+	echo ""
+	echo "Do you want to protect the configuration file with a password?"
+	echo "(e.g. encrypt the private key with a password)"
+	echo "   1) Add a passwordless client"
+	echo "   2) Use a password for the client"
+
+	until [[ "$pass" =~ ^[1-2]$ ]]; do
+		read -rp "Select an option [1-2]: " -e -i 1 local pass
+	done
+	
+	echo ""
+	echo "Tell me a name for the client cert"
+	echo "Use one word only, no special characters"
+
+	until [[ "$client" =~ ^[a-zA-Z0-9_]+$ ]]; do
+		read -rp "Client name: " -e local client
+	done
+
+	generateClient
+}
+
+function generateClient () {
+	cd /etc/openvpn/easy-rsa/ || return
+	case $pass in
+		1)
+			./easyrsa build-client-full $client nopass
+		;;
+		2)
+		echo "⚠️ You will be asked for the client password below ⚠️"
+			./easyrsa build-client-full $client
+		;;
+	esac
+
+	# Where to write the custom client.ovpn?
+	if [ -e "/home/$client" ]; then  # if $1 is a user name
+		homeDir="/home/$client"
+	elif [ "${SUDO_USER}" ]; then   # if not, use SUDO_USER
+		homeDir="/home/${SUDO_USER}"
+	else  # if not SUDO_USER, use /root
+		homeDir="/root"
+	fi
+	# Generates the custom client.ovpn
+	cp /etc/openvpn/client-template.txt "$homeDir/$client.ovpn"
+	{
+		echo "<ca>"
+		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
+		echo "</ca>"
+
+		echo "<cert>"
+		cat "/etc/openvpn/easy-rsa/pki/issued/$client.crt"
+		echo "</cert>"
+
+		echo "<key>"
+		cat "/etc/openvpn/easy-rsa/pki/private/$client.key"
+		echo "</key>"
+		echo "key-direction 1"
+
+		echo "<tls-auth>"
+		cat "/etc/openvpn/tls-auth.key"
+		echo "</tls-auth>"
+	} >> "$homeDir/$client.ovpn"
+
+	echo ""
+	echo "Client $client added, certs available at $homeDir/$client.ovpn"
+	exit
+}
+
+function revokeClient () {
+	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
+	if [[ "$NUMBEROFCLIENTS" = '0' ]]; then
+		echo ""
+		echo "You have no existing clients!"
+		exit 5
+	fi
+
+	echo ""
+	echo "Select the existing client certificate you want to revoke"
+	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+	if [[ "$NUMBEROFCLIENTS" = '1' ]]; then
+		read -rp "Select one client [1]: " CLIENTNUMBER
+	else
+		read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
+	fi
+
+	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	cd /etc/openvpn/easy-rsa/
+	./easyrsa --batch revoke $CLIENT
+	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
+	rm -f pki/reqs/$CLIENT.req
+	rm -f pki/private/$CLIENT.key
+	rm -f pki/issued/$CLIENT.crt
+	rm -f /etc/openvpn/crl.pem
+	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
+	chmod 644 /etc/openvpn/crl.pem
+	rm -f $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
+	rm -f /root/$CLIENT.ovpn 2>/dev/null
+
+	echo ""
+	echo "Certificate for client $CLIENT revoked"
+	echo "Exiting..."
+	exit
+}
+
+function removeOpenVPN () {
+	echo ""
+	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+	if [[ "$REMOVE" = 'y' ]]; then
+		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
+
+		# Remove ipatbles rules related to the script
+		systemctl stop iptables-openvpn
+		# Cleanup
+		systemctl disable iptables-openvpn
+		rm /etc/systemd/system/iptables-openvpn.service
+		systemctl daemon-reload
+		rm /etc/iptables/add-openvpn-rules.sh
+		rm /etc/iptables/rm-openvpn-rules.sh
+
+		if hash sestatus 2>/dev/null; then
+			if sestatus | grep "Current mode" | grep -qs "enforcing"; then
+				if [[ "$PORT" != '1194' ]]; then
+					semanage port -d -t openvpn_port_t -p udp $PORT
+				fi
+			fi
+		fi
+		if [[ "$OS" = 'debian' ]]; then
+			apt-get autoremove --purge -y openvpn
+		else
+			yum remove openvpn -y
+		fi
+		OVPNS=$(ls /etc/openvpn/easy-rsa/pki/issued | awk -F "." {'print $1'})
+		for i in $OVPNS;do
+			rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
+			rm /root/$i.ovpn 2>/dev/null
+		done
+		rm -rf /etc/openvpn
+		rm -rf /usr/share/doc/openvpn*
+		rm -f /etc/sysctl.d/20-openvpn.conf
+
+		if [[ -e /etc/unbound/openvpn.conf ]]; then
+
+			# Remove OpenVPN-related config
+			sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
+			rm /etc/unbound/openvpn.conf
+			service unbound restart
+
+			until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
+				echo ""
+				echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
+				echo "You can keep using Unbound as before."
+				read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
+			done
+
+			if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
+				if [[ "$OS" = 'debian' ]]; then
+					apt-get autoremove --purge -y unbound
+				else
+					yum remove unbound -y
+				fi
+
+				echo ""
+				echo "Unbound removed!"
+			else
+				echo ""
+				echo "Unbound not removed!"
+			fi
+		fi
+		echo ""
+		echo "OpenVPN removed!"
+	else
+		echo ""
+		echo "Removal aborted!"
+	fi
+	exit
+}
+
+function manageMenu () {
+	clear
+	echo "OpenVPN-install (github.com/Angristan/OpenVPN-install)"
+	echo ""
+	echo "Looks like OpenVPN is already installed"
+	echo ""
+
+	echo "What do you want to do?"
+	echo "   1) Add a cert for a new user"
+	echo "   2) Revoke existing user cert"
+	echo "   3) Remove OpenVPN"
+	echo "   4) Exit"
+	read -rp "Select an option [1-4]: " option
+
+	case $option in
+		1)
+			# Generates the custom client.ovpn
+			newclient
+		;;
+		2)
+			revokeClient
+		;;
+		3)
+			removeOpenVPN
+		;;
+		4)
+			exit
+		;;
+	esac
+}
+
 # Main
 
 initialCheck
-
-# Get Internet network interface with default route
-NIC=$(getNIC)
 
 if [[ -e /etc/openvpn/server.conf ]]; then
 	manageMenu
