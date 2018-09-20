@@ -1,30 +1,25 @@
-# OpenVPN-install
+# openvpn-install
 
-OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
+OpenVPN installer for Debian, Ubuntu, Fedora and CentOS.
 
 This script will let you setup your own secure VPN server in just a few minutes.
 
-Here is a preview of the installer :
-
-![](https://lut.im/IzjFrfhM18/DY8KD91W0uMhEgLp.png)
-![](https://lut.im/eODTn8Sa9y/euCqh0wzXwlz3UNs.png)
-
 ## Usage
-
-**You have to enable the TUN module otherwise OpenVPN won't work.** Ask your host if you don't know how to do it. If the TUN module is not enabled, the script will warn you and exit.
-
-You can get a cheap VPS to run this script for $3.50/month worldwide at [Vultr](https://goo.gl/Xyd1Sc) or 3€/month for unlimited bandwidth in France at [PulseHeberg](https://goo.gl/76yqW5).
 
 First, get the script and make it executable :
 
 ```bash
-wget https://raw.githubusercontent.com/Angristan/OpenVPN-install/master/openvpn-install.sh
+wget https://raw.githubusercontent.com/Angristan/openvpn-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
 
 Then run it :
 
-`./openvpn-install.sh`
+```sh
+./openvpn-install.sh
+```
+
+You need to run the script as root and have the TUN module enabled.
 
 The first time you run it, you'll have to follow the assistant and answer a few questions to setup your VPN server.
 
@@ -34,81 +29,81 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 - Remove a client
 - Uninstall OpenVPN
 
-![](https://i.imgur.com/AlW9g7t.png)
-
-## The fork
-
-This script is based on the great work of [Nyr and its contributors](https://github.com/Nyr/openvpn-install).
-
-I made it because I wanted to have a more secured OpenVPN out-of-the-box. It works like the original script, but is more focused on privacy and especially better encryption. Nyr's original script uses mainly default parameters regarding encryption, and some of them are insecure. See [#encryption](#encryption).
-
-Also, Nyr and myself clearly have not the same point of view regarding this script, that's why it's a fork.
-
-The only drawback is that you need to use a recent version of OpenVPN, because some parameters that requires TLS 1.2 are only available since OpenVPN 2.3.3. Therefore I restrain the compatibility of this script to a few but widely used GNU/Linux distributions, to get a recent version of OpenVPN from trusted third-party repositories, if needed. That is not a complete drawback tough, because it means that you can have the latest version with all the new features and security fixes. See [compatibility](#compatibility).
-
-On the client-side, it's less problematic, but if you want to use an OpenVPN server installed with this script with an old client (\<2.3.3), it won't work. However I don't see why you would use an outdated client.
-
-**TL;DR**, this script is relatively secure, and you can just press enter in the setup.
-
-**[A Pull Request](https://github.com/Angristan/OpenVPN-install/pull/96) is currently being worked on to implement the latest OpenVPN 2.4 features.**
-
-## Compatibility
-
-The script is made to work on these OS and architectures :
-
-- **Debian 7** (i386, amd64)
-- **Debian 8** (i386, amd64)
-- **Debian 9** (i386, amd64, armhf, arm64)
-- **Ubuntu 14.04 LTS** (i386, amd64)
-- **Ubuntu 16.04 LTS** (i386, amd64, armhf)
-- **Ubuntu 17.10** (i386, amd64, armhf, arm64)
-- **Ubuntu 18.04 LTS** (i386, amd64, armhf, arm64)
-- **Fedora 25** (amd64)
-- **Fedora 26** (amd64)
-- **Fedora 27** (amd64)
-- **CentOS 6** (i386, amd64)
-- **CentOS 7** (i386, amd64, arm64)
-- **Arch Linux** (i686, amd64, arm64)
-
-(It should also work on Debian unstable/testing and Ubuntu beta).
-
-If your're using an Ubuntu version that is not supported by the script, be aware that it's not supported by Ubuntu either, thus it's insecure.
+In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your prefered OpenVPN client.
 
 ## Features
 
-This fork includes the following features :
+- Installs and configures a ready-to-use OpenVPN server
+- Iptables rules and forwarding managed in a seamless way
+- If needed, the script can cleanly remove OpenVPN, including configuration and iptables rules
+- Customizable encryption settings, enhanced default settings
+- Varitey of DNS resolvers to be pushed to the clients
+- Choice to use a self-hosted resolver with Unbound (supports already existing Unboud installations)
+- Choice between TCP and UDP
+- NATed IPv6 support
+- Compression disabled to prevent VORACLE
+- Unprivileged mode: run as `nobody`/`nogroup`
+- Block DNS leaks on Windows 10
+- Randomized server certificate name
+- Choice to protect clients with a password (private key encryption)
+- Many other little things!
 
-- Every feature of the [original script](https://github.com/Nyr/openvpn-install)
-- Better encryption, see below
-- Better DNS resolvers, see below
-- Choice between TCP and UDP (UDP is still recommended)
-- Run server in [unprivileged mode](https://github.com/Angristan/OpenVPN-install/blob/master/openvpn-install.sh#L426), reducing risks to the system
-- [Block DNS leak on Windows 10](https://community.openvpn.net/openvpn/ticket/605)
-- No comp-lzo, as [compression is a vector for oracle attacks, e.g. CRIME or BREACH](https://github.com/BetterCrypto/Applied-Crypto-Hardening/pull/91#issuecomment-75388575)
-- [Arch Linux support](https://github.com/Angristan/OpenVPN-install/pull/2)
-- Up-to-date OpenVPN thanks to [EPEL](http://fedoraproject.org/wiki/EPEL) for CentOS and [swupdate.openvpn.net](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Ubuntu and Debian. These are third-party yet trusted repositories.
-- Randomized certificate name
-- The ability to create passwordless clients and clients protected with a password
-- Other improvements !
+## Compatibility
 
-## DNS
+The script supports these OS and architectures:
 
-The script will ask you which DNS resolvers you want to use when connected to the VPN.
+- **Debian 8** (i386, amd64)
+- **Debian 9** (i386, amd64, armhf, arm64)
+- **Ubuntu 16.04 LTS** (i386, amd64, armhf)
+- **Ubuntu 17.10** (i386, amd64, armhf, arm64)
+- **Ubuntu 18.04 LTS** (i386, amd64, armhf, arm64)
+- **Fedora 27** (amd64)
+- **Fedora 28** (amd64)
+- **CentOS 7** (i386, amd64, arm64)
 
-Here are the possibilities :
+To be noted:
 
-- Current system resolvers, those that are in `/etc/resolv.conf`
-- [Cloudflare](https://1.1.1.1/), recommended, fastest resolvers available (Anycast servers)
-- [Quad9](https://www.quad9.net), recommended, security and privacy oriented, fast worldwide (Anycast servers)
-- [FDN's DNS Servers](http://www.fdn.fr/actions/dns/), recommended if you're in western europe (France)
-- [DNS.WATCH DNS Servers](https://dns.watch/index), recommended if you're in western europe (Germany)
-- [OpenDNS](https://en.wikipedia.org/wiki/OpenDNS), not recommened but fast wordlwide (Anycast servers)
-- [Google Public DNS](https://en.wikipedia.org/wiki/Google_Public_DNS), not recommended, but fast worldwide (Anycast servers)
-- [Yandex Basic DNS](https://dns.yandex.com/), not recommended, but fast in Russia
-- [AdGuard DNS](https://github.com/AdguardTeam/AdguardDNS), located in Russia, blocks ads and trackers
-- Soon : local resolver :D
+- It should also work on Debian unstable/testing and Ubuntu beta.
+- The script requires `systemd`.
+- The script is regularly tested against `amd64` only.
 
-Any other fast, trustable and neutral servers proposition is welcome.
+## Fork
+
+This script is based on the great work of [Nyr and its contributors](https://github.com/Nyr/openvpn-install).
+
+Since 2016, the two scripts have diverged and are not alike anymore, especially under the hood. The main goal of the script was enhanced security. But since then, the script has been completely rewritten and a lot a features have been added. The script is only comptaible with recent distributions though, so if you need to use a very old server or client, I advise using Nyr's script.
+
+## FAQ
+
+**Q:** Which provider do you recommend?
+
+**A:** I recommend these:
+
+- [Vultr](https://goo.gl/Xyd1Sc): Worldwide locations, IPv6 support, starting at $3.50/month
+- [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
+- [Digital Ocean](https://goo.gl/qXrNLK): Worldwide locations, IPv6 support, starting at $5/month
+
+---
+
+**Q:** The script has been udpated since I installed OpenVPN. How do I update?
+
+**A:** You can't. Managing updates and new features from the script would require way too much work. Your only solution is to uninstall OpenVPN and reinstall with the updated script.
+
+You can, of course, it's even recommended, update the `openvpn` package with your package manager.
+
+---
+
+**Q:** How do I check for DNS leaks?
+
+**A:**  Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your server's IP should show up.
+
+---
+
+**Q:** IPv6 is not working on my Hetzner VM
+
+**A:** This an issue on their side. See [issue #295](https://github.com/angristan/openvpn-install/issues/295).
+
+---
 
 ## Encryption
 
@@ -187,8 +182,6 @@ The [SWEET32 vulnerability page](https://community.openvpn.net/openvpn/wiki/SWEE
 
 Indeed, AES is today's standard. It's the fastest and more secure cipher available today. [SEED](https://en.wikipedia.org/wiki/SEED) and [Camellia](https://en.wikipedia.org/wiki/Camellia_(cipher)) are not vulnerable to date but are slower than AES and relatively less trusted.
 
-As they have not any proven vulnerabilities, I decided to give the user the choice to use them, though I don't see any particular reason to this day to use it. Maybe someday if AES happens to be broken. Here is an example about [why Camellia is good, but AES is better and should be used](http://crypto.stackexchange.com/questions/476/why-does-nobody-use-or-break-the-camellia-cipher/477#477).
-
 Currently AES is only available in its CBC mode, which is weaker than GCM.
 
 To quote the [OpenVPN documentation](https://community.openvpn.net/openvpn/wiki/SWEET32) :
@@ -202,10 +195,6 @@ For now, these cipher are available in the setup :
 - AES-128-CBC
 - AES-192-CBC
 - AES-256-CBC
-- CAMELLIA-128-CBC
-- CAMELLIA-192-CBC
-- CAMELLIA-256-CBC
-- SEED-CBC
 
 AES-256 is 40% slower than AES-128, and there isn't any real reason to use a 256 bits key over a 128 bits key with AES. (Source : [[1]](http://security.stackexchange.com/questions/14068/why-most-people-use-256-bit-encryption-instead-of-128-bit),[[2]](http://security.stackexchange.com/questions/6141/amount-of-simple-operations-that-is-safely-out-of-reach-for-all-humanity/6149#6149)).
 
@@ -255,10 +244,6 @@ SHA-1 is not safe anymore, so I use SHA-256 which is safe and widely used.
 [Source](https://openvpn.net/index.php/open-source/documentation/howto.html#security)
 
 TLS-Auth is not enabled by default by OpenVPN, but it is in this script.
-
-## Check for DNS leaks
-
-Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your server's IP should show up.
 
 ## Say thanks
 
