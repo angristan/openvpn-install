@@ -1,9 +1,7 @@
 #!/bin/bash
 
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Fedora
-# https://github.com/Angristan/OpenVPN-install
-
-# Functions
+# https://github.com/angristan/openvpn-install
 
 function isRoot () {
 	if [ "$EUID" -ne 0 ]; then
@@ -597,7 +595,7 @@ $CIPHER
 tls-client
 tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
-setenv opt block-outside-dns
+setenv opt block-outside-dns # Prevent Windows 10 DNS leak
 verb 3" >> /etc/openvpn/client-template.txt
 
 	# Generate the custom client.ovpn
@@ -832,8 +830,6 @@ function manageMenu () {
 		;;
 	esac
 }
-
-# Main
 
 # Check for root, TUN, OS...
 initialCheck
