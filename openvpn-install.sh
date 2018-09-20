@@ -19,13 +19,13 @@ function checkOS () {
 	if [[ -e /etc/debian_version ]]; then
 		OS="debian"
 		# Getting the version number, to verify that a recent version of OpenVPN is available
-		VERSION_ID=$(grep "VERSION_ID" /etc/os-release)
-		if [[ "$VERSION_ID" != 'VERSION_ID="8"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="9"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="16.04"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="17.10"' ]] && [[ "$VERSION_ID" != 'VERSION_ID="18.04"' ]]; then
-			echo "Your version of Debian/Ubuntu is not supported."
+		source /etc/os-release
+		if [[ ! $VERSION_ID =~ (8|9|16.04|17.10|18.04) ]]; then
+			echo "⚠️ Your version of Debian/Ubuntu is not supported."
 			echo ""
-			echo "However, if you're using Debian unstable/testing, or Ubuntu beta,"
-			echo "then you can continue."
+			echo "However, if you're using Debian unstable/testing, or Ubuntu beta, then you can continue."
 			echo "Keep in mind they are not supported, though."
+			echo ""
 			while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
 				read -rp "Continue? [y/n]: " -e CONTINUE
 			done
