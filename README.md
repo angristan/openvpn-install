@@ -52,18 +52,20 @@ In your home directory, you will have `.ovpn` files. These are the client config
 
 The script supports these OS and architectures:
 
-- **Debian 8** (i386, amd64)
-- **Debian 9** (i386, amd64, armhf, arm64)
-- **Ubuntu 16.04 LTS** (i386, amd64, armhf)
-- **Ubuntu 17.10** (i386, amd64, armhf, arm64)
-- **Ubuntu 18.04 LTS** (i386, amd64, armhf, arm64)
-- **Fedora 27** (amd64)
-- **Fedora 28** (amd64)
-- **CentOS 7** (i386, amd64)
+|              | i386 | amd64 | armhf | arm64 |
+| ------------ | ---- | ----- | ----- | ----- |
+|   Debian 8   |   ✅  |  ✅  |   ❌   |   ❌  |
+|   Debian 9   |   ✅  |  ✅  |   ✅   |   ✅  |
+| Ubuntu 16.04 |   ✅  |  ✅  |   ✅   |   ✅  |
+| Ubuntu 17.10 |   ✅  |  ✅  |   ✅   |   ✅  |
+| Ubuntu 18.04 |   ✅  |  ✅  |   ✅   |   ✅  |
+|   CentOS 7   |   ✅  |  ✅  |   ❔   |   ❌  |
+|   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
+|   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
 
 To be noted:
 
-- It should also work on Debian unstable/testing and Ubuntu beta.
+- It should work on Debian 8+ and Ubuntu 16.04+. But versions not in the table above are not officially supported.
 - The script requires `systemd`.
 - The script is regularly tested against `amd64` only.
 
