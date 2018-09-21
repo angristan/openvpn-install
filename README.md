@@ -1,5 +1,7 @@
 # openvpn-install
 
+[![GitLab CI](https://gitlab.com/angristan/openvpn-install/badges/master/pipeline.svg)](https://gitlab.com/angristan/openvpn-install/pipelines)
+
 OpenVPN installer for Debian, Ubuntu, Fedora and CentOS.
 
 This script will let you setup your own secure VPN server in just a few minutes.
