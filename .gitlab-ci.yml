@@ -1,0 +1,9 @@
+image: koalaman/shellcheck:stable
+
+stages:
+  - Bash linting
+
+shellcheck:
+  stage: Bash linting
+  script:
+  - shellcheck openvpn-install.sh
