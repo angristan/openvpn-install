@@ -59,7 +59,7 @@ The script supports these OS and architectures:
 - **Ubuntu 18.04 LTS** (i386, amd64, armhf, arm64)
 - **Fedora 27** (amd64)
 - **Fedora 28** (amd64)
-- **CentOS 7** (i386, amd64, arm64)
+- **CentOS 7** (i386, amd64)
 
 To be noted:
 
