@@ -250,69 +250,80 @@ function installOpenVPN () {
 			fi
 	done
 	echo ""
-	echo "See https://github.com/Angristan/OpenVPN-install#encryption to learn more about "
-	echo "the encryption in OpenVPN and the choices I made in this script."
-	echo "Please note that all the choices proposed are secure (to a different degree)"
-	echo "and are still viable to date, unlike some default OpenVPN options"
+	echo "Do you want to customize encryption settings?"
+	echo "Unless you know what you're doing, you should stick with the default parameters provided by the script."
+	echo "Note that whatever you choose, all the choices presented in the script are safe. (Unlike OpenVPN's defaults)"
+	echo "See https://github.com/angristan/openvpn-install#encryption to learn more."
 	echo ""
-	echo "Choose which cipher you want to use for the data channel:"
-	echo "   1) AES-128-CBC (recommended)"
-	echo "   2) AES-192-CBC"
-	echo "   3) AES-256-CBC"
-	until [[ "$CIPHER_CHOICE" =~ ^[0-9]+$ ]] && [ "$CIPHER_CHOICE" -ge 1 -a "$CIPHER_CHOICE" -le 3 ]; do
-		read -rp "CIPHER_CHOICE [1-7]: " -e -i 1 CIPHER_CHOICE
+	until [[ $CUSTOMIZE_ENC =~ (y|n) ]]; do
+		read -rp "Customize encryption settings? [y/n]: " -e -i n CUSTOMIZE_ENC
 	done
-	case $CIPHER_CHOICE in
-		1)
-			CIPHER="cipher AES-128-CBC"
-		;;
-		2)
-			CIPHER="cipher AES-192-CBC"
-		;;
-		3)
-			CIPHER="cipher AES-256-CBC"
-		;;
-	esac
+	if [[ $CUSTOMIZE_ENC == "n" ]];then
+		# Use default, sane and fast paramters
+		CIPHER="cipher AES-128-CBC"
+		DH_KEY_SIZE="2048"
+		RSA_KEY_SIZE="2048"
+	else
+		echo ""
+		echo "Choose which cipher you want to use for the data channel:"
+		echo "   1) AES-128-CBC (recommended)"
+		echo "   2) AES-192-CBC"
+		echo "   3) AES-256-CBC"
+		until [[ "$CIPHER_CHOICE" =~ ^[0-9]+$ ]] && [ "$CIPHER_CHOICE" -ge 1 -a "$CIPHER_CHOICE" -le 3 ]; do
+			read -rp "Cipher [1-7]: " -e -i 1 CIPHER_CHOICE
+		done
+		case $CIPHER_CHOICE in
+			1)
+				CIPHER="cipher AES-128-CBC"
+			;;
+			2)
+				CIPHER="cipher AES-192-CBC"
+			;;
+			3)
+				CIPHER="cipher AES-256-CBC"
+			;;
+		esac
+		echo ""
+		echo "Choose what size of Diffie-Hellman key you want to use:"
+		echo "   1) 2048 bits (fastest)"
+		echo "   2) 3072 bits (recommended, best compromise)"
+		echo "   3) 4096 bits (most secure)"
+		until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$DH_KEY_SIZE_CHOICE" -ge 1 -a "$DH_KEY_SIZE_CHOICE" -le 3 ]; do
+			read -rp "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE_CHOICE
+		done
+		case $DH_KEY_SIZE_CHOICE in
+			1)
+				DH_KEY_SIZE="2048"
+			;;
+			2)
+				DH_KEY_SIZE="3072"
+			;;
+			3)
+				DH_KEY_SIZE="4096"
+			;;
+		esac
+		echo ""
+		echo "Choose what size of RSA key you want to use for the certificate:"
+		echo "   1) 2048 bits (fastest)"
+		echo "   2) 3072 bits (recommended, best compromise)"
+		echo "   3) 4096 bits (most secure)"
+		until [[ "$RSA_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$RSA_KEY_SIZE_CHOICE" -ge 1 -a "$RSA_KEY_SIZE_CHOICE" -le 3 ]; do
+			read -rp "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE_CHOICE
+		done
+		case $RSA_KEY_SIZE_CHOICE in
+			1)
+				RSA_KEY_SIZE="2048"
+			;;
+			2)
+				RSA_KEY_SIZE="3072"
+			;;
+			3)
+				RSA_KEY_SIZE="4096"
+			;;
+		esac
+	fi
 	echo ""
-	echo "Choose what size of Diffie-Hellman key you want to use:"
-	echo "   1) 2048 bits (fastest)"
-	echo "   2) 3072 bits (recommended, best compromise)"
-	echo "   3) 4096 bits (most secure)"
-	until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$DH_KEY_SIZE_CHOICE" -ge 1 -a "$DH_KEY_SIZE_CHOICE" -le 3 ]; do
-		read -rp "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE_CHOICE
-	done
-	case $DH_KEY_SIZE_CHOICE in
-		1)
-			DH_KEY_SIZE="2048"
-		;;
-		2)
-			DH_KEY_SIZE="3072"
-		;;
-		3)
-			DH_KEY_SIZE="4096"
-		;;
-	esac
-	echo ""
-	echo "Choose what size of RSA key you want to use for the certificate:"
-	echo "   1) 2048 bits (fastest)"
-	echo "   2) 3072 bits (recommended, best compromise)"
-	echo "   3) 4096 bits (most secure)"
-	until [[ "$RSA_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$RSA_KEY_SIZE_CHOICE" -ge 1 -a "$RSA_KEY_SIZE_CHOICE" -le 3 ]; do
-		read -rp "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE_CHOICE
-	done
-	case $RSA_KEY_SIZE_CHOICE in
-		1)
-			RSA_KEY_SIZE="2048"
-		;;
-		2)
-			RSA_KEY_SIZE="3072"
-		;;
-		3)
-			RSA_KEY_SIZE="4096"
-		;;
-	esac
-	echo ""
-	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now"
+	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
 	echo "You will be able to generate a client at the end of the installtion."
 	read -n1 -r -p "Press any key to continue..."
 
