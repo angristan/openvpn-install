@@ -153,7 +153,7 @@ function installOpenVPN () {
 
 	# Detect public IPv4 address and pre-fill for the user
 	IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
-	read -rp "IP address: " -e -i $IP IP
+	read -rp "IP address: " -e -i "$IP" IP
 	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
@@ -167,8 +167,7 @@ function installOpenVPN () {
 	echo ""
 	echo "Checking for IPv6 connectivity..."
 	echo ""
-	ping6 -c4 ipv6.google.com > /dev/null 2>&1
-	if [[ $? == 0 ]]; then
+	if ping -c4 ipv6.google.com > /dev/null 2>&1; then
 		echo "Your host appears to have IPv6 connectivity."
 		SUGGESTION="y"
 	else
@@ -186,15 +185,15 @@ function installOpenVPN () {
 	echo "   2) Custom"
 	echo "   3) Random [49152-65535]"
 	until [[ "$PORT_CHOICE" =~ ^[1-3]$ ]]; do
-		read -p "Port choice [1-3]: " -e -i 1 PORT_CHOICE
+		read -rp "Port choice [1-3]: " -e -i 1 PORT_CHOICE
 	done
 	case $PORT_CHOICE in
 		1)
 			PORT="1194"
 		;;
 		2)
-			until [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 -a "$PORT" -le 65535 ]; do
-				read -p "Custom port [1-65535]: " -e -i 1194 PORT
+			until [[ "$PORT" =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; do
+				read -rp "Custom port [1-65535]: " -e -i 1194 PORT
 			done
 		;;
 		3)
@@ -231,7 +230,7 @@ function installOpenVPN () {
 	echo "   8) Google (Anycast: worldwide)"
 	echo "   9) Yandex Basic (Russia)"
 	echo "   10) AdGuard DNS (Russia)"
-	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 -a "$DNS" -le 10 ]; do
+	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 10 ]; do
 		read -rp "DNS [1-10]: " -e -i 3 DNS
 			if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
 				echo ""
@@ -271,7 +270,7 @@ function installOpenVPN () {
 		echo "   1) AES-128-CBC (recommended)"
 		echo "   2) AES-192-CBC"
 		echo "   3) AES-256-CBC"
-		until [[ "$CIPHER_CHOICE" =~ ^[0-9]+$ ]] && [ "$CIPHER_CHOICE" -ge 1 -a "$CIPHER_CHOICE" -le 3 ]; do
+		until [[ "$CIPHER_CHOICE" =~ ^[0-9]+$ ]] && [ "$CIPHER_CHOICE" -ge 1 ] && [ "$CIPHER_CHOICE" -le 3 ]; do
 			read -rp "Cipher [1-7]: " -e -i 1 CIPHER_CHOICE
 		done
 		case $CIPHER_CHOICE in
@@ -290,7 +289,7 @@ function installOpenVPN () {
 		echo "   1) 2048 bits (fastest)"
 		echo "   2) 3072 bits (recommended, best compromise)"
 		echo "   3) 4096 bits (most secure)"
-		until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$DH_KEY_SIZE_CHOICE" -ge 1 -a "$DH_KEY_SIZE_CHOICE" -le 3 ]; do
+		until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$DH_KEY_SIZE_CHOICE" -ge 1 ] && [ "$DH_KEY_SIZE_CHOICE" -le 3 ]; do
 			read -rp "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE_CHOICE
 		done
 		case $DH_KEY_SIZE_CHOICE in
@@ -309,7 +308,7 @@ function installOpenVPN () {
 		echo "   1) 2048 bits (fastest)"
 		echo "   2) 3072 bits (recommended, best compromise)"
 		echo "   3) 4096 bits (most secure)"
-		until [[ "$RSA_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$RSA_KEY_SIZE_CHOICE" -ge 1 -a "$RSA_KEY_SIZE_CHOICE" -le 3 ]; do
+		until [[ "$RSA_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$RSA_KEY_SIZE_CHOICE" -ge 1 ] && [ "$RSA_KEY_SIZE_CHOICE" -le 3 ]; do
 			read -rp "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE_CHOICE
 		done
 		case $RSA_KEY_SIZE_CHOICE in
@@ -380,12 +379,12 @@ function installOpenVPN () {
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
 	openssl dhparam -out dh.pem $DH_KEY_SIZE
-	./easyrsa build-server-full $SERVER_NAME nopass
+	./easyrsa build-server-full "$SERVER_NAME" nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# Generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key dh.pem pki/issued/$SERVER_NAME.crt pki/private/$SERVER_NAME.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key dh.pem "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 
@@ -498,7 +497,7 @@ verb 3" >> /etc/openvpn/server.conf
 	if hash sestatus 2>/dev/null; then
 		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 			if [[ "$PORT" != '1194' ]]; then
-				semanage port -a -t openvpn_port_t -p $PROTOCOL $PORT
+				semanage port -a -t openvpn_port_t -p "$PROTOCOL" "$PORT"
 			fi
 		fi
 	fi
@@ -638,11 +637,11 @@ function newClient () {
 	cd /etc/openvpn/easy-rsa/ || return
 	case $PASS in
 		1)
-			./easyrsa build-client-full $CLIENT nopass
+			./easyrsa build-client-full "$CLIENT" nopass
 		;;
 		2)
 		echo "⚠️ You will be asked for the client password below ⚠️"
-			./easyrsa build-client-full $CLIENT
+			./easyrsa build-client-full "$CLIENT"
 		;;
 	esac
 
@@ -700,17 +699,17 @@ function revokeClient () {
 
 	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 	cd /etc/openvpn/easy-rsa/
-	./easyrsa --batch revoke $CLIENT
+	./easyrsa --batch revoke "$CLIENT"
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# Cleanup
-	rm -f pki/reqs/$CLIENT.req
-	rm -f pki/private/$CLIENT.key
-	rm -f pki/issued/$CLIENT.crt
+	rm -f "pki/reqs/$CLIENT.req"
+	rm -f "pki/private/$CLIENT.key"
+	rm -f "pki/issued/$CLIENT.crt"
 	rm -f /etc/openvpn/crl.pem
 	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 	chmod 644 /etc/openvpn/crl.pem
-	rm -f $(find /home -maxdepth 2 | grep $CLIENT.ovpn) 2>/dev/null
-	rm -f /root/$CLIENT.ovpn 2>/dev/null
+	find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
+	rm -f "/root/$CLIENT.ovpn"
 
 	echo ""
 	echo "Certificate for client $CLIENT revoked."
@@ -777,7 +776,7 @@ function removeOpenVPN () {
 		if hash sestatus 2>/dev/null; then
 			if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 				if [[ "$PORT" != '1194' ]]; then
-					semanage port -d -t openvpn_port_t -p udp $PORT
+					semanage port -d -t openvpn_port_t -p udp "$PORT"
 				fi
 			fi
 		fi
@@ -791,11 +790,8 @@ function removeOpenVPN () {
 		fi
 
 		# Cleanup
-		OVPNS=$(ls /etc/openvpn/easy-rsa/pki/issued | awk -F "." {'print $1'})
-		for i in $OVPNS;do
-			rm $(find /home -maxdepth 2 | grep $i.ovpn) 2>/dev/null
-			rm /root/$i.ovpn 2>/dev/null
-		done
+		find /home/ -maxdepth 2 -name "*.ovpn" -delete
+		find /root/ -maxdepth 1 -name "*.ovpn" -delete
 		rm -rf /etc/openvpn
 		rm -rf /usr/share/doc/openvpn*
 		rm -f /etc/sysctl.d/20-openvpn.conf
