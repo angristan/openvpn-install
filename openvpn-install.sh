@@ -166,8 +166,8 @@ function installOpenVPN () {
 
 	echo ""
 	echo "Checking for IPv6 connectivity..."
-	ping6 -c4 ipv6.google.com > /dev/null 2>&1;
 	echo ""
+	ping6 -c4 ipv6.google.com > /dev/null 2>&1
 	if [[ $? == 0 ]]; then
 		echo "Your host appears to have IPv6 connectivity."
 		SUGGESTION="y"
