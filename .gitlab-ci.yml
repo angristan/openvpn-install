@@ -1,4 +1,4 @@
-image: koalaman/shellcheck:stable
+image: debian:buster-slim
 
 stages:
   - Bash linting
@@ -6,4 +6,6 @@ stages:
 shellcheck:
   stage: Bash linting
   script:
-  - shellcheck openvpn-install.sh
+  - apt-get update
+  - apt-get install -y shellcheck
+  - shellcheck -e SC1091,SC2164,SC2034,SC1072,SC1073,SC1009 openvpn-install.sh
