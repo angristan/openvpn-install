@@ -4,7 +4,7 @@
 
 OpenVPN installer for Debian, Ubuntu, Fedora and CentOS.
 
-This script will let you setup your own secure VPN server in just a few minutes.
+This script will let you setup your own secure VPN server in just a few seconds.
 
 ## Usage
 

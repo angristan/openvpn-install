@@ -257,8 +257,8 @@ function installQuestions () {
 	done
 	if [[ $COMPRESSION_ENABLED == "y" ]];then
 		echo "Choose which compression algorithm you want to use:"
-		echo "   1) LZ4 (faster)"
-		echo "   2) LZ0 (use for OpenVPN 2.3 compatibility)"
+		echo "   1) LZ4 (more efficient)"
+		echo "   2) LZ0"
 		until [[ $COMPRESSION_CHOICE =~ ^[1-2]$ ]]; do
 			read -rp"Compression algorithm [1-2]: " -e -i 1 COMPRESSION_CHOICE
 		done
@@ -514,7 +514,7 @@ function installOpenVPN () {
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
 		fi
-		# Ubuntu >= 16.04 and Debian > 8 have OpenVPN > 2.3.3 without the need of a third party repository.
+		# Ubuntu >= 16.04 and Debian >= 9 have OpenVPN >= 2.4 without the need of a third party repository.
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
 	elif [[ "$OS" = 'centos' ]]; then
 		yum install epel-release openvpn iptables openssl wget ca-certificates curl -y
