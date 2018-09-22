@@ -140,7 +140,7 @@ private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 		systemctl restart unbound
 }
 
-function installOpenVPN () {
+function installQuestions () {
 	echo "Welcome to the OpenVPN installer!"
 	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
 	echo ""
@@ -487,6 +487,11 @@ function installOpenVPN () {
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
 	echo "You will be able to generate a client at the end of the installtion."
 	read -n1 -r -p "Press any key to continue..."
+}
+
+function installOpenVPN () {
+	# Run setup questions first
+	installQuestions
 
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
