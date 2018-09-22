@@ -43,7 +43,7 @@ In your home directory, you will have `.ovpn` files. These are the client config
 - Choice to use a self-hosted resolver with Unbound (supports already existing Unboud installations)
 - Choice between TCP and UDP
 - NATed IPv6 support
-- Compression disabled to prevent VORACLE
+- Compression disabled by default to prevent VORACLE. LZ4 and LZ0 algorithms available otherwise.
 - Unprivileged mode: run as `nobody`/`nogroup`
 - Block DNS leaks on Windows 10
 - Randomized server certificate name

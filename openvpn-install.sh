@@ -251,6 +251,27 @@ function installOpenVPN () {
 			fi
 	done
 	echo ""
+	echo "Do you want to use compression? It is not recommended since the VORACLE attack make use of it."
+	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
+		read -p "Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
+	done
+	if [[ $COMPRESSION_ENABLED == "y" ]];then
+		echo "Choose which compression algorithm you want to use:"
+		echo "   1) LZ4 (faster)"
+		echo "   2) LZ0 (use for OpenVPN 2.3 compatibility)"
+		until [[ $COMPRESSION_CHOICE =~ [1-2] ]]; do
+			read -p "Compression algorithm [1-2]: " -e -i 1 COMPRESSION_CHOICE
+		done
+		case $COMPRESSION_CHOICE in
+			1)
+			COMPRESSION_ALG="lz4"
+			;;
+			2)
+			COMPRESSION_ALG="lzo"
+			;;
+		esac
+	fi
+	echo ""
 	echo "Do you want to customize encryption settings?"
 	echo "Unless you know what you're doing, you should stick with the default parameters provided by the script."
 	echo "Note that whatever you choose, all the choices presented in the script are safe. (Unlike OpenVPN's defaults)"
@@ -468,6 +489,10 @@ push "route-ipv6 2000::/3"
 push "redirect-gateway ipv6"' >> /etc/openvpn/server.conf
 	fi
 
+if [[ $COMPRESSION_ENABLED == "y"  ]]; then
+	echo "compress $COMPRESSION_ALG" >> /etc/openvpn/server.conf
+fi
+
 	echo "crl-verify crl.pem
 ca ca.crt
 cert $SERVER_NAME.crt
@@ -609,6 +634,10 @@ tls-version-min 1.2
 tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
 verb 3" >> /etc/openvpn/client-template.txt
+
+if [[ $COMPRESSION_ENABLED == "y"  ]]; then
+	echo "compress $COMPRESSION_ALG" >> /etc/openvpn/client-template.txt
+fi
 
 	# Generate the custom client.ovpn
 	newClient
