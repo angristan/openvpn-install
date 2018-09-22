@@ -288,20 +288,32 @@ function installOpenVPN () {
 	else
 		echo ""
 		echo "Choose which cipher you want to use for the data channel:"
-		echo "   1) AES-128-CBC (recommended)"
-		echo "   2) AES-192-CBC"
-		echo "   3) AES-256-CBC"
-		until [[ "$CIPHER_CHOICE" =~ ^[0-9]+$ ]] && [ "$CIPHER_CHOICE" -ge 1 ] && [ "$CIPHER_CHOICE" -le 3 ]; do
-			read -rp "Cipher [1-7]: " -e -i 1 CIPHER_CHOICE
+		echo "   1) AES-128-GCM (recommended)"
+		echo "   2) AES-192-GCM"
+		echo "   3) AES-256-GCM"
+		echo "   4) AES-128-CBC"
+		echo "   5) AES-192-CBC"
+		echo "   6) AES-256-CBC"
+		until [[ "$CIPHER_CHOICE" =~ ^[1-6]$ ]]; do
+			read -rp "Cipher [1-6]: " -e -i 1 CIPHER_CHOICE
 		done
 		case $CIPHER_CHOICE in
 			1)
-				CIPHER="cipher AES-128-CBC"
+				CIPHER="cipher AES-128-GCM"
 			;;
 			2)
-				CIPHER="cipher AES-192-CBC"
+				CIPHER="cipher AES-192-GCM"
 			;;
 			3)
+				CIPHER="cipher AES-256-GCM"
+			;;
+			4)
+				CIPHER="cipher AES-128-CBC"
+			;;
+			5)
+				CIPHER="cipher AES-192-CBC"
+			;;
+			6)
 				CIPHER="cipher AES-256-CBC"
 			;;
 		esac
