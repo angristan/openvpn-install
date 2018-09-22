@@ -286,7 +286,8 @@ function installOpenVPN () {
 		CERT_TYPE="1"
 		CERT_CURVE="secp256r1"
 		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
-		DH_KEY_SIZE="2048"
+		DH_TYPE="1"
+		DH_CURVE="secp256r1"
 	else
 		echo ""
 		echo "Choose which cipher you want to use for the data channel:"
@@ -405,22 +406,54 @@ function installOpenVPN () {
 			;;
 		esac
 		echo ""
-		echo "Choose what size of Diffie-Hellman key you want to use:"
-		echo "   1) 2048 bits (recommended)"
-		echo "   2) 3072 bits"
-		echo "   3) 4096 bits"
-		until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[1-3]$ ]]; do
-			read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
+		echo "Choose what kind of Diffie-Hellman key you want to use."
+		echo "   1) ECDH (recommended)"
+		echo "   2) DH"
+		until [[ $DH_TYPE =~ [1-2] ]]; do
+			read -p "DH key type [1-2]: " -e -i 1 DH_TYPE
 		done
-		case $DH_KEY_SIZE_CHOICE in
+		case $DH_TYPE in
 			1)
-				DH_KEY_SIZE="2048"
+				echo ""
+				echo "Choose which curve you want to use for the ECDH key"
+				echo "   1) secp256r1 (recommended)"
+				echo "   2) secp384r1"
+				echo "   3) secp521r1"
+				while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
+					read -p "Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
+				done
+				case $DH_CURVE_CHOICE in
+					1)
+						DH_CURVE="secp256r1"
+					;;
+					2)
+						DH_CURVE="secp384r1"
+					;;
+					3)
+						DH_CURVE="secp521r1"
+					;;
+				esac
 			;;
 			2)
-				DH_KEY_SIZE="3072"
-			;;
-			3)
-				DH_KEY_SIZE="4096"
+				echo ""
+				echo "Choose what size of Diffie-Hellman key you want to use:"
+				echo "   1) 2048 bits (recommended)"
+				echo "   2) 3072 bits"
+				echo "   3) 4096 bits"
+				until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[1-3]$ ]]; do
+					read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
+				done
+				case $DH_KEY_SIZE_CHOICE in
+					1)
+						DH_KEY_SIZE="2048"
+					;;
+					2)
+						DH_KEY_SIZE="3072"
+					;;
+					3)
+						DH_KEY_SIZE="4096"
+					;;
+				esac
 			;;
 		esac
 	fi
@@ -487,13 +520,19 @@ function installOpenVPN () {
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
-	openssl dhparam -out dh.pem $DH_KEY_SIZE
+	if [[ $DH_TYPE == "2" ]]; then
+		# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
+		openssl dhparam -out dh.pem $DH_KEY_SIZE
+	fi
 	./easyrsa build-server-full "$SERVER_NAME" nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# Generate tls-auth key
 	openvpn --genkey --secret /etc/openvpn/tls-auth.key
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key dh.pem "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	if [[ $DH_TYPE == "2" ]]; then
+		cp dh.pem /etc/openvpn
+	fi
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 
@@ -577,16 +616,22 @@ push "route-ipv6 2000::/3"
 push "redirect-gateway ipv6"' >> /etc/openvpn/server.conf
 	fi
 
-if [[ $COMPRESSION_ENABLED == "y"  ]]; then
-	echo "compress $COMPRESSION_ALG" >> /etc/openvpn/server.conf
-fi
+	if [[ $COMPRESSION_ENABLED == "y"  ]]; then
+		echo "compress $COMPRESSION_ALG" >> /etc/openvpn/server.conf
+	fi
+
+	if [[ $DH_TYPE == "1" ]]; then
+		echo "dh none" >> /etc/openvpn/server.conf
+		echo "ecdh-curve $DH_CURVE" >> /etc/openvpn/server.conf
+	elif [[ $DH_TYPE == "2" ]]; then
+		echo "dh dh.pem" >> /etc/openvpn/server.conf
+	fi
 
 	echo "crl-verify crl.pem
 ca ca.crt
 cert $SERVER_NAME.crt
 key $SERVER_NAME.key
 tls-auth tls-auth.key 0
-dh dh.pem
 auth SHA256
 $CIPHER
 tls-server
