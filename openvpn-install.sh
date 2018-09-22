@@ -783,6 +783,10 @@ function removeOpenVPN () {
 
 		if [[ "$OS" = 'debian' ]]; then
 			apt-get autoremove --purge -y openvpn
+			if [[ -e /etc/apt/sources.list.d/openvpn.list ]];then
+				rm /etc/apt/sources.list.d/openvpn.list
+				apt-get update
+			fi
 		elif [[ "$OS" = 'centos' ]]; then
 			yum remove openvpn -y
 		elif [[ "$OS" = 'fedora' ]]; then
