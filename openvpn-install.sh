@@ -289,6 +289,7 @@ function installQuestions () {
 		DH_TYPE="1" # ECDH
 		DH_CURVE="secp256r1"
 		HMAC_ALG="SHA256"
+		TLS_SIG="1" # tls-crypt
 	else
 		echo ""
 		echo "Choose which cipher you want to use for the data channel:"
@@ -482,6 +483,14 @@ function installQuestions () {
 				HMAC_ALG="SHA512"
 			;;
 		esac
+		echo ""
+		echo "You can add an additional layer of security to the control channel with tls-auth and tls-crypt"
+		echo "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them."
+		echo "   1) tls-crypt (recommended)"
+		echo "   2) tls-auth"
+		until [[ $TLS_SIG =~ [1-2] ]]; do
+				read -rp "Control channel additional security mechanism [1-2]: " -e -i 1 TLS_SIG
+		done
 	fi
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
@@ -544,6 +553,7 @@ function installOpenVPN () {
 			echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 		;;
 	esac
+	
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
@@ -551,19 +561,32 @@ function installOpenVPN () {
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
+	
 	if [[ $DH_TYPE == "2" ]]; then
 		# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
 		openssl dhparam -out dh.pem $DH_KEY_SIZE
 	fi
+	
 	./easyrsa build-server-full "$SERVER_NAME" nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-	# Generate tls-auth key
-	openvpn --genkey --secret /etc/openvpn/tls-auth.key
+	
+	case $TLS_SIG in
+		1)
+			# Generate tls-crypt key
+			openvpn --genkey --secret /etc/openvpn/tls-crypt.key
+		;;
+		2)
+			# Generate tls-auth key
+			openvpn --genkey --secret /etc/openvpn/tls-auth.key
+		;;
+	esac
+	
 	# Move all the generated files
 	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	if [[ $DH_TYPE == "2" ]]; then
 		cp dh.pem /etc/openvpn
 	fi
+	
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 
@@ -658,11 +681,19 @@ push "redirect-gateway ipv6"' >> /etc/openvpn/server.conf
 		echo "dh dh.pem" >> /etc/openvpn/server.conf
 	fi
 
+	case $TLS_SIG in
+		1)
+			echo "tls-crypt tls-crypt.key 0" >> /etc/openvpn/server.conf
+		;;
+		2)
+			echo "tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
+		;;
+	esac
+
 	echo "crl-verify crl.pem
 ca ca.crt
 cert $SERVER_NAME.crt
-key $SERVER_NAME.key
-tls-auth tls-auth.key 0
+key $SERVER_NAME.key 
 auth $HMAC_ALG
 cipher $CIPHER
 ncp-ciphers $CIPHER
@@ -848,6 +879,13 @@ function newClient () {
 		homeDir="/root"
 	fi
 
+	# Determine if we use tls-auth or tls-crypt
+	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
+		TLS_SIG="1"
+	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
+		TLS_SIG="2"
+	fi
+
 	# Generates the custom client.ovpn
 	cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
 	{
@@ -862,11 +900,20 @@ function newClient () {
 		echo "<key>"
 		cat "/etc/openvpn/easy-rsa/pki/private/$CLIENT.key"
 		echo "</key>"
-		echo "key-direction 1"
 
-		echo "<tls-auth>"
-		cat "/etc/openvpn/tls-auth.key"
-		echo "</tls-auth>"
+		case $TLS_SIG in
+			1)
+				echo "<tls-crypt>"
+				cat /etc/openvpn/tls-crypt.key
+				echo "</tls-crypt>"
+			;;
+			2)
+				echo "key-direction 1"
+				echo "<tls-auth>"
+				cat /etc/openvpn/tls-auth.key
+				echo "</tls-auth>"
+			;;
+		esac
 	} >> "$homeDir/$CLIENT.ovpn"
 
 	echo ""
