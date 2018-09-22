@@ -307,11 +307,11 @@ function installOpenVPN () {
 		esac
 		echo ""
 		echo "Choose what size of Diffie-Hellman key you want to use:"
-		echo "   1) 2048 bits (fastest)"
-		echo "   2) 3072 bits (recommended, best compromise)"
-		echo "   3) 4096 bits (most secure)"
+		echo "   1) 2048 bits (recommended)"
+		echo "   2) 3072 bits"
+		echo "   3) 4096 bits"
 		until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$DH_KEY_SIZE_CHOICE" -ge 1 ] && [ "$DH_KEY_SIZE_CHOICE" -le 3 ]; do
-			read -rp "DH key size [1-3]: " -e -i 2 DH_KEY_SIZE_CHOICE
+			read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
 		done
 		case $DH_KEY_SIZE_CHOICE in
 			1)
@@ -326,11 +326,11 @@ function installOpenVPN () {
 		esac
 		echo ""
 		echo "Choose what size of RSA key you want to use for the certificate:"
-		echo "   1) 2048 bits (fastest)"
-		echo "   2) 3072 bits (recommended, best compromise)"
-		echo "   3) 4096 bits (most secure)"
+		echo "   1) 2048 bits (recommended)"
+		echo "   2) 3072 bits"
+		echo "   3) 4096 bits"
 		until [[ "$RSA_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$RSA_KEY_SIZE_CHOICE" -ge 1 ] && [ "$RSA_KEY_SIZE_CHOICE" -le 3 ]; do
-			read -rp "RSA key size [1-3]: " -e -i 2 RSA_KEY_SIZE_CHOICE
+			read -rp "RSA key size [1-3]: " -e -i 1 RSA_KEY_SIZE_CHOICE
 		done
 		case $RSA_KEY_SIZE_CHOICE in
 			1)
