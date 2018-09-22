@@ -283,8 +283,10 @@ function installOpenVPN () {
 	if [[ $CUSTOMIZE_ENC == "n" ]];then
 		# Use default, sane and fast paramters
 		CIPHER="cipher AES-128-GCM"
+		CERT_TYPE="1"
+		CERT_CURVE="secp256r1"
+		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
 		DH_KEY_SIZE="2048"
-		RSA_KEY_SIZE="2048"
 	else
 		echo ""
 		echo "Choose which cipher you want to use for the data channel:"
@@ -318,6 +320,91 @@ function installOpenVPN () {
 			;;
 		esac
 		echo ""
+		echo "Choose what kind of certificate you want to use."
+		echo "   1) ECDSA (recommended)"
+		echo "   2) RSA"
+		until [[ $CERT_TYPE =~ [1-2] ]]; do
+			read -p "Certificate key type [1-2]: " -e -i 1 CERT_TYPE
+		done
+		case $CERT_TYPE in
+			1)
+				echo ""
+				echo "Choose which curve you want to use for the certificate's key:"
+				echo "   1) secp256r1 (recommended)"
+				echo "   2) secp384r1"
+				echo "   3) secp521r1"
+				until [[ $CERT_CURVE_CHOICE =~ [1-3] ]]; do
+					read -p "Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
+				done
+				case $CERT_CURVE_CHOICE in
+					1)
+						CERT_CURVE="secp256r1"
+					;;
+					2)
+						CERT_CURVE="secp384r1"
+					;;
+					3)
+						CERT_CURVE="secp521r1"
+					;;
+				esac
+			;;
+			2)
+				echo ""
+				echo "Choose which size you want to use for the certificate's RSA key:"
+				echo "   1) 2048 bits (recommended)"
+				echo "   2) 3072 bits"
+				echo "   3) 4096 bits"
+				until [[ "$RSA_KEY_SIZE_CHOICE" =~ ^[1-3]$ ]]; do
+					read -rp "RSA key size [1-3]: " -e -i 1 RSA_KEY_SIZE_CHOICE
+				done
+				case $RSA_KEY_SIZE_CHOICE in
+					1)
+						RSA_KEY_SIZE="2048"
+					;;
+					2)
+						RSA_KEY_SIZE="3072"
+					;;
+					3)
+						RSA_KEY_SIZE="4096"
+					;;
+				esac
+			;;
+		esac
+		echo ""
+		echo "Choose which cipher you want to use for the control channel:"
+		case $CERT_TYPE in
+			1)
+				echo "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
+				echo "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
+				until [[ $CC_CIPHER_CHOICE =~ [1-2] ]]; do
+					read -p "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+				done
+				case $CC_CIPHER_CHOICE in
+					1)
+						CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
+					;;
+					2)
+						CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"
+					;;
+				esac
+			;;
+			2)
+				echo "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
+				echo "   2) ECDHE-RSA-AES-256-GCM-SHA384"
+				until [[ $CC_CIPHER_CHOICE =~ [1-2] ]]; do
+					read -p "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+				done
+				case $CC_CIPHER_CHOICE in
+					1)
+						CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256"
+					;;
+					2)
+						CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384"
+					;;
+				esac
+			;;
+		esac
+		echo ""
 		echo "Choose what size of Diffie-Hellman key you want to use:"
 		echo "   1) 2048 bits (recommended)"
 		echo "   2) 3072 bits"
@@ -334,25 +421,6 @@ function installOpenVPN () {
 			;;
 			3)
 				DH_KEY_SIZE="4096"
-			;;
-		esac
-		echo ""
-		echo "Choose what size of RSA key you want to use for the certificate:"
-		echo "   1) 2048 bits (recommended)"
-		echo "   2) 3072 bits"
-		echo "   3) 4096 bits"
-		until [[ "$RSA_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$RSA_KEY_SIZE_CHOICE" -ge 1 ] && [ "$RSA_KEY_SIZE_CHOICE" -le 3 ]; do
-			read -rp "RSA key size [1-3]: " -e -i 1 RSA_KEY_SIZE_CHOICE
-		done
-		case $RSA_KEY_SIZE_CHOICE in
-			1)
-				RSA_KEY_SIZE="2048"
-			;;
-			2)
-				RSA_KEY_SIZE="3072"
-			;;
-			3)
-				RSA_KEY_SIZE="4096"
 			;;
 		esac
 	fi
@@ -403,10 +471,18 @@ function installOpenVPN () {
 	rm -f ~/EasyRSA-${version}.tgz
 
 	cd /etc/openvpn/easy-rsa/
+	case $CERT_TYPE in
+		1)
+			echo "set_var EASYRSA_ALGO ec" > vars
+			echo "set_var EASYRSA_CURVE $CERT_CURVE" >> vars
+		;;
+		2)
+			echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
+		;;
+	esac
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-	echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
@@ -515,7 +591,7 @@ auth SHA256
 $CIPHER
 tls-server
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+tls-cipher $CC_CIPHER
 status /var/log/openvpn/status.log
 verb 3" >> /etc/openvpn/server.conf
 
@@ -643,7 +719,7 @@ auth-nocache
 $CIPHER
 tls-client
 tls-version-min 1.2
-tls-cipher TLS-DHE-RSA-WITH-AES-128-GCM-SHA256
+tls-cipher $CC_CIPHER
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
 verb 3" >> /etc/openvpn/client-template.txt
 
