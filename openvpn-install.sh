@@ -282,7 +282,7 @@ function installOpenVPN () {
 	done
 	if [[ $CUSTOMIZE_ENC == "n" ]];then
 		# Use default, sane and fast paramters
-		CIPHER="cipher AES-128-CBC"
+		CIPHER="cipher AES-128-GCM"
 		DH_KEY_SIZE="2048"
 		RSA_KEY_SIZE="2048"
 	else
