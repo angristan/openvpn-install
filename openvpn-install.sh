@@ -288,6 +288,7 @@ function installOpenVPN () {
 		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
 		DH_TYPE="1"
 		DH_CURVE="secp256r1"
+		HMAC_ALG="SHA256"
 	else
 		echo ""
 		echo "Choose which cipher you want to use for the data channel:"
@@ -454,6 +455,31 @@ function installOpenVPN () {
 						DH_KEY_SIZE="4096"
 					;;
 				esac
+			;;
+		esac
+		echo ""
+		# The "auth" options behaves differently with AEAD ciphers
+		if [[ "$CIPHER" =~ CBC$ ]]; then
+			echo "The digest algorithm authenticates data channel packets and tls-auth packets from the control channel."
+		elif [[ "$CIPHER" =~ GCM$ ]]; then
+			echo "The digest algorithm authenticates tls-auth packets from the control channel."
+		fi
+		echo "Which digest algorithm do you want to use for HMAC?"
+		echo "   1) SHA-256 (recommended)"
+		echo "   2) SHA-384"
+		echo "   3) SHA-512"
+		until [[ $HMAC_ALG_CHOICE =~ ^[1-3]$ ]]; do
+			read -rp "Digest algorithm [1-3]: " -e -i 1 HMAC_ALG_CHOICE
+		done
+		case $HMAC_ALG_CHOICE in
+			1)
+				HMAC_ALG="SHA256"
+			;;
+			2)
+				HMAC_ALG="SHA384"
+			;;
+			3)
+				HMAC_ALG="SHA512"
 			;;
 		esac
 	fi
@@ -632,7 +658,7 @@ ca ca.crt
 cert $SERVER_NAME.crt
 key $SERVER_NAME.key
 tls-auth tls-auth.key 0
-auth SHA256
+auth $HMAC_ALG
 $CIPHER
 tls-server
 tls-version-min 1.2
@@ -759,7 +785,7 @@ persist-key
 persist-tun
 remote-cert-tls server
 verify-x509-name $SERVER_NAME name
-auth SHA256
+auth $HMAC_ALG
 auth-nocache
 $CIPHER
 tls-client
