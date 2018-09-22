@@ -253,14 +253,14 @@ function installOpenVPN () {
 	echo ""
 	echo "Do you want to use compression? It is not recommended since the VORACLE attack make use of it."
 	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
-		read -p "Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
+		read -rp"Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
 	done
 	if [[ $COMPRESSION_ENABLED == "y" ]];then
 		echo "Choose which compression algorithm you want to use:"
 		echo "   1) LZ4 (faster)"
 		echo "   2) LZ0 (use for OpenVPN 2.3 compatibility)"
 		until [[ $COMPRESSION_CHOICE =~ ^[1-2]$ ]]; do
-			read -p "Compression algorithm [1-2]: " -e -i 1 COMPRESSION_CHOICE
+			read -rp"Compression algorithm [1-2]: " -e -i 1 COMPRESSION_CHOICE
 		done
 		case $COMPRESSION_CHOICE in
 			1)
@@ -325,7 +325,7 @@ function installOpenVPN () {
 		echo "   1) ECDSA (recommended)"
 		echo "   2) RSA"
 		until [[ $CERT_TYPE =~ ^[1-2]$ ]]; do
-			read -p "Certificate key type [1-2]: " -e -i 1 CERT_TYPE
+			read -rp"Certificate key type [1-2]: " -e -i 1 CERT_TYPE
 		done
 		case $CERT_TYPE in
 			1)
@@ -335,7 +335,7 @@ function installOpenVPN () {
 				echo "   2) secp384r1"
 				echo "   3) secp521r1"
 				until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
-					read -p "Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
+					read -rp"Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
 				done
 				case $CERT_CURVE_CHOICE in
 					1)
@@ -378,7 +378,7 @@ function installOpenVPN () {
 				echo "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
 				echo "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
 				until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-					read -p "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+					read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
 				done
 				case $CC_CIPHER_CHOICE in
 					1)
@@ -393,7 +393,7 @@ function installOpenVPN () {
 				echo "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
 				echo "   2) ECDHE-RSA-AES-256-GCM-SHA384"
 				until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-					read -p "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+					read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
 				done
 				case $CC_CIPHER_CHOICE in
 					1)
@@ -410,7 +410,7 @@ function installOpenVPN () {
 		echo "   1) ECDH (recommended)"
 		echo "   2) DH"
 		until [[ $DH_TYPE =~ [1-2] ]]; do
-			read -p "DH key type [1-2]: " -e -i 1 DH_TYPE
+			read -rp"DH key type [1-2]: " -e -i 1 DH_TYPE
 		done
 		case $DH_TYPE in
 			1)
@@ -420,7 +420,7 @@ function installOpenVPN () {
 				echo "   2) secp384r1"
 				echo "   3) secp521r1"
 				while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
-					read -p "Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
+					read -rp"Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
 				done
 				case $DH_CURVE_CHOICE in
 					1)
