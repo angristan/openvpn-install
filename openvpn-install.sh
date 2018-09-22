@@ -335,7 +335,7 @@ function installOpenVPN () {
 		apt-get update
 		apt-get install ca-certificates gnupg -y
 		# We add the OpenVPN repo to get the latest version.
-		if [[ "$VERSION_ID" = 'VERSION_ID="8"' ]]; then
+		if [[ "$VERSION_ID" = "8" ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
 			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
 			apt-get update
