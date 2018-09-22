@@ -303,22 +303,22 @@ function installQuestions () {
 		done
 		case $CIPHER_CHOICE in
 			1)
-				CIPHER="cipher AES-128-GCM"
+				CIPHER="AES-128-GCM"
 			;;
 			2)
-				CIPHER="cipher AES-192-GCM"
+				CIPHER="AES-192-GCM"
 			;;
 			3)
-				CIPHER="cipher AES-256-GCM"
+				CIPHER="AES-256-GCM"
 			;;
 			4)
-				CIPHER="cipher AES-128-CBC"
+				CIPHER="AES-128-CBC"
 			;;
 			5)
-				CIPHER="cipher AES-192-CBC"
+				CIPHER="AES-192-CBC"
 			;;
 			6)
-				CIPHER="cipher AES-256-CBC"
+				CIPHER="AES-256-CBC"
 			;;
 		esac
 		echo ""
@@ -664,7 +664,8 @@ cert $SERVER_NAME.crt
 key $SERVER_NAME.key
 tls-auth tls-auth.key 0
 auth $HMAC_ALG
-$CIPHER
+cipher $CIPHER
+ncp-ciphers $CIPHER
 tls-server
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
@@ -792,7 +793,7 @@ remote-cert-tls server
 verify-x509-name $SERVER_NAME name
 auth $HMAC_ALG
 auth-nocache
-$CIPHER
+cipher $CIPHER
 tls-client
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
