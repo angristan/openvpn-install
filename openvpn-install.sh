@@ -157,10 +157,10 @@ function installOpenVPN () {
 	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
-		echo "It seems this server is behind NAT. What is its public IPv4 address?"
+		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
 		echo "We need it for the clients to connect to the server."
-		until [[ "$PUBLICIP" =~ ^((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])$ ]];do
-			read -rp "Public IPv4 address: " -e PUBLICIP
+		until [[ "$PUBLICIP" != "" ]]; do
+			read -rp "Public IPv4 address or hostname: " -e PUBLICIP
 		done
 	fi
 
