@@ -438,7 +438,7 @@ keepalive 10 120
 topology subnet
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
-	
+
 	# DNS resolvers
 	case $DNS in
 		1)
@@ -459,7 +459,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		;;
 		3) # Cloudflare
 			echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf	
+			echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf
 		;;
 		4) # Quad9
 			echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
@@ -622,7 +622,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
 	if [[ "$PUBLICIP" != "" ]]; then
 		IP=$PUBLICIP
 	fi
-	
+
 	# client-template.txt is created so we have a template to add further users later
 	echo "client" > /etc/openvpn/client-template.txt
 	if [[ "$PROTOCOL" = 'udp' ]]; then
