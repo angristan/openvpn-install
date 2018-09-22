@@ -26,7 +26,7 @@ function checkOS () {
 			echo "However, if you're using Debian unstable/testing, or Ubuntu beta, then you can continue."
 			echo "Keep in mind they are not supported, though."
 			echo ""
-			while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+			until [[ $CONTINUE =~ (y|n) ]]; do
 				read -rp "Continue? [y/n]: " -e CONTINUE
 			done
 			if [[ "$CONTINUE" = "n" ]]; then
@@ -42,7 +42,7 @@ function checkOS () {
 			echo "The script only support CentOS 7."
 			echo ""
 			unset CONTINUE
-			while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+			until [[ $CONTINUE =~ (y|n) ]]; do
 				read -rp "Continue anyway? [y/n]: " -e CONTINUE
 			done
 			if [[ "$CONTINUE" = "n" ]]; then
@@ -176,7 +176,7 @@ function installOpenVPN () {
 	fi
 	echo ""
 	# Ask the user if they want to enable IPv6 regardless its availability.
-	while [[ $IPV6_SUPPORT != "y" && $IPV6_SUPPORT != "n" ]]; do
+	until [[ $IPV6_SUPPORT =~ (y|n) ]]; do
 		read -rp "Do you want to enable IPv6 support (NAT)? [y/n]: " -e -i $SUGGESTION IPV6_SUPPORT
 	done
 	echo ""
@@ -207,7 +207,7 @@ function installOpenVPN () {
 	echo "UDP is faster. Unless it is not available, you shoudn't use TCP."
 	echo "   1) UDP"
 	echo "   2) TCP"
-	until [[ "$PROTOCOL_CHOICE" =~ ^[1-2] ]]; do
+	until [[ "$PROTOCOL_CHOICE" =~ ^[1-2]$ ]]; do
 		read -rp "Protocol [1-2]: " -e -i 1 PROTOCOL_CHOICE
 	done
 	case $PROTOCOL_CHOICE in
@@ -240,7 +240,7 @@ function installOpenVPN () {
 				echo "No changes are made to the current configuration."
 				echo ""
 
-				while [[ $CONTINUE != "y" && $CONTINUE != "n" ]]; do
+				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Apply configuration changes to Unbound? [y/n]: " -e CONTINUE
 				done
 				if [[ $CONTINUE = "n" ]];then
@@ -259,7 +259,7 @@ function installOpenVPN () {
 		echo "Choose which compression algorithm you want to use:"
 		echo "   1) LZ4 (faster)"
 		echo "   2) LZ0 (use for OpenVPN 2.3 compatibility)"
-		until [[ $COMPRESSION_CHOICE =~ [1-2] ]]; do
+		until [[ $COMPRESSION_CHOICE =~ ^[1-2]$ ]]; do
 			read -p "Compression algorithm [1-2]: " -e -i 1 COMPRESSION_CHOICE
 		done
 		case $COMPRESSION_CHOICE in
@@ -323,7 +323,7 @@ function installOpenVPN () {
 		echo "Choose what kind of certificate you want to use."
 		echo "   1) ECDSA (recommended)"
 		echo "   2) RSA"
-		until [[ $CERT_TYPE =~ [1-2] ]]; do
+		until [[ $CERT_TYPE =~ ^[1-2]$ ]]; do
 			read -p "Certificate key type [1-2]: " -e -i 1 CERT_TYPE
 		done
 		case $CERT_TYPE in
@@ -333,7 +333,7 @@ function installOpenVPN () {
 				echo "   1) secp256r1 (recommended)"
 				echo "   2) secp384r1"
 				echo "   3) secp521r1"
-				until [[ $CERT_CURVE_CHOICE =~ [1-3] ]]; do
+				until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
 					read -p "Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
 				done
 				case $CERT_CURVE_CHOICE in
@@ -376,7 +376,7 @@ function installOpenVPN () {
 			1)
 				echo "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
 				echo "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
-				until [[ $CC_CIPHER_CHOICE =~ [1-2] ]]; do
+				until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
 					read -p "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
 				done
 				case $CC_CIPHER_CHOICE in
@@ -391,7 +391,7 @@ function installOpenVPN () {
 			2)
 				echo "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
 				echo "   2) ECDHE-RSA-AES-256-GCM-SHA384"
-				until [[ $CC_CIPHER_CHOICE =~ [1-2] ]]; do
+				until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
 					read -p "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
 				done
 				case $CC_CIPHER_CHOICE in
@@ -409,7 +409,7 @@ function installOpenVPN () {
 		echo "   1) 2048 bits (recommended)"
 		echo "   2) 3072 bits"
 		echo "   3) 4096 bits"
-		until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[0-9]+$ ]] && [ "$DH_KEY_SIZE_CHOICE" -ge 1 ] && [ "$DH_KEY_SIZE_CHOICE" -le 3 ]; do
+		until [[ "$DH_KEY_SIZE_CHOICE" =~ ^[1-3]$ ]]; do
 			read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
 		done
 		case $DH_KEY_SIZE_CHOICE in
@@ -838,7 +838,7 @@ function removeUnbound () {
 	rm /etc/unbound/openvpn.conf
 	systemctl restart unbound
 
-	until [[ $REMOVE_UNBOUND == "y" || $REMOVE_UNBOUND == "n" ]]; do
+	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
 		echo ""
 		echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
 		read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
