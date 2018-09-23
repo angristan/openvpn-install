@@ -60,11 +60,10 @@ The script supports these OS and architectures:
 |              | i386 | amd64 | armhf | arm64 |
 | ------------ | ---- | ----- | ----- | ----- |
 |   Debian 8   |   ✅  |  ✅  |   ❌   |   ❌  |
-|   Debian 9   |   ✅  |  ✅  |   ✅   |   ✅  |
-| Ubuntu 16.04 |   ✅  |  ✅  |   ✅   |   ✅  |
-| Ubuntu 17.10 |   ✅  |  ✅  |   ✅   |   ✅  |
-| Ubuntu 18.04 |   ✅  |  ✅  |   ✅   |   ✅  |
-|   CentOS 7   |   ✅  |  ✅  |   ❔   |   ❌  |
+|   Debian 9   |   ❌  |  ✅  |   ✅   |   ✅  |
+| Ubuntu 16.04 |   ✅  |  ✅  |   ❌   |   ❌  |
+| Ubuntu 18.04 |   ❌  |  ✅  |   ✅   |   ✅  |
+|   CentOS 7   |   ❔  |  ✅  |   ❌   |   ❌  |
 |   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
 |   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
 
