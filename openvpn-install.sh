@@ -106,7 +106,7 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
 
 		elif [[ "$OS" = "arch" ]]; then
-			pacman -Syu unbound
+			pacman -Syu --noconfirm unbound
 
 			# Get root servers list
 			curl -o /etc/unbound/root.hints https://www.internic.net/domain/named.cache
