@@ -105,34 +105,32 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
 
-		fi
 		elif [[ "$OS" = "arch" ]]; then
-			# Install Unbound
-			pacman -Syu unbound expat
-
-			# Permissions for the DNSSEC keys
-			chown root:unbound /etc/unbound
-			chmod 775 /etc/unbound
+			pacman -Syu unbound
 
 			# Get root servers list
-			wget https://www.internic.net/domain/named.root -O /etc/unbound/root.hints
+			curl -o /etc/unbound/root.hints https://www.internic.net/domain/named.cache
 
-			# Configuration
 			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
+			
 			echo 'server:
-root-hints: root.hints
-auto-trust-anchor-file: trusted-key.key
-interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-port: 53
-do-daemonize: yes
-num-threads: 2
-use-caps-for-id: yes
-harden-glue: yes
-hide-identity: yes
-hide-version: yes
-qname-minimisation: yes
-prefetch: yes' > /etc/unbound/unbound.conf
+	use-syslog: yes
+	do-daemonize: no
+	username: "unbound"
+	directory: "/etc/unbound"
+	trust-anchor-file: trusted-key.key
+	root-hints: root.hints
+	interface: 10.8.0.1
+	access-control: 10.8.0.1/24 allow
+	port: 53
+	num-threads: 2
+	use-caps-for-id: yes
+	harden-glue: yes
+	hide-identity: yes
+	hide-version: yes
+	qname-minimisation: yes
+	prefetch: yes' > /etc/unbound/unbound.conf
+		fi
 
 		if [[ ! "$OS" =~ (fedora|centos) ]];then
 			# DNS Rebinding fix
