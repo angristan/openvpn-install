@@ -67,6 +67,7 @@ The script supports these OS and architectures:
 |   CentOS 7   |   ✅  |  ✅  |   ❔   |   ❌  |
 |   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
 |   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
+|  Arch Linux  |   ❔  |  ✅  |   ❔   |   ❔  |
 
 To be noted:
 
