@@ -571,7 +571,7 @@ function installOpenVPN () {
 		fi
 		if [[ "$OS" = 'arch' ]]; then
 			# Install dependencies
-			pacman -Syu openvpn iptables openssl wget ca-certificates curl --needed --noconfirm
+			pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 			iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
 			systemctl daemon-reload
 			systemctl enable iptables
@@ -610,7 +610,7 @@ function installOpenVPN () {
 			echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 		;;
 	esac
-	
+
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
@@ -1037,7 +1037,7 @@ function removeUnbound () {
 		if [[ "$OS" = 'debian' ]]; then
 			apt-get autoremove --purge -y unbound
 		elif [[ "$OS" = 'arch' ]]; then
-			pacman -R unbound --noconfirm
+			pacman --noconfirm -R unbound
 		elif [[ "$OS" = 'centos' ]]; then
 			yum remove unbound -y
 		elif [[ "$OS" = 'fedora' ]]; then
@@ -1098,7 +1098,7 @@ function removeOpenVPN () {
 				apt-get update
 			fi
 		elif [[ "$OS" = 'arch' ]]; then
-			pacman -R openvpn --noconfirm
+			pacman --noconfirm -R openvpn
 		elif [[ "$OS" = 'centos' ]]; then
 			yum remove openvpn -y
 		elif [[ "$OS" = 'fedora' ]]; then
