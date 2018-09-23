@@ -53,8 +53,6 @@ function checkOS () {
 		OS=centos
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
-		IPTABLES='/etc/iptables/iptables.rules'
-		SYSCTL='/etc/sysctl.d/openvpn.conf'
 	else
 		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS or Arch Linux system"
 		exit 1
