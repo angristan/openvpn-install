@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS and Fedora
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux
 # https://github.com/angristan/openvpn-install
 
 function isRoot () {
@@ -51,8 +51,10 @@ function checkOS () {
 			fi
 		fi
 		OS=centos
+	elif [[ -e /etc/arch-release ]]; then
+		OS=arch
 	else
-		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora or CentOS system"
+		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS or Arch Linux system"
 		exit 1
 	fi
 }
@@ -102,6 +104,32 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
+
+		elif [[ "$OS" = "arch" ]]; then
+			pacman -Syu --noconfirm unbound
+
+			# Get root servers list
+			curl -o /etc/unbound/root.hints https://www.internic.net/domain/named.cache
+
+			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
+			
+			echo 'server:
+	use-syslog: yes
+	do-daemonize: no
+	username: "unbound"
+	directory: "/etc/unbound"
+	trust-anchor-file: trusted-key.key
+	root-hints: root.hints
+	interface: 10.8.0.1
+	access-control: 10.8.0.1/24 allow
+	port: 53
+	num-threads: 2
+	use-caps-for-id: yes
+	harden-glue: yes
+	hide-identity: yes
+	hide-version: yes
+	qname-minimisation: yes
+	prefetch: yes' > /etc/unbound/unbound.conf
 		fi
 
 		if [[ ! "$OS" =~ (fedora|centos) ]];then
@@ -525,6 +553,24 @@ function installOpenVPN () {
 		yum install epel-release openvpn iptables openssl wget ca-certificates curl -y
 	elif [[ "$OS" = 'fedora' ]]; then
 		dnf install openvpn iptables openssl wget ca-certificates curl -y
+	elif [[ "$OS" = 'arch' ]]; then
+		echo ""
+		echo "WARNING: As you're using ArchLinux, I need to update the packages on your system to install those I need."
+		echo "Not doing that could cause problems between dependencies, or missing files in repositories (Arch Linux does not support partial upgrades)."
+		echo ""
+		echo "Continuing will update your installed packages and install needed ones."
+		echo ""
+		unset $CONTINUE
+		until [[ $CONTINUE =~ (y|n) ]]; do
+			read -rp "Continue? [y/n]: " -e -i y CONTINUE
+		done
+		if [[ "$CONTINUE" = "n" ]]; then
+			echo "Exiting because user did not permit updating the system."
+			exit 4
+		fi
+
+		# Install required dependencies and upgrade the system
+		pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 	fi
 
 	# Find out if the machine uses nogroup or nobody for the permissionless group
@@ -558,7 +604,7 @@ function installOpenVPN () {
 			echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
 		;;
 	esac
-	
+
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
 	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
@@ -566,7 +612,7 @@ function installOpenVPN () {
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
-	
+
 	if [[ $DH_TYPE == "2" ]]; then
 		# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
 		openssl dhparam -out dh.pem $DH_KEY_SIZE
@@ -729,7 +775,7 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 
 	# Finally, restart and enable OpenVPN
-	if [[ "$OS" == 'fedora' ]]; then
+	if [[ "$OS" = 'arch' || "$OS" = 'fedora' ]]; then
 		# Workaround to fix OpenVPN service on OpenVZ
 		sed -i 's|LimitNPROC|#LimitNPROC|' /usr/lib/systemd/system/openvpn-server@.service
 		# Another workaround to keep using /etc/openvpn/
@@ -984,6 +1030,8 @@ function removeUnbound () {
 
 		if [[ "$OS" = 'debian' ]]; then
 			apt-get autoremove --purge -y unbound
+		elif [[ "$OS" = 'arch' ]]; then
+			pacman --noconfirm -R unbound
 		elif [[ "$OS" = 'centos' ]]; then
 			yum remove unbound -y
 		elif [[ "$OS" = 'fedora' ]]; then
@@ -1008,7 +1056,7 @@ function removeOpenVPN () {
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
-		if [[ "$OS" = 'fedora' ]]; then
+		if [[ "$OS" = (fedora|arch) ]]; then
 			systemctl disable openvpn-server@server
 			systemctl stop openvpn-server@server
 		elif [[ "$OS" == 'debian' ]] && [[ "$VERSION_ID" == "16.04" ]]; then
@@ -1043,6 +1091,8 @@ function removeOpenVPN () {
 				rm /etc/apt/sources.list.d/openvpn.list
 				apt-get update
 			fi
+		elif [[ "$OS" = 'arch' ]]; then
+			pacman --noconfirm -R openvpn
 		elif [[ "$OS" = 'centos' ]]; then
 			yum remove openvpn -y
 		elif [[ "$OS" = 'fedora' ]]; then

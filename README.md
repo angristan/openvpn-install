@@ -2,7 +2,7 @@
 
 [![GitLab CI](https://gitlab.com/angristan/openvpn-install/badges/master/pipeline.svg)](https://gitlab.com/angristan/openvpn-install/pipelines)
 
-OpenVPN installer for Debian, Ubuntu, Fedora and CentOS.
+OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
 
 This script will let you setup your own secure VPN server in just a few seconds.
 
@@ -66,6 +66,7 @@ The script supports these OS and architectures:
 |   CentOS 7   |   ❔  |  ✅  |   ❌   |   ❌  |
 |   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
 |   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
+|  Arch Linux  |   ❔  |  ✅  |   ❔   |   ❔  |
 
 To be noted:
 
