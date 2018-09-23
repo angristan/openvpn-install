@@ -560,8 +560,9 @@ function installOpenVPN () {
 		echo ""
 		echo "Continuing will update your installed packages and install needed ones."
 		echo ""
-		until [[ $CONTINUE == "y" || $CONTINUE == "n" ]]; do
-			read -rp "Continue ? [y/n]: " -e -i y CONTINUE
+		unset $CONTINUE
+		until [[ $CONTINUE =~ (y|n) ]]; do
+			read -rp "Continue? [y/n]: " -e -i y CONTINUE
 		done
 		if [[ "$CONTINUE" = "n" ]]; then
 			echo "Exiting because user did not permit updating the system."
