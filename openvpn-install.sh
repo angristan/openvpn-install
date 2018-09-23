@@ -737,7 +737,7 @@ verb 3" >> /etc/openvpn/server.conf
 		systemctl daemon-reload
 		systemctl restart openvpn-server@server
 		systemctl enable openvpn-server@server
-	elif [[ "$OS" == 'debian' ]] && [[ "$VERSION_ID" == "16.04"]]; then
+	elif [[ "$OS" == 'debian' ]] && [[ "$VERSION_ID" == "16.04" ]]; then
 		# On Ubuntu 16.04, we use the package from the OpenVPN repo
 		# This package uses a sysvinit service
 		systemctl enable openvpn
