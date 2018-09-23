@@ -176,10 +176,10 @@ OpenVPN 2.4 added support for ECDSA. Elliptic curve cryptography is faster, ligh
 
 This script provides:
 
-- ECDSA: `secp256r1`/`secp384r1`/`secp521r1` curves
+- ECDSA: `prime256v1`/`secp384r1`/`secp521r1` curves
 - RSA: `2048`/`3072`/`4096` bits keys
 
-It defaults to ECDSA with `secp256r1`.
+It defaults to ECDSA with `prime256v1`.
 
 OpenVPN uses `SHA-256` as the signature hash by default, and so does the script. It provides no other choice as of now.
 
@@ -241,10 +241,10 @@ Also, generating a classic DH keys can take a long, looong time. ECDH keys are e
 
 The script provides the following options:
 
-- ECDH: `secp256r1`/`secp384r1`/`secp521r1` curves
+- ECDH: `prime256v1`/`secp384r1`/`secp521r1` curves
 - DH: `2048`/`3072`/`4096` bits keys
 
-It defaults to `secp256r1`.
+It defaults to `prime256v1`.
 
 ### HMAC digest algorithm
 

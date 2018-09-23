@@ -312,10 +312,10 @@ function installQuestions () {
 		# Use default, sane and fast paramters
 		CIPHER="AES-128-GCM"
 		CERT_TYPE="1" # ECDSA
-		CERT_CURVE="secp256r1"
+		CERT_CURVE="prime256v1"
 		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
 		DH_TYPE="1" # ECDH
-		DH_CURVE="secp256r1"
+		DH_CURVE="prime256v1"
 		HMAC_ALG="SHA256"
 		TLS_SIG="1" # tls-crypt
 	else
@@ -361,7 +361,7 @@ function installQuestions () {
 			1)
 				echo ""
 				echo "Choose which curve you want to use for the certificate's key:"
-				echo "   1) secp256r1 (recommended)"
+				echo "   1) prime256v1 (recommended)"
 				echo "   2) secp384r1"
 				echo "   3) secp521r1"
 				until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
@@ -369,7 +369,7 @@ function installQuestions () {
 				done
 				case $CERT_CURVE_CHOICE in
 					1)
-						CERT_CURVE="secp256r1"
+						CERT_CURVE="prime256v1"
 					;;
 					2)
 						CERT_CURVE="secp384r1"
@@ -446,7 +446,7 @@ function installQuestions () {
 			1)
 				echo ""
 				echo "Choose which curve you want to use for the ECDH key"
-				echo "   1) secp256r1 (recommended)"
+				echo "   1) prime256v1 (recommended)"
 				echo "   2) secp384r1"
 				echo "   3) secp521r1"
 				while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
@@ -454,7 +454,7 @@ function installQuestions () {
 				done
 				case $DH_CURVE_CHOICE in
 					1)
-						DH_CURVE="secp256r1"
+						DH_CURVE="prime256v1"
 					;;
 					2)
 						DH_CURVE="secp384r1"
