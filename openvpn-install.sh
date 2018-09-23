@@ -1009,8 +1009,13 @@ function removeOpenVPN () {
 
 		# Stop OpenVPN
 		if [[ "$OS" = 'fedora' ]]; then
+			systemctl disable openvpn-server@server
 			systemctl stop openvpn-server@server
+		elif [[ "$OS" == 'debian' ]] && [[ "$VERSION_ID" == "16.04" ]]; then
+			systemctl disable openvpn
+			systemctl stop openvpn
 		else
+			systemctl disable openvpn@server
 			systemctl stop openvpn@server
 		fi
 
