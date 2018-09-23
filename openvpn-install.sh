@@ -554,29 +554,30 @@ function installOpenVPN () {
 		yum install epel-release openvpn iptables openssl wget ca-certificates curl -y
 	elif [[ "$OS" = 'fedora' ]]; then
 		dnf install openvpn iptables openssl wget ca-certificates curl -y
-	elif [[ "$OS" = 'archlinux' ]]; then
-		# Else, the distro is ArchLinux
+	elif [[ "$OS" = 'arch' ]]; then
 		echo ""
-		echo ""
-		echo "As you're using ArchLinux, I need to update the packages on your system to install those I need."
-		echo "Not doing that could cause problems between dependencies, or missing files in repositories."
+		echo "WARNING: As you're using ArchLinux, I need to update the packages on your system to install those I need."
+		echo "Not doing that could cause problems between dependencies, or missing files in repositories (Arch Linux does not support partial upgrades)."
 		echo ""
 		echo "Continuing will update your installed packages and install needed ones."
+		echo ""
 		until [[ $CONTINUE == "y" || $CONTINUE == "n" ]]; do
 			read -rp "Continue ? [y/n]: " -e -i y CONTINUE
 		done
 		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Ok, bye !"
+			echo "Exiting because user did not permit updating the system."
 			exit 4
 		fi
-		if [[ "$OS" = 'arch' ]]; then
-			# Install dependencies
-			pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
-			iptables-save > /etc/iptables/iptables.rules # iptables won't start if this file does not exist
-			systemctl daemon-reload
-			systemctl enable iptables
-			systemctl start iptables
-		fi
+
+		# Install required dependencies and upgrade the system
+		pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
+
+		# iptables service won't start if this file does not exist
+		touch /etc/iptables/iptables.rules
+
+		# Enable iptables service
+		systemctl daemon-reload
+		systemctl enable --now iptables
 	fi
 
 	# Find out if the machine uses nogroup or nobody for the permissionless group
@@ -618,7 +619,7 @@ function installOpenVPN () {
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
-	
+
 	if [[ $DH_TYPE == "2" ]]; then
 		# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
 		openssl dhparam -out dh.pem $DH_KEY_SIZE
