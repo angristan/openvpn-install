@@ -1056,7 +1056,7 @@ function removeOpenVPN () {
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
-		if [[ "$OS" = (fedora|arch) ]]; then
+		if [[ "$OS" =~ (fedora|arch) ]]; then
 			systemctl disable openvpn-server@server
 			systemctl stop openvpn-server@server
 		elif [[ "$OS" == 'debian' ]] && [[ "$VERSION_ID" == "16.04" ]]; then
