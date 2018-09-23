@@ -104,16 +104,19 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
-			
+
 		fi
 		elif [[ "$OS" = "arch" ]]; then
 			# Install Unbound
 			pacman -Syu unbound expat
-			#Permissions for the DNSSEC keys
+
+			# Permissions for the DNSSEC keys
 			chown root:unbound /etc/unbound
 			chmod 775 /etc/unbound
+
 			# Get root servers list
 			wget https://www.internic.net/domain/named.root -O /etc/unbound/root.hints
+
 			# Configuration
 			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
 			echo 'server:
