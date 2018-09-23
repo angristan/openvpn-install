@@ -571,13 +571,6 @@ function installOpenVPN () {
 
 		# Install required dependencies and upgrade the system
 		pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
-
-		# iptables service won't start if this file does not exist
-		touch /etc/iptables/iptables.rules
-
-		# Enable iptables service
-		systemctl daemon-reload
-		systemctl enable --now iptables
 	fi
 
 	# Find out if the machine uses nogroup or nobody for the permissionless group
