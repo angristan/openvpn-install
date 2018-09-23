@@ -560,7 +560,7 @@ function installOpenVPN () {
 		echo ""
 		echo "Continuing will update your installed packages and install needed ones."
 		echo ""
-		unset $CONTINUE
+		unset CONTINUE
 		until [[ $CONTINUE =~ (y|n) ]]; do
 			read -rp "Continue? [y/n]: " -e -i y CONTINUE
 		done
