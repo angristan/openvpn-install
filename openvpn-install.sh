@@ -17,21 +17,37 @@ function tunAvailable () {
 
 function checkOS () {
 	if [[ -e /etc/debian_version ]]; then
-		OS="debian"
-		# Getting the version number, to verify that a recent version of OpenVPN is available
 		source /etc/os-release
-		if [[ ! $VERSION_ID =~ (8|9|16.04|17.10|18.04) ]]; then
-			echo "⚠️ Your version of Debian/Ubuntu is not supported."
-			echo ""
-			echo "However, if you're using Debian unstable/testing, or Ubuntu beta, then you can continue."
-			echo "Keep in mind they are not supported, though."
-			echo ""
-			until [[ $CONTINUE =~ (y|n) ]]; do
-				read -rp "Continue? [y/n]: " -e CONTINUE
-			done
-			if [[ "$CONTINUE" = "n" ]]; then
-				echo "Ok, bye!"
-				exit 1
+
+		if [[ "$ID" == "debian" ]]; then
+			OS="debian"
+			if [[ ! $VERSION_ID =~ (8|9) ]]; then
+				echo "⚠️ Your version of Debian is not supported."
+				echo ""
+				echo "However, if you're using Debian >= 9 or unstable/testing then you can continue."
+				echo "Keep in mind they are not supported, though."
+				echo ""
+				until [[ $CONTINUE =~ (y|n) ]]; do
+					read -rp "Continue? [y/n]: " -e CONTINUE
+				done
+				if [[ "$CONTINUE" = "n" ]]; then
+					exit 1
+				fi
+			fi
+		elif [[ "$ID" == "ubuntu" ]];then
+			OS="ubuntu"
+			if [[ ! $VERSION_ID =~ (16.04|18.04) ]]; then
+				echo "⚠️ Your version of Ubuntu is not supported."
+				echo ""
+				echo "However, if you're using Ubuntu > 17 or beta, then you can continue."
+				echo "Keep in mind they are not supported, though."
+				echo ""
+				until [[ $CONTINUE =~ (y|n) ]]; do
+					read -rp "Continue? [y/n]: " -e CONTINUE
+				done
+				if [[ "$CONTINUE" = "n" ]]; then
+					exit 1
+				fi
 			fi
 		fi
 	elif [[ -e /etc/fedora-release ]]; then
@@ -74,7 +90,7 @@ function initialCheck () {
 function installUnbound () {
 	if [[ ! -e /etc/unbound/unbound.conf ]]; then
 
-		if [[ "$OS" = "debian" ]]; then
+		if [[ "$OS" =~ (debian|ubuntu) ]]; then
 			apt-get install -y unbound
 
 			# Configuration
@@ -533,7 +549,7 @@ function installOpenVPN () {
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
-	if [[ "$OS" = 'debian' ]]; then
+	if [[ "$OS" =~ (debian|ubuntu) ]]; then
 		apt-get update
 		apt-get install ca-certificates gnupg -y
 		# We add the OpenVPN repo to get the latest version.
@@ -1028,7 +1044,7 @@ function removeUnbound () {
 		# Stop Unbound
 		systemctl stop unbound
 
-		if [[ "$OS" = 'debian' ]]; then
+		if [[ "$OS" =~ (debian|ubuntu) ]]; then
 			apt-get autoremove --purge -y unbound
 		elif [[ "$OS" = 'arch' ]]; then
 			pacman --noconfirm -R unbound
@@ -1085,7 +1101,7 @@ function removeOpenVPN () {
 			fi
 		fi
 
-		if [[ "$OS" = 'debian' ]]; then
+		if [[ "$OS" =~ (debian|ubuntu) ]]; then
 			apt-get autoremove --purge -y openvpn
 			if [[ -e /etc/apt/sources.list.d/openvpn.list ]];then
 				rm /etc/apt/sources.list.d/openvpn.list
