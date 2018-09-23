@@ -101,7 +101,7 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 - Linux: The `openvpn` package from your distribution. There is an [official APT repository](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Debian/Ubuntu based distributions.
 - macOS: [Tunnelblick](https://tunnelblick.net/).
 - Android: [OpenVPN for Android](https://play.google.com/store/apps/details?id=de.blinkt.openvpn).
-- iOS: [The official iOS OpenVPN Client](https://itunes.apple.com/us/app/openvpn-connect/id590379981?mt=8) fully 2.4-compatible client.
+- iOS: [The official OpenVPN Connect client](https://itunes.apple.com/us/app/openvpn-connect/id590379981).
 
 ---
 
