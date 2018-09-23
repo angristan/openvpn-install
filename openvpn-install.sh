@@ -729,7 +729,7 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 
 	# Finally, restart and enable OpenVPN
-	if [[ "$OS" = 'fedora' ]]; then
+	if [[ "$OS" == 'fedora' ]]; then
 		# Workaround to fix OpenVPN service on OpenVZ
 		sed -i 's|LimitNPROC|#LimitNPROC|' /usr/lib/systemd/system/openvpn-server@.service
 		# Another workaround to keep using /etc/openvpn/
