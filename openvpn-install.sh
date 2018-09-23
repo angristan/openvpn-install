@@ -536,12 +536,12 @@ function installOpenVPN () {
 
 	# Install the latest version of easy-rsa from source
 	local version="3.0.5"
-	wget -O ~/EasyRSA-${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
-	tar xzf ~/EasyRSA-${version}.tgz -C ~/
-	mv ~/EasyRSA-${version}/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-${version}/ /etc/openvpn/easy-rsa/
+	wget -O ~/EasyRSA-nix-${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-nix-${version}.tgz
+	tar xzf ~/EasyRSA-nix-${version}.tgz -C ~/
+	mv ~/EasyRSA-nix-${version}/ /etc/openvpn/
+	mv /etc/openvpn/EasyRSA-nix-${version}/ /etc/openvpn/easy-rsa/
 	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -f ~/EasyRSA-${version}.tgz
+	rm -f ~/EasyRSA-nix-${version}.tgz
 
 	cd /etc/openvpn/easy-rsa/
 	case $CERT_TYPE in
