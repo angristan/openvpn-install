@@ -535,7 +535,7 @@ function installOpenVPN () {
 	fi
 
 	# Install the latest version of easy-rsa from source
-	local version="3.0.4"
+	local version="3.0.5"
 	wget -O ~/EasyRSA-${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
 	tar xzf ~/EasyRSA-${version}.tgz -C ~/
 	mv ~/EasyRSA-${version}/ /etc/openvpn/
