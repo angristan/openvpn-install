@@ -320,7 +320,7 @@ function installQuestions () {
 	echo "Do you want to customize encryption settings?"
 	echo "Unless you know what you're doing, you should stick with the default parameters provided by the script."
 	echo "Note that whatever you choose, all the choices presented in the script are safe. (Unlike OpenVPN's defaults)"
-	echo "See https://github.com/angristan/openvpn-install#encryption to learn more."
+	echo "See https://github.com/angristan/openvpn-install#security-and-encryption to learn more."
 	echo ""
 	until [[ $CUSTOMIZE_ENC =~ (y|n) ]]; do
 		read -rp "Customize encryption settings? [y/n]: " -e -i n CUSTOMIZE_ENC
@@ -702,7 +702,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 149.112.112.112"' >> /etc/openvpn/server.conf
 		;;
-		5) # Quad9
+		5) # Quad9 uncensored
 			echo 'push "dhcp-option DNS 9.9.9.10"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 149.112.112.10"' >> /etc/openvpn/server.conf
 		;;
