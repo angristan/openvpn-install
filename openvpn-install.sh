@@ -797,10 +797,12 @@ verb 3" >> /etc/openvpn/server.conf
 
 	# Finally, restart and enable OpenVPN
 	if [[ "$OS" = 'arch' || "$OS" = 'fedora' ]]; then
+		# Don't modify package-provided service
+		cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 		# Workaround to fix OpenVPN service on OpenVZ
-		sed -i 's|LimitNPROC|#LimitNPROC|' /usr/lib/systemd/system/openvpn-server@.service
+		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
 		# Another workaround to keep using /etc/openvpn/
-		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /usr/lib/systemd/system/openvpn-server@.service
+		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn-server@.service
 		systemctl daemon-reload
 		systemctl restart openvpn-server@server
 		systemctl enable openvpn-server@server
@@ -810,10 +812,12 @@ verb 3" >> /etc/openvpn/server.conf
 		systemctl enable openvpn
 		systemctl start openvpn
 	else
+		# Don't modify package-provided service
+		cp /lib/systemd/system/openvpn\@.service /etc/systemd/system/openvpn\@.service
 		# Workaround to fix OpenVPN service on OpenVZ
-		sed -i 's|LimitNPROC|#LimitNPROC|' /lib/systemd/system/openvpn\@.service
+		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn\@.service
 		# Another workaround to keep using /etc/openvpn/
-		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /lib/systemd/system/openvpn\@.service
+		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn\@.service
 		systemctl daemon-reload
 		systemctl restart openvpn@server
 		systemctl enable openvpn@server
@@ -1080,12 +1084,16 @@ function removeOpenVPN () {
 		if [[ "$OS" =~ (fedora|arch) ]]; then
 			systemctl disable openvpn-server@server
 			systemctl stop openvpn-server@server
+			# Remove customised service
+			rm /etc/systemd/system/openvpn-server@.service
 		elif [[ "$OS" == 'debian' ]] && [[ "$VERSION_ID" == "16.04" ]]; then
 			systemctl disable openvpn
 			systemctl stop openvpn
 		else
 			systemctl disable openvpn@server
 			systemctl stop openvpn@server
+			# Remove customised service
+			rm /etc/systemd/system/openvpn\@.service
 		fi
 
 		# Remove the iptables rules related to the script
