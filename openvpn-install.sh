@@ -966,7 +966,7 @@ function newClient () {
 		echo "</ca>"
 
 		echo "<cert>"
-		cat "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt"
+		cat "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt" | awk '/BEGIN/,/END/'
 		echo "</cert>"
 
 		echo "<key>"
