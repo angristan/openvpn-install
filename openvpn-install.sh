@@ -268,13 +268,14 @@ function installQuestions () {
 	echo "   2) Self-hosted DNS Resolver (Unbound)"
 	echo "   3) Cloudflare (Anycast: worldwide)"
 	echo "   4) Quad9 (Anycast: worldwide)"
-	echo "   5) FDN (France)"
-	echo "   6) DNS.WATCH (Germany)"
-	echo "   7) OpenDNS (Anycast: worldwide)"
-	echo "   8) Google (Anycast: worldwide)"
-	echo "   9) Yandex Basic (Russia)"
-	echo "   10) AdGuard DNS (Russia)"
-	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 10 ]; do
+	echo "   5) Quad9 uncensored (Anycast: worldwide)"
+	echo "   6) FDN (France)"
+	echo "   7) DNS.WATCH (Germany)"
+	echo "   8) OpenDNS (Anycast: worldwide)"
+	echo "   9) Google (Anycast: worldwide)"
+	echo "   10) Yandex Basic (Russia)"
+	echo "   11) AdGuard DNS (Russia)"
+	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 11 ]; do
 		read -rp "DNS [1-10]: " -e -i 3 DNS
 			if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
 				echo ""
@@ -701,27 +702,31 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 149.112.112.112"' >> /etc/openvpn/server.conf
 		;;
-		5) # FDN
+		5) # Quad9
+			echo 'push "dhcp-option DNS 9.9.9.10"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 149.112.112.10"' >> /etc/openvpn/server.conf
+		;;
+		6) # FDN
 			echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 80.67.169.12"' >> /etc/openvpn/server.conf
 		;;
-		6) # DNS.WATCH
+		7) # DNS.WATCH
 			echo 'push "dhcp-option DNS 84.200.69.80"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 84.200.70.40"' >> /etc/openvpn/server.conf
 		;;
-		7) # OpenDNS
+		8) # OpenDNS
 			echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
 		;;
-		8) # Google
+		9) # Google
 			echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
 		;;
-		9) # Yandex Basic
+		10) # Yandex Basic
 			echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
 		;;
-		10) # AdGuard DNS
+		11) # AdGuard DNS
 			echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
 		;;
