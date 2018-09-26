@@ -115,9 +115,15 @@ You can, of course, it's even recommended, update the `openvpn` package with you
 
 **Q:** How do I check for DNS leaks?
 
-**A:**  Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your server's IP should show up.
+**A:** Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your server's IP should show up.
 
 ---
+
+**Q:** Am I safe from the NSA by using your script?
+
+**A:** Please review your threat models. Even if this script has security in mind and uses state-of-the-art encryption, you shouldn't be using a VPN if you want to hide from the NSA.
+
+--
 
 **Q:** Is there an OpenVPN documentation?
 
