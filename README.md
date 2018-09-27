@@ -11,7 +11,7 @@ This script will let you setup your own secure VPN server in just a few seconds.
 First, get the script and make it executable :
 
 ```bash
-wget https://raw.githubusercontent.com/Angristan/openvpn-install/master/openvpn-install.sh
+curl -O https://raw.githubusercontent.com/Angristan/openvpn-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
 
@@ -67,7 +67,6 @@ The script supports these OS and architectures:
 |   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
 | Ubuntu 16.04 |   ✅  |  ✅  |   ❌   |   ❌  |
 | Ubuntu 18.04 |   ❌  |  ✅  |   ✅   |   ✅  |
-
 
 To be noted:
 
