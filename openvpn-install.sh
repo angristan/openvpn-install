@@ -567,7 +567,8 @@ function installOpenVPN () {
 		# Ubuntu > 16.04 and Debian > 8 have OpenVPN >= 2.4 without the need of a third party repository.
 		apt-get install openvpn iptables openssl wget ca-certificates curl -y
 	elif [[ "$OS" = 'centos' ]]; then
-		yum install epel-release openvpn iptables openssl wget ca-certificates curl -y
+		yum install epel-release
+		yum install openvpn iptables openssl wget ca-certificates curl -y
 	elif [[ "$OS" = 'fedora' ]]; then
 		dnf install openvpn iptables openssl wget ca-certificates curl -y
 	elif [[ "$OS" = 'arch' ]]; then
