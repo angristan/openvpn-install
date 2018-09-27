@@ -812,7 +812,7 @@ verb 3" >> /etc/openvpn/server.conf
 		systemctl daemon-reload
 		systemctl restart openvpn-server@server
 		systemctl enable openvpn-server@server
-	elif [[ "$OS" == 'debian' ]] && [[ "$VERSION_ID" == "16.04" ]]; then
+	elif [[ "$OS" == "ubuntu" ]] && [[ "$VERSION_ID" == "16.04" ]]; then
 		# On Ubuntu 16.04, we use the package from the OpenVPN repo
 		# This package uses a sysvinit service
 		systemctl enable openvpn
@@ -1095,7 +1095,7 @@ function removeOpenVPN () {
 			systemctl stop openvpn-server@server
 			# Remove customised service
 			rm /etc/systemd/system/openvpn-server@.service
-		elif [[ "$OS" == 'debian' ]] && [[ "$VERSION_ID" == "16.04" ]]; then
+		elif [[ "$OS" == "ubuntu" ]] && [[ "$VERSION_ID" == "16.04" ]]; then
 			systemctl disable openvpn
 			systemctl stop openvpn
 		else
