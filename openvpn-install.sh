@@ -552,7 +552,7 @@ function installOpenVPN () {
 
 	if [[ "$OS" =~ (debian|ubuntu) ]]; then
 		apt-get update
-		apt-get install ca-certificates gnupg -y
+		apt-get -y install ca-certificates gnupg
 		# We add the OpenVPN repo to get the latest version.
 		if [[ "$VERSION_ID" = "8" ]]; then
 			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
@@ -565,12 +565,12 @@ function installOpenVPN () {
 			apt-get update
 		fi
 		# Ubuntu > 16.04 and Debian > 8 have OpenVPN >= 2.4 without the need of a third party repository.
-		apt-get install openvpn iptables openssl wget ca-certificates curl -y
+		apt-get install -y openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'centos' ]]; then
-		yum install epel-release
-		yum install openvpn iptables openssl wget ca-certificates curl -y
+		yum install -y epel-release
+		yum install -y openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'fedora' ]]; then
-		dnf install openvpn iptables openssl wget ca-certificates curl -y
+		dnf install -y openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'arch' ]]; then
 		echo ""
 		echo "WARNING: As you're using ArchLinux, I need to update the packages on your system to install those I need."
@@ -1068,9 +1068,9 @@ function removeUnbound () {
 		elif [[ "$OS" = 'arch' ]]; then
 			pacman --noconfirm -R unbound
 		elif [[ "$OS" = 'centos' ]]; then
-			yum remove unbound -y
+			yum remove -y unbound
 		elif [[ "$OS" = 'fedora' ]]; then
-			dnf remove unbound -y
+			dnf remove -y unbound
 		fi
 
 		rm -rf /etc/unbound/
@@ -1133,9 +1133,9 @@ function removeOpenVPN () {
 		elif [[ "$OS" = 'arch' ]]; then
 			pacman --noconfirm -R openvpn
 		elif [[ "$OS" = 'centos' ]]; then
-			yum remove openvpn -y
+			yum remove -y openvpn
 		elif [[ "$OS" = 'fedora' ]]; then
-			dnf remove openvpn -y
+			dnf remove -y openvpn
 		fi
 
 		# Cleanup
