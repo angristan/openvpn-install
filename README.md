@@ -42,8 +42,8 @@ If you have any question, head to the [FAQ](#faq) first.
 - If needed, the script can cleanly remove OpenVPN, including configuration and iptables rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
 - OpenVPN 2.4 features, mainly encryption improvements (see [Security and Encryption](#security-and-encryption) below)
-- Varietey of DNS resolvers to be pushed to the clients
-- Choice to use a self-hosted resolver with Unbound (supports already existing Unboud installations)
+- Variety of DNS resolvers to be pushed to the clients
+- Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
 - Choice between TCP and UDP
 - NATed IPv6 support
 - Compression disabled by default to prevent VORACLE. LZ4 and LZ0 algorithms available otherwise.
@@ -122,7 +122,7 @@ You can, of course, it's even recommended, update the `openvpn` package with you
 
 **A:** Please review your threat models. Even if this script has security in mind and uses state-of-the-art encryption, you shouldn't be using a VPN if you want to hide from the NSA.
 
---
+---
 
 **Q:** Is there an OpenVPN documentation?
 
@@ -161,7 +161,7 @@ If you want more information about an option mentioned below, head to the [OpenV
 Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.6/easyrsa3/vars.example) file.
 ### Compression
 
-By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 algorthms, the latter being more efficient.
+By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 algorithms, the latter being more efficient.
 
 However, it is discouraged to use compression since it since the [VORACLE attack](https://protonvpn.com/blog/voracle-attack/) makes use of it.
 
@@ -190,7 +190,7 @@ OpenVPN uses `SHA-256` as the signature hash by default, and so does the script.
 
 ### Data channel
 
-By default, OpenVPN uses `BF-CBC` as the data channel cipher. Blowfish is an old (1993) and weak alogorithm. Even the official OpenVPN documentation admits it.
+By default, OpenVPN uses `BF-CBC` as the data channel cipher. Blowfish is an old (1993) and weak algorithm. Even the official OpenVPN documentation admits it.
 
 > The default is BF-CBC, an abbreviation for Blowfish in Cipher Block Chaining mode.
 >
@@ -219,7 +219,7 @@ The script supports the following ciphers:
 
 And defaults to `AES-128-GCM`.
 
-OpenVPN 2.4 added a feature called "NCP": *Negociable Crypto Parameters*. It means you can provide a cipher suite like with HTTPS. It is set to `AES-256-GCM:AES-128-GCM` by default and overrides the `--cipher` parameter when used with an OpenVPN 2.4 client. For the sake of simplicity, the script set both the `--cipher` and `--ncp-cipher` to the cipher chosen above.
+OpenVPN 2.4 added a feature called "NCP": *Negotiable Crypto Parameters*. It means you can provide a cipher suite like with HTTPS. It is set to `AES-256-GCM:AES-128-GCM` by default and overrides the `--cipher` parameter when used with an OpenVPN 2.4 client. For the sake of simplicity, the script set both the `--cipher` and `--ncp-cipher` to the cipher chosen above.
 
 ### Control channel
 
@@ -298,6 +298,6 @@ You can [say thanks](https://saythanks.io/to/Angristan) if you want!
 
 ## Credits & Licence
 
-Many thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors) and Nyr's orginal work.
+Many thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors) and Nyr's original work.
 
 This project is under the [MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
