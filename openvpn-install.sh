@@ -471,7 +471,7 @@ function installQuestions () {
 				echo "   2) secp256k1"
 				echo "   3) secp384r1"
 				echo "   4) secp521r1"
-                until [[ $DH_CURVE_CHOICE =~ ^[1-4]$ ]]; do
+				until [[ $DH_CURVE_CHOICE =~ ^[1-4]$ ]]; do
 					read -rp"Curve [1-4]: " -e -i 1 DH_CURVE_CHOICE
 				done
 				case $DH_CURVE_CHOICE in
