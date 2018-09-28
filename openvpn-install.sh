@@ -248,7 +248,7 @@ function installQuestions () {
 	esac
 	echo ""
 	echo "What protocol do you want OpenVPN to use?"
-	echo "UDP is faster. Unless it is not available, you shoudn't use TCP."
+	echo "UDP is faster. Unless it is not available, you shouldn't use TCP."
 	echo "   1) UDP"
 	echo "   2) TCP"
 	until [[ "$PROTOCOL_CHOICE" =~ ^[1-2]$ ]]; do
@@ -326,7 +326,7 @@ function installQuestions () {
 		read -rp "Customize encryption settings? [y/n]: " -e -i n CUSTOMIZE_ENC
 	done
 	if [[ $CUSTOMIZE_ENC == "n" ]];then
-		# Use default, sane and fast paramters
+		# Use default, sane and fast parameters
 		CIPHER="AES-128-GCM"
 		CERT_TYPE="1" # ECDSA
 		CERT_CURVE="prime256v1"
@@ -368,7 +368,7 @@ function installQuestions () {
 			;;
 		esac
 		echo ""
-		echo "Choose what kind of certificate you want to use."
+		echo "Choose what kind of certificate you want to use:"
 		echo "   1) ECDSA (recommended)"
 		echo "   2) RSA"
 		until [[ $CERT_TYPE =~ ^[1-2]$ ]]; do
@@ -453,7 +453,7 @@ function installQuestions () {
 			;;
 		esac
 		echo ""
-		echo "Choose what kind of Diffie-Hellman key you want to use."
+		echo "Choose what kind of Diffie-Hellman key you want to use:"
 		echo "   1) ECDH (recommended)"
 		echo "   2) DH"
 		until [[ $DH_TYPE =~ [1-2] ]]; do
@@ -462,7 +462,7 @@ function installQuestions () {
 		case $DH_TYPE in
 			1)
 				echo ""
-				echo "Choose which curve you want to use for the ECDH key"
+				echo "Choose which curve you want to use for the ECDH key:"
 				echo "   1) prime256v1 (recommended)"
 				echo "   2) secp384r1"
 				echo "   3) secp521r1"
@@ -539,7 +539,7 @@ function installQuestions () {
 	fi
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
-	echo "You will be able to generate a client at the end of the installtion."
+	echo "You will be able to generate a client at the end of the installation."
 	read -n1 -r -p "Press any key to continue..."
 }
 
