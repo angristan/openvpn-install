@@ -17,10 +17,10 @@ function tunAvailable () {
 
 function checkOS () {
 	if [[ -e /etc/debian_version ]]; then
+		OS="debian"
 		source /etc/os-release
 
 		if [[ "$ID" == "debian" ]]; then
-			OS="debian"
 			if [[ ! $VERSION_ID =~ (8|9) ]]; then
 				echo "⚠️ Your version of Debian is not supported."
 				echo ""
