@@ -211,7 +211,7 @@ function installQuestions () {
 	echo ""
 	echo "Checking for IPv6 connectivity..."
 	echo ""
-	if ping6 -c4 ipv6.google.com > /dev/null 2>&1; then
+	if ping -6 -c4 ipv6.google.com > /dev/null 2>&1; then
 		echo "Your host appears to have IPv6 connectivity."
 		SUGGESTION="y"
 	else
