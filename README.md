@@ -60,7 +60,7 @@ The script supports these OS and architectures:
 |              | i386 | amd64 | armhf | arm64 |
 | ------------ | ---- | ----- | ----- | ----- |
 |  Arch Linux  |   ❔  |  ✅  |   ❔   |   ❔  |
-|   CentOS 7   |   ❔  |  ✅  |   ❌   |   ❌  |
+|   CentOS 7   |   ❔  |  ✅  |   ❌   |   ✅  |
 |   Debian 8   |   ✅  |  ✅  |   ❌   |   ❌  |
 |   Debian 9   |   ❌  |  ✅  |   ✅   |   ✅  |
 |   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
