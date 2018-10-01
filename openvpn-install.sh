@@ -660,6 +660,7 @@ function installOpenVPN () {
 	chmod 644 /etc/openvpn/crl.pem
 
 	# Generate server.conf
+	echo "local $IP" >> /etc/openvpn/server.conf
 	echo "port $PORT" > /etc/openvpn/server.conf
 	if [[ "$IPV6_SUPPORT" = 'n' ]]; then
 		echo "proto $PROTOCOL" >> /etc/openvpn/server.conf
