@@ -881,8 +881,8 @@ ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/rm-openvpn-rule
 	# Handle the rules via a systemd script
 	echo "[Unit]
 Description=iptables rules for OpenVPN
-Before=network-pre.target
-Wants=network-pre.target
+Before=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
