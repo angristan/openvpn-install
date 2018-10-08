@@ -82,6 +82,8 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 
 ## FAQ
 
+**LOOK AT THE [WIKI](https://github.com/angristan/openvpn-install/wiki/FAQ) FOR MORE INFORMATION. PLEASE READ BOTH BEFORE OPENING AN ISSUE.**
+
 **Q:** Which provider do you recommend?
 
 **A:** I recommend these:
@@ -104,20 +106,6 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 
 ---
 
-**Q:** The script has been updated since I installed OpenVPN. How do I update?
-
-**A:** You can't. Managing updates and new features from the script would require way too much work. Your only solution is to uninstall OpenVPN and reinstall with the updated script.
-
-You can, of course, it's even recommended, update the `openvpn` package with your package manager.
-
----
-
-**Q:** How do I check for DNS leaks?
-
-**A:** Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your server's IP should show up.
-
----
-
 **Q:** Am I safe from the NSA by using your script?
 
 **A:** Please review your threat models. Even if this script has security in mind and uses state-of-the-art encryption, you shouldn't be using a VPN if you want to hide from the NSA.
@@ -126,27 +114,7 @@ You can, of course, it's even recommended, update the `openvpn` package with you
 
 **Q:** Is there an OpenVPN documentation?
 
-**A:** Yes, please had to the [OpenVPN Manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage), which references all the options.
-
----
-
-**Q:** Can I use an OpenVPN 2.3 client?
-
-**A:** Yes. I really recommend using an up-to-date client, but if you really need it, choose the following options:
-
-- No compression or LZ0
-- RSA certificate
-- DH Key
-- AES CBC
-- tls-auth
-
-If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/server.conf` and `.ovpn` files.
-
----
-
-**Q:** IPv6 is not working on my Hetzner VM
-
-**A:** This an issue on their side. See [issue #295](https://github.com/angristan/openvpn-install/issues/295).
+**A:** Yes, please head to the [OpenVPN Manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage), which references all the options.
 
 ---
 
