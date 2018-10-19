@@ -1150,6 +1150,7 @@ function removeOpenVPN () {
 		rm -rf /etc/openvpn
 		rm -rf /usr/share/doc/openvpn*
 		rm -f /etc/sysctl.d/20-openvpn.conf
+		rm -rf /var/log/openvpn
 
 		# Unbound
 		if [[ -e /etc/unbound/openvpn.conf ]]; then
