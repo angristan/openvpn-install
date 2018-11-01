@@ -67,6 +67,8 @@ function checkOS () {
 			fi
 		fi
 		OS=centos
+	elif [[ -e /etc/os-release ]]; then
+		OS=amazon
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
@@ -572,6 +574,9 @@ function installOpenVPN () {
 		fi
 		# Ubuntu > 16.04 and Debian > 8 have OpenVPN >= 2.4 without the need of a third party repository.
 		apt-get install -y openvpn iptables openssl wget ca-certificates curl
+	elif [[ "$OS" = 'amazon' ]]; then
+		amazon-linux-extras install epel -y
+		yum install -y openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'centos' ]]; then
 		yum install -y epel-release
 		yum install -y openvpn iptables openssl wget ca-certificates curl
