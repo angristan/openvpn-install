@@ -67,7 +67,7 @@ function checkOS () {
 			fi
 		fi
 		OS=centos
-	elif [[ -e /etc/os-release ]]; then
+	elif [[ -e /etc/system-release && `grep -is "Amazon Linux" /etc/system-release` ]]; then
 		OS=amazon
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
@@ -1147,6 +1147,8 @@ function removeOpenVPN () {
 			yum remove -y openvpn
 		elif [[ "$OS" = 'fedora' ]]; then
 			dnf remove -y openvpn
+		elif [[ "$OS" = 'amazon' ]]; then
+			yum -y remove openvpn
 		fi
 
 		# Cleanup
