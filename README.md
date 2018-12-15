@@ -84,6 +84,8 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 
 **LOOK AT THE [WIKI](https://github.com/angristan/openvpn-install/wiki/FAQ) FOR MORE INFORMATION. PLEASE READ BOTH BEFORE OPENING AN ISSUE.**
 
+**PLEASE do net send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you.
+
 **Q:** Which provider do you recommend?
 
 **A:** I recommend these:
