@@ -198,7 +198,7 @@ function installQuestions () {
 	# Detect public IPv4 address and pre-fill for the user
 	IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
 	read -rp "IP address: " -e -i "$IP" IP
-	# If $IP is a private IP address, the server must be behind NAT
+	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
 		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
@@ -229,6 +229,21 @@ function installQuestions () {
 	until [[ $IPV6_SUPPORT =~ (y|n) ]]; do
 		read -rp "Do you want to enable IPv6 support (NAT)? [y/n]: " -e -i $SUGGESTION IPV6_SUPPORT
 	done
+    echo ""
+    
+    # Ask the user for its public IPv6 address.
+    if [[ "$IPV6_SUPPORT" = 'y' ]]; then
+		until [[ $WANTS_CONNECTION_THROUGH_IPv6 =~ (y|n) ]]; do
+		    read -rp "Do you want to add connection to server through IPv6? [y/n]: " -e -i $SUGGESTION WANTS_CONNECTION_THROUGH_IPv6
+	    done
+    fi
+
+    if [[ "$WANTS_CONNECTION_THROUGH_IPv6" = 'y' ]]; then
+		until [[ "$PUBLICIPv6" != "" ]]; do
+			read -rp "Public IPv6 address or hostname: " -e PUBLICIPv6
+		done
+    fi
+        
 	echo ""
 	echo "What port do you want OpenVPN to listen to?"
 	echo "   1) Default: 1194"
@@ -883,13 +898,11 @@ ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/rm-openvpn-rule
 Description=iptables rules for OpenVPN
 Before=network-online.target
 Wants=network-online.target
-
 [Service]
 Type=oneshot
 ExecStart=/etc/iptables/add-openvpn-rules.sh
 ExecStop=/etc/iptables/rm-openvpn-rules.sh
 RemainAfterExit=yes
-
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
 
@@ -906,12 +919,17 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
 	# client-template.txt is created so we have a template to add further users later
 	echo "client" > /etc/openvpn/client-template.txt
 	if [[ "$PROTOCOL" = 'udp' ]]; then
-		echo "proto udp" >> /etc/openvpn/client-template.txt
+		PROTO4="udp"
+        PROTO6="udp6"
 	elif [[ "$PROTOCOL" = 'tcp' ]]; then
-		echo "proto tcp-client" >> /etc/openvpn/client-template.txt
+		PROTO4="tcp-client"
+        PROTO6="tcp6-client"
 	fi
-	echo "remote $IP $PORT
-dev tun
+	echo "remote $IP $PORT $PROTO4" >> /etc/openvpn/client-template.txt
+    if [[ "$WANTS_CONNECTION_THROUGH_IPv6" = 'y' ]]; then
+		echo "remote $PUBLICIPv6 $PORT $PROTO6" >> /etc/openvpn/client-template.txt
+    fi
+echo "dev tun
 resolv-retry infinite
 nobind
 persist-key
