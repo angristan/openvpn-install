@@ -46,6 +46,7 @@ If you have any question, head to the [FAQ](#faq) first.
 - Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
 - Choice between TCP and UDP
 - NATed IPv6 support
+- Connection to openvpn server through IPv6 interface
 - Compression disabled by default to prevent VORACLE. LZ4 and LZ0 algorithms available otherwise.
 - Unprivileged mode: run as `nobody`/`nogroup`
 - Block DNS leaks on Windows 10
