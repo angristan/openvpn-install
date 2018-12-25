@@ -921,6 +921,7 @@ verify-x509-name $SERVER_NAME name
 auth $HMAC_ALG
 auth-nocache
 cipher $CIPHER
+dhcp-option DNS 192.168.1.1
 tls-client
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
