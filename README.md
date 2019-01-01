@@ -11,7 +11,7 @@ This script will let you setup your own secure VPN server in just a few seconds.
 First, get the script and make it executable :
 
 ```bash
-curl -O https://raw.githubusercontent.com/Angristan/openvpn-install/master/openvpn-install.sh
+curl -O https://raw.githubusercontent.com/tuckyapps/openvpn-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
 
@@ -83,7 +83,7 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 
 ## FAQ
 
-**LOOK AT THE [WIKI](https://github.com/angristan/openvpn-install/wiki/FAQ) FOR MORE INFORMATION. PLEASE READ BOTH BEFORE OPENING AN ISSUE.**
+**LOOK AT THE [WIKI](https://github.com/tuckyapps/openvpn-install/wiki/FAQ) FOR MORE INFORMATION. PLEASE READ BOTH BEFORE OPENING AN ISSUE.**
 
 **PLEASE do net send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you.
 
@@ -269,6 +269,6 @@ You can [say thanks](https://saythanks.io/to/Angristan) if you want!
 
 ## Credits & Licence
 
-Many thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors) and Nyr's original work.
+Many thanks to the [contributors](https://github.com/tuckyapps/OpenVPN-install/graphs/contributors) and Nyr's original work.
 
-This project is under the [MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
+This project is under the [MIT Licence](https://raw.githubusercontent.com/tuckyapps/openvpn-install/master/LICENSE)
