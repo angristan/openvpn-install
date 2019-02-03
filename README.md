@@ -37,6 +37,25 @@ In your home directory, you will have `.ovpn` files. These are the client config
 
 If you have any question, head to the [FAQ](#faq) first.
 
+### Headless install
+
+It's also possible to run the script headless.
+
+Example usage:
+```bash
+export APPROVE_INSTALL=y
+export APPROVE_IP=y
+export IPV6_SUPPORT=n
+export PORT_CHOICE=1
+export PROTOCOL_CHOICE=1
+export DNS=1
+export COMPRESSION_ENABLED=n
+export CUSTOMIZE_ENC=n
+export CLIENT=clientName
+export PASS=1
+./openvpn-install.sh
+```
+
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
