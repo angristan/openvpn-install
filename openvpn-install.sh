@@ -568,6 +568,7 @@ function installOpenVPN () {
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
+		CONTINUE=${CONTINUE:-y}
 
 		# Behind NAT, we'll default to the publicly reachable IPv4.
 		PUBLIC_IPV4=$(curl ifconfig.co)
@@ -602,21 +603,6 @@ function installOpenVPN () {
 	elif [[ "$OS" = 'fedora' ]]; then
 		dnf install -y openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'arch' ]]; then
-		echo ""
-		echo "WARNING: As you're using ArchLinux, I need to update the packages on your system to install those I need."
-		echo "Not doing that could cause problems between dependencies, or missing files in repositories (Arch Linux does not support partial upgrades)."
-		echo ""
-		echo "Continuing will update your installed packages and install needed ones."
-		echo ""
-		unset CONTINUE
-		until [[ $CONTINUE =~ (y|n) ]]; do
-			read -rp "Continue? [y/n]: " -e -i y CONTINUE
-		done
-		if [[ "$CONTINUE" = "n" ]]; then
-			echo "Exiting because user did not permit updating the system."
-			exit 4
-		fi
-
 		# Install required dependencies and upgrade the system
 		pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 	fi
