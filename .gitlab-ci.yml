@@ -15,5 +15,5 @@ vagrant validate:
   stage: Vagrant linting
   script:
   - apt-get update
-  - apt-get install -y vagrant
+  - apt-get install --no-install-recommends -y vagrant
   - vagrant validate
