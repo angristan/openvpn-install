@@ -14,6 +14,7 @@ shellcheck:
 vagrant validate:
   stage: Vagrant linting
   script:
+  - echo "deb http://deb.debian.org/debian stretch main contrib" > /etc/apt/sources.list
   - apt-get update
   - apt-get install --no-install-recommends -y vagrant virtualbox
   - vagrant validate
