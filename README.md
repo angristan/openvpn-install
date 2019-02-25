@@ -43,20 +43,34 @@ It's also possible to run the script headless, e.g. without waiting for user inp
 
 Example usage:
 ```bash
-export APPROVE_INSTALL=y
-export APPROVE_IP=y
-export IPV6_SUPPORT=n
-export PORT_CHOICE=1
-export PROTOCOL_CHOICE=1
-export DNS=1
-export COMPRESSION_ENABLED=n
-export CUSTOMIZE_ENC=n
-export CLIENT=clientname
-export PASS=1
+AUTO_INSTALL=y ./openvpn-install.sh
+
+# or
+
+export AUTO_INSTALL=y
 ./openvpn-install.sh
 ```
 
-If the server is behind NAT, you can specify its endpoint with the `PUBLICIP` variable. It the endpoint is the public IP address which it is behind, you can use `export PUBLICIP=$(curl ifconfig.co)`.
+A default set of variables will then be set, by passing the need for user input.
+
+If you want to customise your installation, you can export them or specify them on the same line, as shown above.
+
+- `APPROVE_INSTALL=y`
+- `APPROVE_IP=y`
+- `IPV6_SUPPORT=n`
+- `PORT_CHOICE=1`
+- `PROTOCOL_CHOICE=1`
+- `DNS=1`
+- `COMPRESSION_ENABLED=n`
+- `CUSTOMIZE_ENC=n`
+- `CLIENT=clientname`
+- `PASS=1`
+
+If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. It the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl ifconfig.co)` (the script will default to this.)
+
+Other variables can be set depending on your choice (encryption, compression). You can search for then in the `installQuestions()` function of the script.
+
+Password-protected clients are not supported by the headless installation method since user input is expected by OpenSSL.
 
 ## Features
 

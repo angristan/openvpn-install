@@ -206,8 +206,8 @@ function installQuestions () {
 		echo ""
 		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
 		echo "We need it for the clients to connect to the server."
-		until [[ "$PUBLICIP" != "" ]]; do
-			read -rp "Public IPv4 address or hostname: " -e PUBLICIP
+		until [[ "$ENDPOINT" != "" ]]; do
+			read -rp "Public IPv4 address or hostname: " -e ENDPOINT
 		done
 	fi
 
@@ -556,8 +556,26 @@ function installQuestions () {
 }
 
 function installOpenVPN () {
-	# Run setup questions first
-	installQuestions
+	if [[ $AUTO_INSTALL == "y" ]]; then
+		# Set default choices so that no questions will be asked.
+		APPROVE_INSTALL=${APPROVE_INSTALL:-y}
+		APPROVE_IP=${APPROVE_IP:-y}
+		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
+		PORT_CHOICE=${PORT_CHOICE:-1}
+		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
+		DNS=${DNS:-1}
+		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
+		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
+		CLIENT=${CLIENT:-client}
+		PASS=${PASS:-1}
+
+		# Behind NAT, we'll default to the publicly reachable IPv4.
+		PUBLIC_IPV4=$(curl ifconfig.co)
+		ENDPOINT=${ENDPOINT:-PUBLIC_IPV4}
+	else
+		# Run setup questions first
+		installQuestions
+	fi
 
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
@@ -905,8 +923,8 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
 	systemctl start iptables-openvpn
 
 	# If the server is behind a NAT, use the correct IP address for the clients to connect to
-	if [[ "$PUBLICIP" != "" ]]; then
-		IP=$PUBLICIP
+	if [[ "$ENDPOINT" != "" ]]; then
+		IP=$ENDPOINT
 	fi
 
 	# client-template.txt is created so we have a template to add further users later
