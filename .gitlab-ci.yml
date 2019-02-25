@@ -2,6 +2,7 @@ image: debian:buster-slim
 
 stages:
   - Bash linting
+  - Vagrant linting
 
 shellcheck:
   stage: Bash linting
@@ -9,3 +10,10 @@ shellcheck:
   - apt-get update
   - apt-get install -y shellcheck
   - shellcheck -e SC1091,SC2164,SC2034,SC1072,SC1073,SC1009 openvpn-install.sh
+
+vagrant validate:
+  stage: Vagrant linting
+  script:
+  - apt-get update
+  - apt-get install -y vagrant
+  - vagrant validate
