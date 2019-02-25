@@ -572,10 +572,10 @@ function installOpenVPN () {
 		# Behind NAT, we'll default to the publicly reachable IPv4.
 		PUBLIC_IPV4=$(curl ifconfig.co)
 		ENDPOINT=${ENDPOINT:-PUBLIC_IPV4}
-	else
-		# Run setup questions first
-		installQuestions
 	fi
+
+	# Run setup questions first, and set other variales if auto-install
+	installQuestions
 
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
@@ -1039,6 +1039,8 @@ function newClient () {
 	echo ""
 	echo "Client $CLIENT added, the configuration file is available at $homeDir/$CLIENT.ovpn."
 	echo "Download the .ovpn file and import it in your OpenVPN client."
+
+	exit 0
 }
 
 function revokeClient () {
