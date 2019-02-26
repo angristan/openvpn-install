@@ -70,7 +70,7 @@ If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` va
 
 Other variables can be set depending on your choice (encryption, compression). You can search for then in the `installQuestions()` function of the script.
 
-Password-protected clients are not supported by the headless installation method since user input is expected by OpenSSL.
+Password-protected clients are not supported by the headless installation method since user input is expected by Easy-RSA.
 
 ## Features
 
