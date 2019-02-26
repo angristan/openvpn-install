@@ -66,7 +66,7 @@ If you want to customise your installation, you can export them or specify them 
 - `CLIENT=clientname`
 - `PASS=1`
 
-If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. It the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl ifconfig.co)` (the script will default to this.)
+If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4, an IPv6 or a domain.
 
 Other variables can be set depending on your choice (encryption, compression). You can search for then in the `installQuestions()` function of the script.
 
