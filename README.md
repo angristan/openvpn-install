@@ -68,7 +68,7 @@ If you want to customise your installation, you can export them or specify them 
 
 If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
 
-Other variables can be set depending on your choice (encryption, compression). You can search for then in the `installQuestions()` function of the script.
+Other variables can be set depending on your choice (encryption, compression). You can search for them in the `installQuestions()` function of the script.
 
 Password-protected clients are not supported by the headless installation method since user input is expected by Easy-RSA.
 
