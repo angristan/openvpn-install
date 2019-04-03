@@ -1,6 +1,7 @@
 # openvpn-install
 
 [![Travis CI](https://travis-ci.com/angristan/openvpn-install.svg?branch=master)](https://travis-ci.com/angristan/openvpn-install)
+[![Open Source Helpers](https://www.codetriage.com/angristan/openvpn-install/badges/users.svg)](https://www.codetriage.com/angristan/openvpn-install)
 
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
 
