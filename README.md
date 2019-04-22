@@ -105,6 +105,7 @@ The script supports these OS and architectures:
 |   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
 | Ubuntu 16.04 |   ✅  |  ✅  |   ❌   |   ❌  |
 | Ubuntu 18.04 |   ❌  |  ✅  |   ✅   |   ✅  |
+| Ubuntu 19.04 |   ❌  |  ✅  |   ✅   |   ✅  |
 
 To be noted:
 
