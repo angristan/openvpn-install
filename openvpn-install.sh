@@ -859,8 +859,8 @@ verb 3" >> /etc/openvpn/server.conf
 			firewall-cmd --zone=public --add-service=openvpn
             firewall-cmd --permanent --zone=public --add-service=openvpn
         else
-            firewall-cmd --zone=public --add-port=$PORT/$PROTOCOL
-            firewall-cmd --permanent --zone=public --add-port=$PORT/$PROTOCOL
+            firewall-cmd --zone=public --add-port="$PORT/$PROTOCOL"
+            firewall-cmd --permanent --zone=public --add-port="$PORT/$PROTOCOL"
 		fi
         
         # Add trusted zone
@@ -868,8 +868,8 @@ verb 3" >> /etc/openvpn/server.conf
 		firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
 
         # Set NAT for the VPN subnet
-        firewall-cmd --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to $IP
-		firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to $IP
+        firewall-cmd --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to "$IP"
+		firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to "$IP"
     else
         # Add iptables rules in two scripts
         mkdir /etc/iptables
@@ -1155,15 +1155,15 @@ function removeOpenVPN () {
                 firewall-cmd --zone=public --remove-service=openvpn
                 firewall-cmd --permanent --zone=public --remove-service=openvpn
             else
-                firewall-cmd --zone=public --remove-port=$PORT/$PROTOCOL
-                firewall-cmd --permanent --zone=public --remove-port=$PORT/$PROTOCOL
+                firewall-cmd --zone=public --remove-port="$PORT/$PROTOCOL"
+                firewall-cmd --permanent --zone=public --remove-port="$PORT/$PROTOCOL"
 		    fi          
 
             firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
             firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
 
-            firewall-cmd --direct --remove-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to $IP
-            firewall-cmd --permanent --direct --remove-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to $IP
+            firewall-cmd --direct --remove-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to "$IP"
+            firewall-cmd --permanent --direct --remove-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to "$IP"
         else
             # Remove the iptables rules related to the script
             systemctl stop iptables-openvpn
