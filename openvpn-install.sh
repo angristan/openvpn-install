@@ -855,21 +855,21 @@ verb 3" >> /etc/openvpn/server.conf
     # Add firewall rules --> firewalld / iptable (systemd scripts)
     if pgrep firewalld; then
         # Allow incoming traffic
-        if [[ "$PORT" == '1194' ]]; then
-	    firewall-cmd --zone=public --add-service=openvpn
+		if [[ "$PORT" == '1194' ]] && [[ "$PROTOCOL" == "udp" ]]; then
+			firewall-cmd --zone=public --add-service=openvpn
             firewall-cmd --permanent --zone=public --add-service=openvpn
         else
             firewall-cmd --zone=public --add-port=$PORT/$PROTOCOL
             firewall-cmd --permanent --zone=public --add-port=$PORT/$PROTOCOL
-	fi
+		fi
         
         # Add trusted zone
-	firewall-cmd --zone=trusted --add-source=10.8.0.0/24		
-	firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
+		firewall-cmd --zone=trusted --add-source=10.8.0.0/24		
+		firewall-cmd --permanent --zone=trusted --add-source=10.8.0.0/24
 
         # Set NAT for the VPN subnet
         firewall-cmd --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to $IP
-	firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to $IP
+		firewall-cmd --permanent --direct --add-rule ipv4 nat POSTROUTING 0 -s 10.8.0.0/24 ! -d 10.8.0.0/24 -j SNAT --to $IP
     else
         # Add iptables rules in two scripts
         mkdir /etc/iptables
@@ -1125,10 +1125,9 @@ function removeOpenVPN () {
 	echo ""
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ "$REMOVE" = 'y' ]]; then
-		# Get OpenVPN port and protocol from the configuration
+		# Get OpenVPN port from the configuration
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
-		PROTOCOL=$(grep '^proto ' /etc/openvpn/server.conf | cut -d " " -f 2)
-
+		
 		# Stop OpenVPN
 		if [[ "$OS" =~ (fedora|arch) ]]; then
 			systemctl disable openvpn-server@server
@@ -1147,15 +1146,18 @@ function removeOpenVPN () {
 
         # Remove firewall rules --> firewalld / iptable (systemd scripts)
         if pgrep firewalld; then
-	    IP=$(firewall-cmd --direct --get-rules ipv4 nat POSTROUTING | grep '\-s 10.8.0.0/24 '"'"'!'"'"' -d 10.8.0.0/24 -j SNAT --to ' | cut -d " " -f 10)
+			# Get IP from firewall-cmd
+			IP=$(firewall-cmd --direct --get-rules ipv4 nat POSTROUTING | grep '\-s 10.8.0.0/24 '"'"'!'"'"' -d 10.8.0.0/24 -j SNAT --to ' | cut -d " " -f 10)
+			# Get OpenVPN protocol from the configuration
+			PROTOCOL=$(grep '^proto ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
-            if [[ "$PORT" == '1194' ]]; then
+            if [[ "$PORT" == '1194' ]] && [[ "$PROTOCOL" == "udp" ]]; then
                 firewall-cmd --zone=public --remove-service=openvpn
                 firewall-cmd --permanent --zone=public --remove-service=openvpn
             else
                 firewall-cmd --zone=public --remove-port=$PORT/$PROTOCOL
                 firewall-cmd --permanent --zone=public --remove-port=$PORT/$PROTOCOL
-	    fi          
+		    fi          
 
             firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
             firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
