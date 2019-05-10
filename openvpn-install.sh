@@ -272,6 +272,25 @@ function installQuestions () {
 		;;
 	esac
 	echo ""
+	echo "Layer 2 or 3 (Tap or Tun)?"
+	echo "Layer 2 connects the MAC layer allowing for broadcast connections across the network. Layer 3 creates IP level connections."
+	echo "   2) Layer 2 (Tap)"
+	echo "   3) Layer 3 (Tun)"
+	until [[ "$LAYER_CHOICE" =~ ^[1-3]$ ]]; do
+		read -rp "Layer [2-3]: " -e -i 2 LAYER_CHOICE
+	done
+	case $LAYER_CHOICE in
+		1)
+			echo "Use and ethernet cord for a layer 1 tunnel."
+		;;
+		2)
+			LAYER_CHOICE="tap"
+		;;
+		3)
+			LAYER_CHOICE="tun"
+		;;
+	esac
+	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
 	echo "   2) Self-hosted DNS Resolver (Unbound)"
@@ -563,6 +582,7 @@ function installOpenVPN () {
 		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
+		LAYER_CHOICE=${LAYER_CHOICE:-3}
 		DNS=${DNS:-1}
 		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
@@ -682,8 +702,12 @@ function installOpenVPN () {
 	elif [[ "$IPV6_SUPPORT" = 'y' ]]; then
 		echo "proto ${PROTOCOL}6" >> /etc/openvpn/server.conf
 	fi
-
-	echo "dev tun
+	if [["$LAYER_CHOICE" = '2']]; then
+		echo "dev tap"
+	elif [["$LAYER_CHOICE" = '3']]; then
+		echo "dev tun"
+	fi
+	echo "dev tap
 user nobody
 group $NOGROUP
 persist-key
