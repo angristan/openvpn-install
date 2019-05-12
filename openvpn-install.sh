@@ -623,8 +623,7 @@ function installOpenVPN () {
 	local version="3.0.6"
 	wget -O ~/EasyRSA-unix-v${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-unix-v${version}.tgz
 	tar xzf ~/EasyRSA-unix-v${version}.tgz -C ~/
-	mv ~/EasyRSA-v${version}/ /etc/openvpn/
-	mv /etc/openvpn/EasyRSA-v${version}/ /etc/openvpn/easy-rsa/
+	mv ~/EasyRSA-v${version} /etc/openvpn/easy-rsa
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -f ~/EasyRSA-unix-v${version}.tgz
 
