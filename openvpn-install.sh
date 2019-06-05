@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora and Arch Linux
 # https://github.com/angristan/openvpn-install
 
 function isRoot () {
@@ -50,6 +50,18 @@ function checkOS () {
 				fi
 			fi
 		fi
+	elif [[ -e /etc/system-release ]]; then
+		source /etc/os-release
+		if [[ "$ID" == "amzn" ]]; then
+			OS="amzn"
+			if [[ ! $VERSION_ID =~ (2) ]]; then
+				echo "⚠️ Your version of Amazon Linux is not supported."
+				echo ""
+				echo "The script only support Amazon Linux 2."
+				echo ""
+				exit 1
+			fi
+		fi
 	elif [[ -e /etc/fedora-release ]]; then
 		OS=fedora
 	elif [[ -e /etc/centos-release ]]; then
@@ -70,7 +82,7 @@ function checkOS () {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS or Arch Linux system"
+		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2 or Arch Linux system"
 		exit 1
 	fi
 }
@@ -101,7 +113,7 @@ hide-version: yes
 use-caps-for-id: yes
 prefetch: yes' >> /etc/unbound/unbound.conf
 
-		elif [[ "$OS" = "centos" ]]; then
+		elif [[ "$OS" =~ (centos|amzn) ]]; then
 			yum install -y unbound
 
 			# Configuration
@@ -148,7 +160,7 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 	prefetch: yes' > /etc/unbound/unbound.conf
 		fi
 
-		if [[ ! "$OS" =~ (fedora|centos) ]];then
+		if [[ ! "$OS" =~ (fedora|centos|amzn) ]];then
 			# DNS Rebinding fix
 			echo "private-address: 10.0.0.0/8
 private-address: 172.16.0.0/12
@@ -604,6 +616,9 @@ function installOpenVPN () {
 	elif [[ "$OS" = 'centos' ]]; then
 		yum install -y epel-release
 		yum install -y openvpn iptables openssl wget ca-certificates curl
+	elif [[ "$OS" = 'amzn' ]]; then
+		amazon-linux-extras install -y epel
+		yum install -y openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'fedora' ]]; then
 		dnf install -y openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'arch' ]]; then
@@ -982,9 +997,9 @@ function newClient () {
 	# Home directory of the user, where the client configuration (.ovpn) will be written
 	if [ -e "/home/$CLIENT" ]; then  # if $1 is a user name
 		homeDir="/home/$CLIENT"
-	elif [ "${SUDO_USER}" ]; then   # if not, use SUDO_USER
+	elif [ "${SUDO_USER}" ]; then # if not, use SUDO_USER
 		homeDir="/home/${SUDO_USER}"
-	else  # if not SUDO_USER, use /root
+	else # if not SUDO_USER, use /root
 		homeDir="/root"
 	fi
 
@@ -1088,7 +1103,7 @@ function removeUnbound () {
 			apt-get autoremove --purge -y unbound
 		elif [[ "$OS" = 'arch' ]]; then
 			pacman --noconfirm -R unbound
-		elif [[ "$OS" = 'centos' ]]; then
+		elif [[ "$OS" =~ (centos|amzn) ]]; then
 			yum remove -y unbound
 		elif [[ "$OS" = 'fedora' ]]; then
 			dnf remove -y unbound
@@ -1153,7 +1168,7 @@ function removeOpenVPN () {
 			fi
 		elif [[ "$OS" = 'arch' ]]; then
 			pacman --noconfirm -R openvpn
-		elif [[ "$OS" = 'centos' ]]; then
+		elif [[ "$OS" =~ (centos|amzn) ]]; then
 			yum remove -y openvpn
 		elif [[ "$OS" = 'fedora' ]]; then
 			dnf remove -y openvpn
