@@ -100,6 +100,7 @@ The script supports these OS and architectures:
 |   CentOS 7   |   ❔  |  ✅  |   ❌   |   ✅  |
 |   Debian 8   |   ✅  |  ✅  |   ❌   |   ❌  |
 |   Debian 9   |   ❌  |  ✅  |   ✅   |   ✅  |
+|   Debian 10  |   ❔  |  ✅  |   ❔   |   ❔  |
 |   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
 |   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
 | Ubuntu 16.04 |   ✅  |  ✅  |   ❌   |   ❌  |
@@ -264,7 +265,7 @@ It defaults to `prime256v1`.
 From the OpenVPN wiki, about `--auth`:
 
 > Authenticate data channel packets and (if enabled) tls-auth control channel packets with HMAC using message digest algorithm alg. (The default is SHA1 ). HMAC is a commonly used message authentication algorithm (MAC) that uses a data string, a secure hash algorithm, and a key, to produce a digital signature.
-> 
+>
 > If an AEAD cipher mode (e.g. GCM) is chosen, the specified --auth algorithm is ignored for the data channel, and the authentication method of the AEAD cipher is used instead. Note that alg still specifies the digest used for tls-auth.
 
 SHA1 [isn't safe anymore](https://en.wikipedia.org/wiki/SHA-1#Attacks).
@@ -282,13 +283,13 @@ It defaults to `SHA256`.
 From the OpenVPN wiki, about `tls-auth`:
 
 > Add an additional layer of HMAC authentication on top of the TLS control channel to mitigate DoS attacks and attacks on the TLS stack.
-> 
+>
 > In a nutshell, --tls-auth enables a kind of "HMAC firewall" on OpenVPN's TCP/UDP port, where TLS control channel packets bearing an incorrect HMAC signature can be dropped immediately without response.
 
 About `tls-crypt`:
 
 > Encrypt and authenticate all control channel packets with the key from keyfile. (See --tls-auth for more background.)
-> 
+>
 > Encrypting (and authenticating) control channel packets:
 > - provides more privacy by hiding the certificate used for the TLS connection,
 > - makes it harder to identify OpenVPN traffic as such,

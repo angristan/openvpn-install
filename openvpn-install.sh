@@ -21,7 +21,7 @@ function checkOS () {
 		source /etc/os-release
 
 		if [[ "$ID" == "debian" ]]; then
-			if [[ ! $VERSION_ID =~ (8|9) ]]; then
+			if [[ ! $VERSION_ID =~ (8|9|10) ]]; then
 				echo "⚠️ Your version of Debian is not supported."
 				echo ""
 				echo "However, if you're using Debian >= 9 or unstable/testing then you can continue."
@@ -128,7 +128,7 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			curl -o /etc/unbound/root.hints https://www.internic.net/domain/named.cache
 
 			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
-			
+
 			echo 'server:
 	use-syslog: yes
 	do-daemonize: no
@@ -650,10 +650,10 @@ function installOpenVPN () {
 		# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
 		openssl dhparam -out dh.pem $DH_KEY_SIZE
 	fi
-	
+
 	./easyrsa build-server-full "$SERVER_NAME" nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-	
+
 	case $TLS_SIG in
 		1)
 			# Generate tls-crypt key
@@ -664,13 +664,13 @@ function installOpenVPN () {
 			openvpn --genkey --secret /etc/openvpn/tls-auth.key
 		;;
 	esac
-	
+
 	# Move all the generated files
 	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	if [[ $DH_TYPE == "2" ]]; then
 		cp dh.pem /etc/openvpn
 	fi
-	
+
 	# Make cert revocation list readable for non-root
 	chmod 644 /etc/openvpn/crl.pem
 
@@ -781,7 +781,7 @@ push "redirect-gateway ipv6"' >> /etc/openvpn/server.conf
 	echo "crl-verify crl.pem
 ca ca.crt
 cert $SERVER_NAME.crt
-key $SERVER_NAME.key 
+key $SERVER_NAME.key
 auth $HMAC_ALG
 cipher $CIPHER
 ncp-ciphers $CIPHER
@@ -815,7 +815,7 @@ verb 3" >> /etc/openvpn/server.conf
 	if [[ "$OS" = 'arch' || "$OS" = 'fedora' ]]; then
 		# Don't modify package-provided service
 		cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
-		
+
 		# Workaround to fix OpenVPN service on OpenVZ
 		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
 		# Another workaround to keep using /etc/openvpn/
@@ -836,12 +836,12 @@ verb 3" >> /etc/openvpn/server.conf
 	else
 		# Don't modify package-provided service
 		cp /lib/systemd/system/openvpn\@.service /etc/systemd/system/openvpn\@.service
-		
+
 		# Workaround to fix OpenVPN service on OpenVZ
 		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn\@.service
 		# Another workaround to keep using /etc/openvpn/
 		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn\@.service
-		
+
 		systemctl daemon-reload
 		systemctl restart openvpn@server
 		systemctl enable openvpn@server

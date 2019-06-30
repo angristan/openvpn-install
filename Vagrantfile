@@ -5,6 +5,7 @@ autostart_machines = ENV['VAGRANT_AUTOSTART'] == 'true' || false
 # else, run `vagrant up <hostname>`
 
 machines = [
+  { hostname: 'debian-10', box: 'debian/stretch64' },
   { hostname: 'debian-9', box: 'debian/stretch64' },
   { hostname: 'debian-8', box: 'debian/jessie64' },
   { hostname: 'ubuntu-1604', box: 'ubuntu/bionic64' },
