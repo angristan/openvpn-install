@@ -83,7 +83,7 @@ Password-protected clients are not supported by the headless installation method
 - Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
 - Choice between TCP and UDP
 - NATed IPv6 support
-- Compression disabled by default to prevent VORACLE. LZ4 and LZ0 algorithms available otherwise.
+- Compression disabled by default to prevent VORACLE. LZ4 (v1/v2) and LZ0 algorithms available otherwise.
 - Unprivileged mode: run as `nobody`/`nogroup`
 - Block DNS leaks on Windows 10
 - Randomised server certificate name
@@ -170,7 +170,7 @@ If you want more information about an option mentioned below, head to the [OpenV
 Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.6/easyrsa3/vars.example) file.
 ### Compression
 
-By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 algorithms, the latter being more efficient.
+By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 (v1/v2) algorithms, the latter being more efficient.
 
 However, it is discouraged to use compression since it since the [VORACLE attack](https://protonvpn.com/blog/voracle-attack/) makes use of it.
 
