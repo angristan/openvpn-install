@@ -310,17 +310,21 @@ function installQuestions () {
 		read -rp"Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
 	done
 	if [[ $COMPRESSION_ENABLED == "y" ]];then
-		echo "Choose which compression algorithm you want to use:"
-		echo "   1) LZ4 (more efficient)"
-		echo "   2) LZ0"
-		until [[ $COMPRESSION_CHOICE =~ ^[1-2]$ ]]; do
-			read -rp"Compression algorithm [1-2]: " -e -i 1 COMPRESSION_CHOICE
+		echo "Choose which compression algorithm you want to use: (they are ordered by efficiency)"
+		echo "   1) LZ4-v2"
+		echo "   2) LZ4"
+		echo "   3) LZ0"
+		until [[ $COMPRESSION_CHOICE =~ ^[1-3]$ ]]; do
+			read -rp"Compression algorithm [1-3]: " -e -i 1 COMPRESSION_CHOICE
 		done
 		case $COMPRESSION_CHOICE in
 			1)
-			COMPRESSION_ALG="lz4"
+			COMPRESSION_ALG="lz4-v2"
 			;;
 			2)
+			COMPRESSION_ALG="lz4"
+			;;
+			3)
 			COMPRESSION_ALG="lzo"
 			;;
 		esac
