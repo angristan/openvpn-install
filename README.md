@@ -268,8 +268,6 @@ From the OpenVPN wiki, about `--auth`:
 >
 > If an AEAD cipher mode (e.g. GCM) is chosen, the specified --auth algorithm is ignored for the data channel, and the authentication method of the AEAD cipher is used instead. Note that alg still specifies the digest used for tls-auth.
 
-SHA1 [isn't safe anymore](https://en.wikipedia.org/wiki/SHA-1#Attacks).
-
 The script provides the following choices:
 
 - `SHA256`
