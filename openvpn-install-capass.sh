@@ -648,14 +648,14 @@ function installOpenVPN () {
 	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
-	./easyrsa --batch build-ca nopass
+	./easyrsa --batch build-ca
 
 	if [[ $DH_TYPE == "2" ]]; then
 		# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
 		openssl dhparam -out dh.pem $DH_KEY_SIZE
 	fi
 
-	./easyrsa build-server-full "$SERVER_NAME" nopass
+	./easyrsa build-server-full "$SERVER_NAME"
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 
 	case $TLS_SIG in
