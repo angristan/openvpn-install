@@ -100,7 +100,7 @@ The script supports these OS and architectures:
 |   CentOS 7   |   ❔  |  ✅  |   ❌   |   ✅  |
 |   Debian 8   |   ✅  |  ✅  |   ❌   |   ❌  |
 |   Debian 9   |   ❌  |  ✅  |   ✅   |   ✅  |
-|   Debian 10  |   ❔  |  ✅  |   ❔   |   ❔  |
+|   Debian 10  |   ❔  |  ✅  |   ✅   |   ❔  |
 |   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
 |   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
 | Ubuntu 16.04 |   ✅  |  ✅  |   ❌   |   ❌  |
