@@ -643,8 +643,8 @@ function installOpenVPN () {
 	esac
 
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
-	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+	SERVER_CN="xo_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+	SERVER_NAME="dex4k_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
@@ -655,7 +655,7 @@ function installOpenVPN () {
 		openssl dhparam -out dh.pem $DH_KEY_SIZE
 	fi
 
-	./easyrsa build-server-full "$SERVER_NAME"
+	./easyrsa build-server-full "$SERVER_NAME" nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 
 	case $TLS_SIG in
