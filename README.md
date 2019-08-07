@@ -4,9 +4,29 @@
 
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
 
-This script will let you setup your own secure VPN server in just a few seconds.
+This script will let you setup your own secure VPN server in just a few minutes.
 
-You can also check out [wireguard-install](https://github.com/angristan/wireguard-install), a simple installer for a simpler, safer, faster and more modern VPN protocol.
+This repo is a simple fork of the OpenVPN installer from [angristan](https://github.com/angristan/openvpn-install) which in turn is a fork of [Nyr's original script](https://github.com/Nyr/openvpn-install). The fork this fork is based on is designed to be a hardened, more security focused setup.
+
+My fork right here simply adds a few tweaks I think are better choices for a hardened OpenVPN server installation.
+
+Any of these scripts are an excellent way to make it easy for anyone who possesses both basic computer skills and a few quid for a VPS to make their own VPN. But I do recommend either my one or agristan's one, because they build on the great work of Nyr's original to create more secure setups. And after all isn't security a top priority for a VPN?
+
+## Encrypting the Certificate Authority (CA)
+
+When you create an OpenVPN server, you create your own CA. Think of this as being like TLS (SSL or HTTPS as it's more commonly known). When a site has that padlock on it, not only is the connection encrypted but the site has a certificate to verify you are really on the correct site. These certificates are issued to websites by third party CA's, for example Comodo and DigiCert are two of the most popular and recognisable. Recently Let's Encrypt has been growing especially on smaller non-commercial sites because they provide the certs for free in order to promote universal encryption.
+
+An OpenVPN server does the same. When you connect, your device verifies the server has the correct certificate, and the server verifies the device is using a client configuration file that it's CA has signed off on. So when the server creates new client files to allow connections to your new VPN, it uses the CA to issue a new client access. This is a high level, simplified explanation, but those who think it's too dumbed down are people who likely know how a CA works anyway ;)
+
+So back to this fork. Originally I just forked this to remove the "nopass" argument from the CA creation. This is a significant security measure because it encrypts your CA. So let's imagine a blackhat is able to gain unauthorised access to your server and steal your CA files, they would need a password to create new client files and allow themselves or anyone else access to your VPN. As the password is actually a decryption key, assuming it's a strong password (weak ones can be brute forced with relative ease), you can be pretty sure they won't be getting in. Of course it goes without saying if you detect an intrusion you should create a new CA and generate new client configs anyway. But you may not notice straight away.
+
+On the other two scripts (at time of writing) the CA creation is still set with the "nopass" argument, presumably to prioritise convenience over security. This leaves the vitally sensitive CA keys sitting there unencrypted in plaintext. With this setup you do not need to enter a password to access the CA (e.g. when creating a new client file). But this also means that with those setups, should your server ever get breached, the attacker can then create as many client files as they want, therefore allowing as many new devices and users onto your VPN as they want. It is not at all uncommon to see stolen VPN credentials sold on the black market (e.g. hacker forums, darknet markets) where they will likely be purchased by malicious users who want to use the VPN to mask activity such as blackhat hacking, credit card fraud, etc.
+
+Strictly speaking the most secure way to run a VPN is to have a seperate airgapped machine for the CA to run on. This way your CA keys are never stored on your server at all. But this is of course not easy to just automate via a script. There are some very good, well detailed [articles on how to create such a setup](https://www.digitalocean.com/community/tutorials/how-to-set-up-an-openvpn-server-on-ubuntu-18-04) manually, but it requires a lot more work. On the other hand, it also forces you to understand how VPN servers actually work. You'll know more about what it is you're actually setting up and what everything means and what each piece of the puzzle does. But a casual user is likely to favour a script that asks a few questions and does the hard work for them. Which is very understandable. But this script and the one I forked it from do also provide technical detail behind it all and give you the option to change advanced parts of the setup such as the type of encryption algorithm to use and how strong many bits you need.
+
+More to come, watch this space!
+
+The following is from angristian's project description:
 
 ## Usage
 
@@ -168,6 +188,7 @@ OpenVPN 2.4 was a great update regarding encryption. It added support for ECDSA,
 If you want more information about an option mentioned below, head to the [OpenVPN manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage). It is very complete.
 
 Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.6/easyrsa3/vars.example) file.
+
 ### Compression
 
 By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 (v1/v2) algorithms, the latter being more efficient.
