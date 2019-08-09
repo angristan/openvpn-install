@@ -11,7 +11,7 @@ This script will let you setup your own secure VPN server in just a few seconds.
 First, get the script and make it executable :
 
 ```bash
-curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
+curl -O https://raw.githubusercontent.com/joaduo/openvpn-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
 
