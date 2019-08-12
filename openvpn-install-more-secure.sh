@@ -56,14 +56,14 @@ function checkOS () {
 	elif [[ -e /etc/centos-release ]]; then
 		if ! grep -qs "^CentOS Linux release 7" /etc/centos-release; then
 			echo "Your version of CentOS is not supported."
-			echo "The script only support CentOS 7."
+			echo "This script only supports CentOS 7."
 			echo ""
 			unset CONTINUE
 			until [[ $CONTINUE =~ (y|n) ]]; do
 				read -rp "Continue anyway? [y/n]: " -e CONTINUE
 			done
 			if [[ "$CONTINUE" = "n" ]]; then
-				echo "Ok, bye!"
+				echo "Install cancelled."
 				exit 1
 			fi
 		fi
@@ -78,11 +78,11 @@ function checkOS () {
 
 function initialCheck () {
 	if ! isRoot; then
-		echo "Sorry, you need to run this as root"
+		echo "Sorry, you need to run this as root. Please try running the script again but type sudo first."
 		exit 1
 	fi
 	if ! tunAvailable; then
-		echo "TUN is not available"
+		echo "TUN is not available!"
 		exit 1
 	fi
 	checkOS
@@ -187,11 +187,11 @@ private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 
 function installQuestions () {
 	echo "Welcome to the OpenVPN installer!"
-	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
+	echo "The git repository is available at: https://github.com/dex4k/openvpn-hardened-install"
 	echo ""
 
 	echo "I need to ask you a few questions before starting the setup."
-	echo "You can leave the default options and just press enter if you are ok with them."
+	echo "You can leave the default options and just press enter if you are okay with them."
 	echo ""
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "Unless your server is behind NAT, it should be your public IPv4 address."
@@ -258,7 +258,7 @@ function installQuestions () {
 	esac
 	echo ""
 	echo "What protocol do you want OpenVPN to use?"
-	echo "UDP is faster. Unless it is not available, you shouldn't use TCP."
+	echo "UDP is faster and better. Unless it is not available, you shouldn't use TCP."
 	echo "   1) UDP"
 	echo "   2) TCP"
 	until [[ "$PROTOCOL_CHOICE" =~ ^[1-2]$ ]]; do
