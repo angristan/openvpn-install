@@ -937,7 +937,14 @@ cipher $CIPHER
 tls-client
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
-setenv opt block-outside-dns # Prevent Windows 10 DNS leak
+# Prevent Windows 8/8.1/10 DNS leak
+setenv opt block-outside-dns
+# Prevent DNS leak on Linux clients
+# Tested on Ubuntu 19.04 and Mint 19.2 (latest versions at time of writing)
+script-security 2
+up /etc/openvpn/update-resolv-conf
+down /etc/openvpn/update-resolv-conf
+# End Linux DNS fix
 verb 3" >> /etc/openvpn/client-template.txt
 
 if [[ $COMPRESSION_ENABLED == "y"  ]]; then
@@ -946,21 +953,21 @@ fi
 
 	# Generate the custom client.ovpn
 	newClient
-	echo "If you want to add more clients, you simply need to run this script another time!"
+	echo "If you want to add more clients, simply run the script again! Enjoy your VPN server!"
 }
 
 function newClient () {
 	echo ""
-	echo "Tell me a name for the client."
-	echo "Use one word only, no special characters."
+	echo "Choose a name for the client."
+	echo "No spaces or no special characters."
 
 	until [[ "$CLIENT" =~ ^[a-zA-Z0-9_]+$ ]]; do
 		read -rp "Client name: " -e CLIENT
 	done
 
 	echo ""
-	echo "Do you want to protect the configuration file with a password?"
-	echo "(e.g. encrypt the private key with a password)"
+	echo "Do you want to protect the client config with a password?"
+	echo "(i.e. encrypt the client private key with a password)"
 	echo "   1) Add a passwordless client"
 	echo "   2) Use a password for the client"
 
@@ -1181,18 +1188,18 @@ function removeOpenVPN () {
 
 function manageMenu () {
 	clear
-	echo "Welcome to OpenVPN-install!"
-	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
+	echo "Welcome to OpenVPN-hardened-install!"
+	echo "The git repository is available at: https://github.com/dex4k/openvpn-hardened-install"
 	echo ""
 	echo "It looks like OpenVPN is already installed."
 	echo ""
 	echo "What do you want to do?"
-	echo "   1) Add a new user"
-	echo "   2) Revoke existing user"
-	echo "   3) Remove OpenVPN"
+	echo "   1) Add a new user..."
+	echo "   2) Revoke existing user..."
+	echo "   3) Remove OpenVPN..."
 	echo "   4) Exit"
 	until [[ "$MENU_OPTION" =~ ^[1-4]$ ]]; do
-		read -rp "Select an option [1-4]: " MENU_OPTION
+		read -rp "Please select an option [1-4]: " MENU_OPTION
 	done
 
 	case $MENU_OPTION in
