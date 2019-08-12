@@ -570,6 +570,7 @@ function installOpenVPN () {
 		DNS=${DNS:-1}
 		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
+		CREATE_CLIENT=${CREATE_CLIENT:-n}
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
 		CONTINUE=${CONTINUE:-y}
@@ -945,8 +946,19 @@ if [[ $COMPRESSION_ENABLED == "y"  ]]; then
 fi
 
 	# Generate the custom client.ovpn
-	newClient
-	echo "If you want to add more clients, you simply need to run this script another time!"
+	until [[ $CREATE_CLIENT =~ (y|n) ]]; do
+		read -rp"Create a new client? [y/n]: " -e -i n CREATE_CLIENT
+	done
+	if [[ $CREATE_CLIENT == "y" ]];then
+		newClient
+	fi
+
+echo ""
+echo ""
+echo ""
+echo ""
+echo "If you want to add more clients, you simply need to run this script another time!"
+
 }
 
 function newClient () {
@@ -1106,7 +1118,9 @@ function removeUnbound () {
 
 function removeOpenVPN () {
 	echo ""
-	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+	until [[ $REMOVE =~ (y|n) ]]; do
+		read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+	done
 	if [[ "$REMOVE" = 'y' ]]; then
 		# Get OpenVPN port from the configuration
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)

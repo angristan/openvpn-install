@@ -63,6 +63,7 @@ If you want to customise your installation, you can export them or specify them 
 - `DNS=1`
 - `COMPRESSION_ENABLED=n`
 - `CUSTOMIZE_ENC=n`
+- `CREATE_CLIENT=y`
 - `CLIENT=clientname`
 - `PASS=1`
 
