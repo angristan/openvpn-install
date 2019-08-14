@@ -10,6 +10,17 @@ INPUT=/tmp/in.sh.$$
 OUTPUT=/tmp/out.sh.$$
 trap "rm $OUTPUT; rm $INPUT; exit" SIGHUP SIGINT SIGTERM
 
+# Check Dialog File
+function DiaChk () {
+	DiaFile=/bin/dialog
+	if [ ! -f "$DiaFile" ]; then
+		clear
+		echo "$DiaFile does not exist";
+		echo "Please check instruction online how to install it"; # Please add command to install dialog per OS.
+		exit 1
+		fi
+}
+
 # Original Functions
 function isRoot () {
 	if [ "$EUID" -ne 0 ]; then
@@ -1223,20 +1234,102 @@ function Vpn_2 () {
         "Back" "Return to Previous menu" 2> "${INPUT}"
 		menuitem=$(<"${INPUT}")
 			case $menuitem in
-			Install)	Install_1;;
+			Install)	InstallOpenVpn;;
 			UnInstall)	UnInstall_2;;
 			Back)		Break;;
 			esac
 }
 
 # Install / Uninstall
-function Install_1 () {
-	echo "Ins"
+function InstallOpenVpn () {
+	if [[ $AUTO_INSTALL == "y" ]]; then
+		# Set default choices so that no questions will be asked.
+		APPROVE_INSTALL=${APPROVE_INSTALL:-y}
+		APPROVE_IP=${APPROVE_IP:-y}
+		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
+		PORT_CHOICE=${PORT_CHOICE:-1}
+		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
+		DNS=${DNS:-1}
+		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
+		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
+		CLIENT=${CLIENT:-client}
+		PASS=${PASS:-1}
+		CONTINUE=${CONTINUE:-y}
+
+		# Behind NAT, we'll default to the publicly reachable IPv4.
+		PUBLIC_IPV4=$(curl ifconfig.co)
+		ENDPOINT=${ENDPOINT:-$PUBLIC_IPV4}
+	fi
+	# Run setup questions first, and set other variales if auto-install
+	InstallOpenVpnManual
+
 }
+function InstallOpenVpnManual () {
+
+# Detect public IPv4 address and show it to user
+IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
+dialog --title "STEP (1 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+--inputbox "Enter your IP address our use what we detected : \n [ $IP ] " 16 60 2>$OUTPUT
+IP=$(<$OUTPUT)
+
+# TODO : IPV6 CHECK
+
+dialog --title "STEP (2 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+--inputbox "What port do you want OpenVPN to listen to? \n Default : 1194 " 16 60 2>$OUTPUT
+PORT=$(<$OUTPUT)
+
+dialog --title "STEP (3 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+        --menu "What protocol do you want OpenVPN to use?" 16 60 51 \
+        "1" "UDP" \
+        "2" "TCP" 2> "${OUTPUT}"	
+		menuitem=$(<"${OUTPUT}")
+			case $menuitem in
+			1)		PROTOCOL="TCP";;
+			2)		PROTOCOL="UDP";;
+			esac
+
+dialog --title "STEP (4 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+        --menu "What DNS resolvers do you want to use with the VPN?" 16 60 51 \
+		"1" "Current system resolvers (from /etc/resolv.conf)" \
+		"2" "Self-hosted DNS Resolver (Unbound)" \
+		"3" "Cloudflare (Anycast: worldwide)" \
+		"4" "Quad9 (Anycast: worldwide)" \
+		"5" "Quad9 uncensored (Anycast: worldwide)" \
+		"6" "FDN (France)" \
+		"7" "DNS.WATCH (Germany)" \
+		"8" "OpenDNS (Anycast: worldwide)" \
+		"9" "Google (Anycast: worldwide)" \
+		"10" "Yandex Basic (Russia)" \
+		"11" "AdGuard DNS (Russia)" 2> "${OUTPUT}"
+		menuitem=$(<"${OUTPUT}")
+			case $menuitem in
+			1)		DNS="1";;
+			2)		DNS="2";;
+			3)		DNS="3";;
+			4)		DNS="4";;
+			5)		DNS="5";;
+			6)		DNS="6";;
+			7)		DNS="7";;
+			8)		DNS="8";;
+			9)		DNS="9";;
+			10)		DNS="10";;
+			11)		DNS="11";;
+			12)		DNS="12";;
+			esac
+	
+
+echo $IP:$PORT - $PROTOCOL - $DNS - 
+exit 1
+}
+
 function UnInstall_2 () {
 	echo ""
 	
-	dialog --title "[ Remove OPENVPN]" \
+	dialog --title "[ Remove OPENVPN ]" \
 	--yesno "Are you sure you want to remove OpenVpn this will also delete all .OVPN files in your ~/home folder" 16 50
 	response=$?
 		case $response in
@@ -1319,8 +1412,8 @@ function UnInstall_2_agree () {
 	fi
 }
 
-# LOOP
-function L00P () {
+
+function MAIN () {
 while true
 do
 dialog --clear --nocancel --title "[ M A I N - M E N U ]" --backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
@@ -1348,7 +1441,8 @@ done
 }
 
 initialCheck
-L00P
+DiaChk
+MAIN
 
 # if temp files found, delete em
 [ -f $OUTPUT ] && rm $OUTPUT
