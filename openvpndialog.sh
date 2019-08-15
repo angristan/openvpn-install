@@ -1282,48 +1282,231 @@ PORT=$(<$OUTPUT)
 
 dialog --title "STEP (3 out of N)" \
 --backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
-        --menu "What protocol do you want OpenVPN to use?" 16 60 51 \
-        "1" "UDP" \
-        "2" "TCP" 2> "${OUTPUT}"	
-		menuitem=$(<"${OUTPUT}")
-			case $menuitem in
-			1)		PROTOCOL="TCP";;
-			2)		PROTOCOL="UDP";;
-			esac
+--menu "What protocol do you want OpenVPN to use?" 16 60 51 \
+    "1" "UDP" \
+    "2" "TCP" 2> "${OUTPUT}"	
+	menuitem=$(<"${OUTPUT}")
+		case $menuitem in
+		1)		PROTOCOL="TCP";;
+		2)		PROTOCOL="UDP";;
+		esac
 
 dialog --title "STEP (4 out of N)" \
 --backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
-        --menu "What DNS resolvers do you want to use with the VPN?" 16 60 51 \
-		"1" "Current system resolvers (from /etc/resolv.conf)" \
-		"2" "Self-hosted DNS Resolver (Unbound)" \
-		"3" "Cloudflare (Anycast: worldwide)" \
-		"4" "Quad9 (Anycast: worldwide)" \
-		"5" "Quad9 uncensored (Anycast: worldwide)" \
-		"6" "FDN (France)" \
-		"7" "DNS.WATCH (Germany)" \
-		"8" "OpenDNS (Anycast: worldwide)" \
-		"9" "Google (Anycast: worldwide)" \
-		"10" "Yandex Basic (Russia)" \
-		"11" "AdGuard DNS (Russia)" 2> "${OUTPUT}"
+--menu "What DNS resolvers do you want to use with the VPN?" 16 60 51 \
+	"1" "Current system resolvers (from /etc/resolv.conf)" \
+	"2" "Self-hosted DNS Resolver (Unbound)" \
+	"3" "Cloudflare (Anycast: worldwide)" \
+	"4" "Quad9 (Anycast: worldwide)" \
+	"5" "Quad9 uncensored (Anycast: worldwide)" \
+	"6" "FDN (France)" \
+	"7" "DNS.WATCH (Germany)" \
+	"8" "OpenDNS (Anycast: worldwide)" \
+	"9" "Google (Anycast: worldwide)" \
+	"10" "Yandex Basic (Russia)" \
+	"11" "AdGuard DNS (Russia)" 2> "${OUTPUT}"
+	menuitem=$(<"${OUTPUT}")
+		case $menuitem in
+		1)		DNS="1";;
+		2)		DNS="2";;
+		3)		DNS="3";;
+		4)		DNS="4";;
+		5)		DNS="5";;
+		6)		DNS="6";;
+		7)		DNS="7";;
+		8)		DNS="8";;
+		9)		DNS="9";;
+		10)		DNS="10";;
+		11)		DNS="11";;
+		esac
+
+dialog --title "STEP (5 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+--menu "Do you want to use compression? It is not recommended since the VORACLE attack make use of it" 16 60 51 \
+    "1" "YES" \
+    "2" "NO" 2> "${OUTPUT}"	
+	menuitem=$(<"${OUTPUT}")
+		case $menuitem in
+		1)		COMP="YES";;
+		2)		COMP="NO";;
+		esac
+	if [[ $COMP == "YES" ]];then			
+		dialog --title "STEP (5 out of N)" \
+		--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+        --menu "Choose which compression algorithm you want to use: (they are ordered by efficiency)" 16 60 51 \
+        "1" "lz4-v2" \
+        "2" "lz4" \
+		"3" "lzo" 2> "${OUTPUT}"
 		menuitem=$(<"${OUTPUT}")
 			case $menuitem in
-			1)		DNS="1";;
-			2)		DNS="2";;
-			3)		DNS="3";;
-			4)		DNS="4";;
-			5)		DNS="5";;
-			6)		DNS="6";;
-			7)		DNS="7";;
-			8)		DNS="8";;
-			9)		DNS="9";;
-			10)		DNS="10";;
-			11)		DNS="11";;
-			12)		DNS="12";;
+			1)		COMP="lz4-v2";;
+			2)		COMP="lz4";;
+			3)		COMP="lzo";;
 			esac
+	fi
 	
+dialog --title "STEP (6 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+--menu "Choose which cipher you want to use for the data channel:" 16 60 51 \
+	"1" "AES-128-GCM" \
+	"2" "AES-192-GCM" \
+	"3" "AES-256-GCM" \
+	"4" "AES-128-CBC" \
+	"5" "AES-192-CBC" \
+	"6" "AES-256-CBC" 2> "${OUTPUT}"
+	menuitem=$(<"${OUTPUT}")
+		case $menuitem in
+		1)		CIPHER="AES-128-GCM";;
+		2)		CIPHER="AES-192-GCM";;
+		3)		CIPHER="AES-256-GCM";;
+		4)		CIPHER="AES-128-CBC";;
+		5)		CIPHER="AES-192-CBC";;
+		6)		CIPHER="AES-256-CBC";;
+		esac
+			
+dialog --title "STEP (7 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+--menu "Choose what kind of certificate you want to use:" 16 60 51 \
+    "1" "ECDSA" \
+    "2" "RSA" 2> "${OUTPUT}"	
+	menuitem=$(<"${OUTPUT}")
+		case $menuitem in
+		1)		CERT_TYPE="ECDSA";;
+		2)		CERT_TYPE="RSA";;
+		esac
+	if [[ $CERT_TYPE = "ECDSA" ]];then
+		dialog --title "STEP (7 out of N)" \
+		--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+        --menu "Choose which curve you want to use for the certificate's key:" 16 60 51 \
+        "1" "prime256v1" \
+		"2" "secp384r1" \
+        "3" "secp521r1" 2> "${OUTPUT}"	
+		menuitem=$(<"${OUTPUT}")
+			case $menuitem in
+			1)		CERT_CURVE_CHOICE="prime256v1";;
+			2)		CERT_CURVE_CHOICE="secp384r1";;
+			3)		CERT_CURVE_CHOICE="secp521r1";;
+			esac
+	else
+		dialog --title "STEP (7 out of N)" \
+		--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+        --menu "Choose which size you want to use for the certificate's RSA key:" 16 60 51 \
+        "1" "2048 bits" \
+		"2" "3072 bits" \
+        "3" "4096 bits" 2> "${OUTPUT}"	
+		menuitem=$(<"${OUTPUT}")
+			case $menuitem in
+			1)		RSA_KEY_SIZE="2048";;
+			2)		RSA_KEY_SIZE="3072";;
+			3)		RSA_KEY_SIZE="4096";;
+			esac
+	fi
 
-echo $IP:$PORT - $PROTOCOL - $DNS - 
+if [[ $CERT_TYPE = "ECDSA" ]];then
+dialog --title "STEP (8 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+--menu "Choose which cipher you want to use for the control channel:" 16 60 51 \
+    "1" "ECDHE-ECDSA-AES-128-GCM-SHA256" \
+    "2" "ECDHE-ECDSA-AES-256-GCM-SHA384" 2> "${OUTPUT}"	
+	menuitem=$(<"${OUTPUT}")
+		case $menuitem in
+		1)		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256";;
+		2)		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384";;
+		esac
+else
+dialog --title "STEP (8 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+--menu "Choose which cipher you want to use for the control channel:" 16 60 51 \
+    "1" "ECDHE-RSA-AES-128-GCM-SHA256" \
+    "2" "ECDHE-RSA-AES-256-GCM-SHA384" 2> "${OUTPUT}"	
+	menuitem=$(<"${OUTPUT}")
+		case $menuitem in
+		1)		CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256";;
+		2)		CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384";;
+		esac
+fi
+
+dialog --title "STEP (9 out of N)" \
+--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+--menu "Choose what kind of Diffie-Hellman key you want to use:" 16 60 51 \
+    "1" "ECDH" \
+    "2" "DH" 2> "${OUTPUT}"	
+	menuitem=$(<"${OUTPUT}")
+		case $menuitem in
+		1)		DH_TYPE="ECDH";;
+		2)		DH_TYPE="DH";;
+		esac
+	if [[ $DH_TYPE == ECDH ]]; then
+		dialog --title "STEP (9 out of N)" \
+		--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+		--menu "Choose which curve you want to use for the ECDH key:" 16 60 51 \
+		"1" "prime256v1" \
+		"2" "secp384r1" \
+		"3" "secp521r1" 2> "${OUTPUT}"	
+		menuitem=$(<"${OUTPUT}")
+			case $menuitem in
+			1)		DH_CURVE="prime256v1";;
+			2)		DH_CURVE="secp384r1";;
+			3)		DH_CURVE="secp521r1";;
+			esac
+	else
+		dialog --title "STEP (9 out of N)" \
+		--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+		--menu "Choose what size of Diffie-Hellman key you want to use:" 16 60 51 \
+        "1" "2048 bits" \
+		"2" "3072 bits" \
+        "3" "4096 bits" 2> "${OUTPUT}"	
+		menuitem=$(<"${OUTPUT}")
+			case $menuitem in
+			1)		DH_KEY_SIZE="2048";;
+			2)		DH_KEY_SIZE="3072";;
+			3)		DH_KEY_SIZE="4096";;
+			esac
+	fi
+
+dialog --title "STEP (10 out of N)" \
+		--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+		--menu "Which digest algorithm do you want to use for HMAC?" 16 60 51 \
+        "1" "SHA-256" \
+		"2" "SHA-384" \
+        "3" "SHA-512" 2> "${OUTPUT}"	
+		menuitem=$(<"${OUTPUT}")
+			case $menuitem in
+			1)		HMAC_ALG="SHA256";;
+			2)		HMAC_ALG="SHA384";;
+			3)		HMAC_ALG="SHA512";;
+			esac
+
+dialog --title "STEP (10 out of N)" \
+		--backtitle "Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Fedora and Arch Linux" \
+		--menu "You can add an additional layer of security to the control channel with tls-auth and tls-crypt \n tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them." 16 60 51 \
+        "1" "tls-crypt" \
+		"2" "tls-auth" 2> "${OUTPUT}"	
+		menuitem=$(<"${OUTPUT}")
+			case $menuitem in
+			1)		TLS_SIG="1";;
+			2)		TLS_SIG="2";;
+			esac
+
+echo "IP/PORT : " $IP:$PORT
+echo "PROTOCL : " $PROTOCOL
+echo "DNS : " $DNS
+echo "COMPRESSION : " $COMP
+echo "CIPHER : " $CIPHER
+echo "CERT TYPE : " $CERT_TYPE
+echo "CERT CURVE CHOICE : " $CERT_CURVE_CHOICE
+echo "RSA_KEY_SIZE : " $RSA_KEY_SIZE
+echo "CC_CIPHER : " $CC_CIPHER
+echo "DH_TYPE : " $DH_TYPE
+echo "DH_CURVE : " $DH_CURVE
+echo "DH_KEY_SIZE : " $DH_KEY_SIZE
+echo "HMAC_ALG : " $HMAC_ALG
+echo "TLS_SIG : " $TLS_SIG
+
+# MANUAL DONE
+
 exit 1
+
 }
 
 function UnInstall_2 () {
