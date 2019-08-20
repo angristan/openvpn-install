@@ -52,9 +52,19 @@ function checkOS () {
 		fi
 	elif [[ -e /etc/system-release ]]; then
 		source /etc/os-release
-		if [[ "$ID" == "amzn" ]]; then
+		if [[ "$ID" = "centos" ]]; then
+			OS="centos"
+			if [[ ! $VERSION_ID == "7" ]]; then
+				echo "⚠️ Your version of CentOS is not supported."
+				echo ""
+				echo "The script only support CentOS 7."
+				echo ""
+				exit 1
+			fi
+		fi
+		if [[ "$ID" = "amzn" ]]; then
 			OS="amzn"
-			if [[ ! $VERSION_ID =~ (2) ]]; then
+			if [[ ! $VERSION_ID == "2" ]]; then
 				echo "⚠️ Your version of Amazon Linux is not supported."
 				echo ""
 				echo "The script only support Amazon Linux 2."
@@ -64,21 +74,6 @@ function checkOS () {
 		fi
 	elif [[ -e /etc/fedora-release ]]; then
 		OS=fedora
-	elif [[ -e /etc/centos-release ]]; then
-		if ! grep -qs "^CentOS Linux release 7" /etc/centos-release; then
-			echo "Your version of CentOS is not supported."
-			echo "The script only support CentOS 7."
-			echo ""
-			unset CONTINUE
-			until [[ $CONTINUE =~ (y|n) ]]; do
-				read -rp "Continue anyway? [y/n]: " -e CONTINUE
-			done
-			if [[ "$CONTINUE" = "n" ]]; then
-				echo "Ok, bye!"
-				exit 1
-			fi
-		fi
-		OS=centos
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
