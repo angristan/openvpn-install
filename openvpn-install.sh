@@ -813,7 +813,7 @@ verb 3" >> /etc/openvpn/server.conf
 	if [[ "$IPV6_SUPPORT" = 'y' ]]; then
 		echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.d/20-openvpn.conf
 	fi
-	# Avoid an unneeded reboot
+	# Apply sysctl rules
 	sysctl --system
 
 	# If SELinux is enabled and a custom port was selected, we need this
