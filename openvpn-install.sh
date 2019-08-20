@@ -20,7 +20,7 @@ function checkOS () {
 		OS="debian"
 		source /etc/os-release
 
-		if [[ "$ID" == "debian" ]]; then
+		if [[ "$ID" == "debian" || "$ID" == "raspbian" ]]; then
 			if [[ ! $VERSION_ID =~ (8|9|10) ]]; then
 				echo "⚠️ Your version of Debian is not supported."
 				echo ""
