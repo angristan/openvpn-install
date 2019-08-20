@@ -656,6 +656,11 @@ function installOpenVPN () {
 	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
+
+	# Workaround to remove unharmful error until easy-rsa 3.0.7
+	# https://github.com/OpenVPN/easy-rsa/issues/261
+	sed -i 's/^RANDFILE/#RANDFILE/g' pki/openssl-easyrsa.cnf
+
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
 	./easyrsa --batch build-ca nopass
