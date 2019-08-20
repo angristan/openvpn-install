@@ -291,8 +291,9 @@ function installQuestions () {
 	echo "   9) Google (Anycast: worldwide)"
 	echo "   10) Yandex Basic (Russia)"
 	echo "   11) AdGuard DNS (Russia)"
-	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 11 ]; do
-		read -rp "DNS [1-10]: " -e -i 3 DNS
+	echo "   12) Custom"
+	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 12 ]; do
+		read -rp "DNS [1-12]: " -e -i 3 DNS
 			if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
 				echo ""
 				echo "Unbound is already installed."
@@ -309,6 +310,16 @@ function installQuestions () {
 					unset DNS
 					unset CONTINUE
 				fi
+			elif [[ $DNS == "12" ]]; then
+				until [[ "$DNS1" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
+					read -rp "Primary DNS: " -e DNS1
+				done
+				until [[ "$DNS2" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
+					read -rp "Secondary DNS (optional): " -e DNS2
+					if [[ "$DNS2" == "" ]]; then
+						break
+					fi
+				done
 			fi
 	done
 	echo ""
@@ -764,6 +775,12 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		11) # AdGuard DNS
 			echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
 			echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
+		;;
+		12) # Custom DNS
+		echo "push \"dhcp-option DNS $DNS1\"" >> /etc/openvpn/server.conf
+		if [[ "$DNS2" != "" ]]; then
+			echo "push \"dhcp-option DNS $DNS2\"" >> /etc/openvpn/server.conf
+		fi
 		;;
 	esac
 	echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
