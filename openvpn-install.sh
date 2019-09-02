@@ -1,10 +1,16 @@
 #!/bin/bash
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora and Arch Linux
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Arch Linux and Gentoo Linux
 # https://github.com/angristan/openvpn-install
 
 function isRoot () {
 	if [ "$EUID" -ne 0 ]; then
+		return 1
+	fi
+}
+
+function isSystemD () {
+	if [ ! -e /bin/systemctl ]; then
 		return 1
 	fi
 }
@@ -16,6 +22,7 @@ function tunAvailable () {
 }
 
 function checkOS () {
+	OPENVPN_CONF="/etc/openvpn/server.conf"
 	if [[ -e /etc/debian_version ]]; then
 		OS="debian"
 		source /etc/os-release
@@ -76,6 +83,11 @@ function checkOS () {
 		OS=fedora
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
+	elif [[ -e /etc/gentoo-release ]];  then
+		OS=gentoo
+		if ! isSystemD; then
+			OPENVPN_CONF="/etc/openvpn/openvpn.conf"
+		fi
 	else
 		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2 or Arch Linux system"
 		exit 1
@@ -92,6 +104,38 @@ function initialCheck () {
 		exit 1
 	fi
 	checkOS
+}
+
+function initSystem () {
+	local OPTION=$1
+	local APPLICATION=$2
+	if isSystemD; then
+
+		if [ "$OPTION" = "reload" ]; then
+			systemctl daemon-reload
+		elif [ "$OPTION" = "enable" ]; then
+			systemctl enable $APPLICTION
+		elif [ "$OPTION" = "disable" ]; then
+			systemctl disable $APPLICTION
+		elif [ "$OPTION" = "start" ]; then
+			systemctl start $APPLICTION
+		elif [ "$OPTION" = "stop" ]; then
+			systemctl stop $APPLICTION
+		fi
+
+	else
+
+		if [ "$OPTION" = "enable" ]; then
+			rc-update add $APPLICATION
+		elif [ "$OPTION" = "disable" ]; then
+			rc-update del $APPLICATION
+		elif [ "$OPTION" = "start" ]; then
+			/etc/init.d/$APPLICATION start
+		elif [ "$OPTION" = "stop" ]; then
+			/etc/init.d/$APPLICATION stop
+		fi
+
+	fi
 }
 
 function installUnbound () {
@@ -153,6 +197,8 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 	hide-version: yes
 	qname-minimisation: yes
 	prefetch: yes' > /etc/unbound/unbound.conf
+		elif [[ "$OS" = "gentoo" ]]; then
+			emerge net-dns/unbound
 		fi
 
 		if [[ ! "$OS" =~ (fedora|centos|amzn) ]];then
@@ -187,8 +233,8 @@ private-address: 127.0.0.0/8
 private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 	fi
 
-		systemctl enable unbound
-		systemctl restart unbound
+		initSystem enable unbound
+		initSystem restart unbound
 }
 
 function installQuestions () {
@@ -630,6 +676,8 @@ function installOpenVPN () {
 	elif [[ "$OS" = 'arch' ]]; then
 		# Install required dependencies and upgrade the system
 		pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
+	elif [[ "$OS" = 'gentoo' ]]; then
+		emerge openvpn
 	fi
 
 	# Find out if the machine uses nogroup or nobody for the permissionless group
@@ -705,11 +753,11 @@ function installOpenVPN () {
 	chmod 644 /etc/openvpn/crl.pem
 
 	# Generate server.conf
-	echo "port $PORT" > /etc/openvpn/server.conf
+	echo "port $PORT" > $OPENVPN_CONF
 	if [[ "$IPV6_SUPPORT" = 'n' ]]; then
-		echo "proto $PROTOCOL" >> /etc/openvpn/server.conf
+		echo "proto $PROTOCOL" >> $OPENVPN_CONF
 	elif [[ "$IPV6_SUPPORT" = 'y' ]]; then
-		echo "proto ${PROTOCOL}6" >> /etc/openvpn/server.conf
+		echo "proto ${PROTOCOL}6" >> $OPENVPN_CONF
 	fi
 
 	echo "dev tun
@@ -720,7 +768,7 @@ persist-tun
 keepalive 10 120
 topology subnet
 server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
+ifconfig-pool-persist ipp.txt" >> $OPENVPN_CONF
 
 	# DNS resolvers
 	case $DNS in
@@ -734,56 +782,56 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 			fi
 			# Obtain the resolvers from resolv.conf and use them for OpenVPN
 			grep -v '#' $RESOLVCONF | grep 'nameserver' | grep -E -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | while read -r line; do
-				echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
+				echo "push \"dhcp-option DNS $line\"" >> $OPENVPN_CONF
 			done
 		;;
 		2)
-			echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 10.8.0.1"' >> $OPENVPN_CONF
 		;;
 		3) # Cloudflare
-			echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 1.0.0.1"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 1.1.1.1"' >> $OPENVPN_CONF
 		;;
 		4) # Quad9
-			echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 149.112.112.112"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 9.9.9.9"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 149.112.112.112"' >> $OPENVPN_CONF
 		;;
 		5) # Quad9 uncensored
-			echo 'push "dhcp-option DNS 9.9.9.10"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 149.112.112.10"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 9.9.9.10"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 149.112.112.10"' >> $OPENVPN_CONF
 		;;
 		6) # FDN
-			echo 'push "dhcp-option DNS 80.67.169.40"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 80.67.169.12"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 80.67.169.40"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 80.67.169.12"' >> $OPENVPN_CONF
 		;;
 		7) # DNS.WATCH
-			echo 'push "dhcp-option DNS 84.200.69.80"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 84.200.70.40"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 84.200.69.80"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 84.200.70.40"' >> $OPENVPN_CONF
 		;;
 		8) # OpenDNS
-			echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 208.67.222.222"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 208.67.220.220"' >> $OPENVPN_CONF
 		;;
 		9) # Google
-			echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 8.8.8.8"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 8.8.4.4"' >> $OPENVPN_CONF
 		;;
 		10) # Yandex Basic
-			echo 'push "dhcp-option DNS 77.88.8.8"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 77.88.8.1"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 77.88.8.8"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 77.88.8.1"' >> $OPENVPN_CONF
 		;;
 		11) # AdGuard DNS
-			echo 'push "dhcp-option DNS 176.103.130.130"' >> /etc/openvpn/server.conf
-			echo 'push "dhcp-option DNS 176.103.130.131"' >> /etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 176.103.130.130"' >> $OPENVPN_CONF
+			echo 'push "dhcp-option DNS 176.103.130.131"' >> $OPENVPN_CONF
 		;;
 		12) # Custom DNS
-		echo "push \"dhcp-option DNS $DNS1\"" >> /etc/openvpn/server.conf
+		echo "push \"dhcp-option DNS $DNS1\"" >> $OPENVPN_CONF
 		if [[ "$DNS2" != "" ]]; then
-			echo "push \"dhcp-option DNS $DNS2\"" >> /etc/openvpn/server.conf
+			echo "push \"dhcp-option DNS $DNS2\"" >> $OPENVPN_CONF
 		fi
 		;;
 	esac
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
+	echo 'push "redirect-gateway def1 bypass-dhcp"' >> $OPENVPN_CONF
 
 	# IPv6 network settings if needed
 	if [[ "$IPV6_SUPPORT" = 'y' ]]; then
@@ -791,26 +839,26 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 tun-ipv6
 push tun-ipv6
 push "route-ipv6 2000::/3"
-push "redirect-gateway ipv6"' >> /etc/openvpn/server.conf
+push "redirect-gateway ipv6"' >> $OPENVPN_CONF
 	fi
 
 	if [[ $COMPRESSION_ENABLED == "y"  ]]; then
-		echo "compress $COMPRESSION_ALG" >> /etc/openvpn/server.conf
+		echo "compress $COMPRESSION_ALG" >> $OPENVPN_CONF
 	fi
 
 	if [[ $DH_TYPE == "1" ]]; then
-		echo "dh none" >> /etc/openvpn/server.conf
-		echo "ecdh-curve $DH_CURVE" >> /etc/openvpn/server.conf
+		echo "dh none" >> $OPENVPN_CONF
+		echo "ecdh-curve $DH_CURVE" >> $OPENVPN_CONF
 	elif [[ $DH_TYPE == "2" ]]; then
-		echo "dh dh.pem" >> /etc/openvpn/server.conf
+		echo "dh dh.pem" >> $OPENVPN_CONF
 	fi
 
 	case $TLS_SIG in
 		1)
-			echo "tls-crypt tls-crypt.key 0" >> /etc/openvpn/server.conf
+			echo "tls-crypt tls-crypt.key 0" >> $OPENVPN_CONF
 		;;
 		2)
-			echo "tls-auth tls-auth.key 0" >> /etc/openvpn/server.conf
+			echo "tls-auth tls-auth.key 0" >> $OPENVPN_CONF
 		;;
 	esac
 
@@ -825,7 +873,7 @@ tls-server
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
 status /var/log/openvpn/status.log
-verb 3" >> /etc/openvpn/server.conf
+verb 3" >> $OPENVPN_CONF
 
 	# Create log dir
 	mkdir -p /var/log/openvpn
@@ -861,14 +909,17 @@ verb 3" >> /etc/openvpn/server.conf
 			sed -i 's|--cipher AES-256-GCM --ncp-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC:AES-128-CBC:BF-CBC||' /etc/systemd/system/openvpn-server@.service
 		fi
 
-		systemctl daemon-reload
-		systemctl restart openvpn-server@server
-		systemctl enable openvpn-server@server
+		initSystem reload
+		initSystem restart openvpn-server@server
+		initSystem enable openvpn-server@server
 	elif [[ "$OS" == "ubuntu" ]] && [[ "$VERSION_ID" == "16.04" ]]; then
 		# On Ubuntu 16.04, we use the package from the OpenVPN repo
 		# This package uses a sysvinit service
-		systemctl enable openvpn
-		systemctl start openvpn
+		initSystem enable openvpn
+		initSystem start openvpn
+        elif [[ "$OS" == "gentoo" ]]; then
+                initSystem enable openvpn
+                initSystem start openvpn
 	else
 		# Don't modify package-provided service
 		cp /lib/systemd/system/openvpn\@.service /etc/systemd/system/openvpn\@.service
@@ -878,9 +929,9 @@ verb 3" >> /etc/openvpn/server.conf
 		# Another workaround to keep using /etc/openvpn/
 		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn\@.service
 
-		systemctl daemon-reload
-		systemctl restart openvpn@server
-		systemctl enable openvpn@server
+		initSystem reload
+		initSystem restart openvpn@server
+		initSystem enable openvpn@server
 	fi
 
 	if [[ $DNS == 2 ]];then
@@ -888,7 +939,9 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 
 	# Add iptables rules in two scripts
-	mkdir /etc/iptables
+	if [ ! -e /etc/iptables ]; then
+		mkdir /etc/iptables
+	fi
 
 	# Script to add rules
 	echo "#!/bin/sh
@@ -923,6 +976,8 @@ ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/rm-openvpn-rule
 	chmod +x /etc/iptables/add-openvpn-rules.sh
 	chmod +x /etc/iptables/rm-openvpn-rules.sh
 
+if isSystemD; then
+
 	# Handle the rules via a systemd script
 	echo "[Unit]
 Description=iptables rules for OpenVPN
@@ -938,10 +993,37 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
 
+else
+
+cat > /etc/init.d/iptables-openvpn << ENDOFFILE
+#!/sbin/openrc-run
+
+INSTANCE_NAME="Iptables for OpenVPN"
+
+description="IPTables for OpenVPN"
+
+start() {
+    ebegin "Starting $INSTANCE_NAME"
+    /etc/iptables/add-openvpn-rules.sh
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping $INSTANCE_NAME"
+    /etc/iptables/rm-openvpn-rules.sh
+    eend $?
+}
+
+ENDOFFILE
+
+chmod +x /etc/init.d/iptables-openvpn
+
+fi
+
 	# Enable service and apply rules
-	systemctl daemon-reload
-	systemctl enable iptables-openvpn
-	systemctl start iptables-openvpn
+	initSystem reload
+	initSystem enable iptables-openvpn
+	initSystem start iptables-openvpn
 
 	# If the server is behind a NAT, use the correct IP address for the clients to connect to
 	if [[ "$ENDPOINT" != "" ]]; then
@@ -1021,9 +1103,9 @@ function newClient () {
 	fi
 
 	# Determine if we use tls-auth or tls-crypt
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
+	if grep -qs "^tls-crypt" $OPENVPN_CONF; then
 		TLS_SIG="1"
-	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
+	elif grep -qs "^tls-auth" $OPENVPN_CONF; then
 		TLS_SIG="2"
 	fi
 
@@ -1104,7 +1186,7 @@ function removeUnbound () {
 	# Remove OpenVPN-related config
 	sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
 	rm /etc/unbound/openvpn.conf
-	systemctl restart unbound
+	initSystem restart unbound
 
 	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
 		echo ""
@@ -1114,7 +1196,7 @@ function removeUnbound () {
 
 	if [[ "$REMOVE_UNBOUND" = 'y' ]]; then
 		# Stop Unbound
-		systemctl stop unbound
+		initSystem stop unbound
 
 		if [[ "$OS" =~ (debian|ubuntu) ]]; then
 			apt-get autoremove --purge -y unbound
@@ -1141,30 +1223,39 @@ function removeOpenVPN () {
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ "$REMOVE" = 'y' ]]; then
 		# Get OpenVPN port from the configuration
-		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
+		PORT=$(grep '^port ' $OPENVPN_CONF | cut -d " " -f 2)
 
 		# Stop OpenVPN
 		if [[ "$OS" =~ (fedora|arch) ]]; then
-			systemctl disable openvpn-server@server
-			systemctl stop openvpn-server@server
+			initSystem disable openvpn-server@server
+			initSystem stop openvpn-server@server
 			# Remove customised service
 			rm /etc/systemd/system/openvpn-server@.service
 		elif [[ "$OS" == "ubuntu" ]] && [[ "$VERSION_ID" == "16.04" ]]; then
-			systemctl disable openvpn
-			systemctl stop openvpn
+			initSystem disable openvpn
+			initSystem stop openvpn
+		elif [[ "$OS" == "gentoo" ]]; then
+			initSystem disable openvpn
+			initSystem stop openvpn
 		else
-			systemctl disable openvpn@server
-			systemctl stop openvpn@server
+			initSystem disable openvpn@server
+			initSystem stop openvpn@server
 			# Remove customised service
 			rm /etc/systemd/system/openvpn\@.service
 		fi
 
 		# Remove the iptables rules related to the script
-		systemctl stop iptables-openvpn
+		initSystem stop iptables-openvpn
 		# Cleanup
-		systemctl disable iptables-openvpn
-		rm /etc/systemd/system/iptables-openvpn.service
-		systemctl daemon-reload
+		initSystem disable iptables-openvpn
+
+		if [[ -e /etc/systemd/system/iptables-openvpn.service ]]; then
+			rm /etc/systemd/system/iptables-openvpn.service
+			initSystem daemon-reload
+		elif [[ -e /etc/init.d/iptables-openvpn ]]; then
+			rm /etc/init.d/iptables-openvpn
+		fi
+
 		rm /etc/iptables/add-openvpn-rules.sh
 		rm /etc/iptables/rm-openvpn-rules.sh
 
@@ -1247,8 +1338,9 @@ function manageMenu () {
 initialCheck
 
 # Check if OpenVPN is already installed
-if [[ -e /etc/openvpn/server.conf ]]; then
+if [[ -e $OPENVPN_CONF ]]; then
 	manageMenu
 else
 	installOpenVPN
 fi
+
