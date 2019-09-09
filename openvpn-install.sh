@@ -1018,18 +1018,21 @@ INSTANCE_NAME="Iptables for OpenVPN"
 
 description="IPTables for OpenVPN"
 
+depends() {
+    need openvpn
+}
+
 start() {
-    ebegin "Starting $INSTANCE_NAME"
+    ebegin "Starting ${SVCNAME}"
     /etc/iptables/add-openvpn-rules.sh
     eend $?
 }
 
 stop() {
-    ebegin "Stopping $INSTANCE_NAME"
+    ebegin "Stopping ${SVCNAME}"
     /etc/iptables/rm-openvpn-rules.sh
     eend $?
 }
-
 ENDOFFILE
 
 chmod +x /etc/init.d/iptables-openvpn
