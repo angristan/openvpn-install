@@ -1,7 +1,5 @@
 # openvpn-install
 
-[![Travis CI](https://travis-ci.com/angristan/openvpn-install.svg?branch=master)](https://travis-ci.com/angristan/openvpn-install)
-
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
 
 This script will let you setup your own secure VPN server in just a few seconds.
@@ -13,7 +11,7 @@ You can also check out [wireguard-install](https://github.com/angristan/wireguar
 First, get the script and make it executable :
 
 ```bash
-curl -O https://raw.githubusercontent.com/Angristan/openvpn-install/master/openvpn-install.sh
+curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
 
@@ -97,7 +95,7 @@ export PASS="1"
 - Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
 - Choice between TCP and UDP
 - NATed IPv6 support
-- Compression disabled by default to prevent VORACLE. LZ4 and LZ0 algorithms available otherwise.
+- Compression disabled by default to prevent VORACLE. LZ4 (v1/v2) and LZ0 algorithms available otherwise.
 - Unprivileged mode: run as `nobody`/`nogroup`
 - Block DNS leaks on Windows 10
 - Randomised server certificate name
@@ -108,17 +106,19 @@ export PASS="1"
 
 The script supports these OS and architectures:
 
-|              | i386 | amd64 | armhf | arm64 |
-| ------------ | ---- | ----- | ----- | ----- |
-|  Arch Linux  |   ❔  |  ✅  |   ❔   |   ❔  |
-|   CentOS 7   |   ❔  |  ✅  |   ❌   |   ✅  |
-|   Debian 8   |   ✅  |  ✅  |   ❌   |   ❌  |
-|   Debian 9   |   ❌  |  ✅  |   ✅   |   ✅  |
-|   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
-|   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
-| Ubuntu 16.04 |   ✅  |  ✅  |   ❌   |   ❌  |
-| Ubuntu 18.04 |   ❌  |  ✅  |   ✅   |   ✅  |
-| Ubuntu 19.04 |   ❌  |  ✅  |   ✅   |   ✅  |
+|                | i386 | amd64 | armhf | arm64 |
+| -------------- | ---- | ----- | ----- | ----- |
+| Amazon Linux 2 |  ❔  |  ✅  |   ❔  |   ❔  |
+|  Arch Linux    |  ❔  |  ✅  |   ❔  |   ❔  |
+|   CentOS 7     |  ❔  |  ✅  |   ❌  |   ✅  |
+|   Debian 8     |  ✅  |  ✅  |   ❌  |   ❌  |
+|   Debian 9     |  ❌  |  ✅  |   ✅  |   ✅  |
+|   Debian 10    |  ❔  |  ✅  |   ✅  |   ❔  |
+|   Fedora 27    |  ❔  |  ✅  |   ❔  |   ❔  |
+|   Fedora 28    |  ❔  |  ✅  |   ❔  |   ❔  |
+| Ubuntu 16.04   |  ✅  |  ✅  |   ❌  |   ❌  |
+| Ubuntu 18.04   |  ❌  |  ✅  |   ✅  |   ✅  |
+| Ubuntu 19.04   |  ❌  |  ✅  |   ✅  |   ✅  |
 
 To be noted:
 
@@ -183,7 +183,7 @@ If you want more information about an option mentioned below, head to the [OpenV
 Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.6/easyrsa3/vars.example) file.
 ### Compression
 
-By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 algorithms, the latter being more efficient.
+By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 (v1/v2) algorithms, the latter being more efficient.
 
 However, it is discouraged to use compression since it since the [VORACLE attack](https://protonvpn.com/blog/voracle-attack/) makes use of it.
 
@@ -278,10 +278,8 @@ It defaults to `prime256v1`.
 From the OpenVPN wiki, about `--auth`:
 
 > Authenticate data channel packets and (if enabled) tls-auth control channel packets with HMAC using message digest algorithm alg. (The default is SHA1 ). HMAC is a commonly used message authentication algorithm (MAC) that uses a data string, a secure hash algorithm, and a key, to produce a digital signature.
-> 
+>
 > If an AEAD cipher mode (e.g. GCM) is chosen, the specified --auth algorithm is ignored for the data channel, and the authentication method of the AEAD cipher is used instead. Note that alg still specifies the digest used for tls-auth.
-
-SHA1 [isn't safe anymore](https://en.wikipedia.org/wiki/SHA-1#Attacks).
 
 The script provides the following choices:
 
@@ -296,13 +294,13 @@ It defaults to `SHA256`.
 From the OpenVPN wiki, about `tls-auth`:
 
 > Add an additional layer of HMAC authentication on top of the TLS control channel to mitigate DoS attacks and attacks on the TLS stack.
-> 
+>
 > In a nutshell, --tls-auth enables a kind of "HMAC firewall" on OpenVPN's TCP/UDP port, where TLS control channel packets bearing an incorrect HMAC signature can be dropped immediately without response.
 
 About `tls-crypt`:
 
 > Encrypt and authenticate all control channel packets with the key from keyfile. (See --tls-auth for more background.)
-> 
+>
 > Encrypting (and authenticating) control channel packets:
 > - provides more privacy by hiding the certificate used for the TLS connection,
 > - makes it harder to identify OpenVPN traffic as such,

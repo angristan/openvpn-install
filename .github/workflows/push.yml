@@ -1,0 +1,11 @@
+on: push
+name: ShellCheck
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: shellcheck
+      uses: actions/bin/shellcheck@master
+      with:
+        args: openvpn-install.sh -e SC1091,SC2164,SC2034,SC1072,SC1073,SC1009
