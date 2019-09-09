@@ -198,7 +198,23 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 	qname-minimisation: yes
 	prefetch: yes' > /etc/unbound/unbound.conf
 		elif [[ "$OS" = "gentoo" ]]; then
-			emerge net-dns/unbound
+			emerge -q net-dns/unbound
+
+			# only for systemd
+			if isSystemD; then
+				sed -i 's|# use-systemd: no$|use-systemd: yes|' /etc/unbound/unbound.conf
+				sed -i 's|# do-daemonize: no$|do-daemonize: yes|' /etc/unbound/unbound.conf
+			fi
+
+			sed -i 's|# interface: 192.0.2.153$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
+			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
+			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# prefetch: no|prefetch: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# num-threads: 1|num-threads: 2|' /etc/unbound/unbound.conf
+			sed -i 's|private-address.*||' /etc/unbound/unbound.conf
+
 		fi
 
 		if [[ ! "$OS" =~ (fedora|centos|amzn) ]];then
@@ -677,7 +693,7 @@ function installOpenVPN () {
 		# Install required dependencies and upgrade the system
 		pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'gentoo' ]]; then
-		emerge openvpn
+		emerge -q openvpn
 	fi
 
 	# Find out if the machine uses nogroup or nobody for the permissionless group
@@ -1202,6 +1218,8 @@ function removeUnbound () {
 			apt-get autoremove --purge -y unbound
 		elif [[ "$OS" = 'arch' ]]; then
 			pacman --noconfirm -R unbound
+		elif [[ "$OS" = 'gentoo' ]]; then
+			emerge -C unbound
 		elif [[ "$OS" =~ (centos|amzn) ]]; then
 			yum remove -y unbound
 		elif [[ "$OS" = 'fedora' ]]; then
@@ -1276,6 +1294,8 @@ function removeOpenVPN () {
 			fi
 		elif [[ "$OS" = 'arch' ]]; then
 			pacman --noconfirm -R openvpn
+		elif [[ "$OS" = 'arch' ]]; then
+			emerge -C openvpn
 		elif [[ "$OS" =~ (centos|amzn) ]]; then
 			yum remove -y openvpn
 		elif [[ "$OS" = 'fedora' ]]; then
