@@ -1,6 +1,6 @@
 # openvpn-install
 
-OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
+OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Arch and Gentoo Linux.
 
 This script will let you setup your own secure VPN server in just a few seconds.
 
@@ -96,6 +96,7 @@ The script supports these OS and architectures:
 | -------------- | ---- | ----- | ----- | ----- |
 | Amazon Linux 2 |  ❔  |  ✅  |   ❔  |   ❔  |
 |  Arch Linux    |  ❔  |  ✅  |   ❔  |   ❔  |
+|  Gentoo Linux  |  ✅  |  ✅  |   ✅  |   ✅  |
 |   CentOS 7     |  ❔  |  ✅  |   ❌  |   ✅  |
 |   Debian 8     |  ✅  |  ✅  |   ❌  |   ❌  |
 |   Debian 9     |  ❌  |  ✅  |   ✅  |   ✅  |
@@ -109,7 +110,7 @@ The script supports these OS and architectures:
 To be noted:
 
 - It should work on Debian 8+ and Ubuntu 16.04+. But versions not in the table above are not officially supported.
-- The script requires `systemd`.
+- The script requires `systemd` or `OpenRC` .
 - The script is regularly tested against `amd64` only.
 
 ## Fork
