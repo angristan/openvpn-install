@@ -89,7 +89,7 @@ function checkOS () {
 			OPENVPN_CONF="/etc/openvpn/openvpn.conf"
 		fi
 	else
-		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2 or Arch Linux system"
+		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Arch Linux or Gentoo Linux system"
 		exit 1
 	fi
 }
@@ -1297,7 +1297,7 @@ function removeOpenVPN () {
 			fi
 		elif [[ "$OS" = 'arch' ]]; then
 			pacman --noconfirm -R openvpn
-		elif [[ "$OS" = 'arch' ]]; then
+		elif [[ "$OS" = 'gentoo' ]]; then
 			emerge -C openvpn
 		elif [[ "$OS" =~ (centos|amzn) ]]; then
 			yum remove -y openvpn
