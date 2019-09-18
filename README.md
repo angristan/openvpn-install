@@ -77,19 +77,6 @@ Other variables can be set depending on your choice (encryption, compression). Y
 
 Password-protected clients are not supported by the headless installation method since user input is expected by Easy-RSA.
 
-### Headless User Removal
-
-The removal of an existing user can also be fully automated. Again, the key is to provide the (string) value of the `MENU_OPTION` variable along with the remaining mandatory variables before invoking the script.
-
-The following Bash script removes the existing user `bar` from an OpenVPN configuration
-```bash
-#!/bin/bash
-export MENU_OPTION="2"
-export CLIENT="bar"
-./openvpn-install.sh
-```
-
-
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
