@@ -83,7 +83,6 @@ export PASS="1"
 ./openvpn-install.sh
 ```
 
-
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
