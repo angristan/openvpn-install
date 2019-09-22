@@ -108,7 +108,7 @@ The script supports these OS and architectures:
 |                | i386 | amd64 | armhf | arm64 |
 | -------------- | ---- | ----- | ----- | ----- |
 | Amazon Linux 2 |  ❔  |  ✅  |   ❔  |   ❔  |
-|  Arch Linux    |  ❔  |  ✅  |   ❔  |   ❔  |
+|  Arch Linux    |  ❔  |  ✅  |   ❔  |   ✅  |
 |   CentOS 7     |  ❔  |  ✅  |   ❌  |   ✅  |
 |   Debian 8     |  ✅  |  ✅  |   ❌  |   ❌  |
 |   Debian 9     |  ❌  |  ✅  |   ✅  |   ✅  |
