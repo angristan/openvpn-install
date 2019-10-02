@@ -171,6 +171,13 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 
 ---
 
+##  One-stop solutions for public cloud
+
+Solutions that provision a ready to use OpenVPN server based on this script in one go are available for:
+
+ - AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install)
+
+
 ## Security and Encryption
 
 OpenVPN's default settings are pretty weak regarding encryption. This script aims to improve that.
