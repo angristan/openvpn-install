@@ -54,11 +54,7 @@ function checkOS () {
 		source /etc/os-release
 		if [[ "$ID" = "centos" ]]; then
 			OS="centos"
-<<<<<<< HEAD
-			if [[ ! $VERSION_ID =~ (7|8) ]]; then
-=======
-			if [[ ! $VERSION_ID ~= "7|8" ]]; then
->>>>>>> e2e58b20b3e962f186ab7556b3a20ca559593724
+			if [[ ! $VERSION_ID ~= (7|8) ]]; then
 				echo "⚠️ Your version of CentOS is not supported."
 				echo ""
 				echo "The script only support CentOS 7."
@@ -1146,7 +1142,7 @@ function removeOpenVPN () {
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ "$REMOVE" = 'y' ]]; then
 		# Get OpenVPN port from the configuration
-		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
+		PORT=$(grep '^port ' /etc/op	envpn/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
 		if [[ "$OS" =~ (fedora|arch|centos) ]]; then
