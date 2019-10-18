@@ -54,7 +54,7 @@ function checkOS () {
 		source /etc/os-release
 		if [[ "$ID" = "centos" ]]; then
 			OS="centos"
-			if [[ ! $VERSION_ID == "7" ]]; then
+			if [[ ! $VERSION_ID =~ (7|8) ]]; then
 				echo "⚠️ Your version of CentOS is not supported."
 				echo ""
 				echo "The script only support CentOS 7."
@@ -621,7 +621,7 @@ function installOpenVPN () {
 		apt-get install -y openvpn iptables openssl wget ca-certificates curl
 	elif [[ "$OS" = 'centos' ]]; then
 		yum install -y epel-release
-		yum install -y openvpn iptables openssl wget ca-certificates curl
+		yum install -y openvpn iptables openssl wget ca-certificates curl tar
 	elif [[ "$OS" = 'amzn' ]]; then
 		amazon-linux-extras install -y epel
 		yum install -y openvpn iptables openssl wget ca-certificates curl
@@ -670,6 +670,7 @@ function installOpenVPN () {
 
 	# Workaround to remove unharmful error until easy-rsa 3.0.7
 	# https://github.com/OpenVPN/easy-rsa/issues/261
+	cd /etc/openvpn/easy-rsa/
 	sed -i 's/^RANDFILE/#RANDFILE/g' pki/openssl-easyrsa.cnf
 
 	# Create the PKI, set up the CA, the DH params and the server certificate
@@ -848,7 +849,7 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 
 	# Finally, restart and enable OpenVPN
-	if [[ "$OS" = 'arch' || "$OS" = 'fedora' ]]; then
+	if [[ "$OS" = 'arch' || "$OS" = 'fedora' || "$OS" = 'centos' ]]; then
 		# Don't modify package-provided service
 		cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
@@ -1144,7 +1145,7 @@ function removeOpenVPN () {
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
-		if [[ "$OS" =~ (fedora|arch) ]]; then
+		if [[ "$OS" =~ (fedora|arch|centos) ]]; then
 			systemctl disable openvpn-server@server
 			systemctl stop openvpn-server@server
 			# Remove customised service
