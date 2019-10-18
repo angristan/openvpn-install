@@ -54,7 +54,7 @@ function checkOS () {
 		source /etc/os-release
 		if [[ "$ID" = "centos" ]]; then
 			OS="centos"
-			if [[ ! $VERSION_ID == "7" ]]; then
+			if [[ ! $VERSION_ID ~= "7|8" ]]; then
 				echo "⚠️ Your version of CentOS is not supported."
 				echo ""
 				echo "The script only support CentOS 7."
