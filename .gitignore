@@ -1,2 +1,4 @@
 .vagrant/
 *.log
+.ovpn
+.bash
