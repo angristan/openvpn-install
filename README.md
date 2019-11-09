@@ -109,6 +109,7 @@ The script supports these OS and architectures:
 | -------------- | ---- | ----- | ----- | ----- |
 | Amazon Linux 2 |  ❔  |  ✅  |   ❔  |   ❔  |
 |  Arch Linux    |  ❔  |  ✅  |   ❔  |   ✅  |
+|   Centos 8     |  ✅  |  ✅  |   ❔  |   ?  |
 |   CentOS 7     |  ❔  |  ✅  |   ❌  |   ✅  |
 |   Debian 8     |  ✅  |  ✅  |   ❌  |   ❌  |
 |   Debian 9     |  ❌  |  ✅  |   ✅  |   ✅  |
