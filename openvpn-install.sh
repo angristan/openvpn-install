@@ -18,6 +18,7 @@ function tunAvailable () {
 function checkOS () {
 	if [[ -e /etc/debian_version ]]; then
 		OS="debian"
+		# shellcheck disable=SC1091
 		source /etc/os-release
 
 		if [[ "$ID" == "debian" || "$ID" == "raspbian" ]]; then
@@ -51,6 +52,7 @@ function checkOS () {
 			fi
 		fi
 	elif [[ -e /etc/system-release ]]; then
+		# shellcheck disable=SC1091
 		source /etc/os-release
 		if [[ "$ID" = "centos" ]]; then
 			OS="centos"
@@ -652,7 +654,7 @@ function installOpenVPN () {
 	chown -R root:root /etc/openvpn/easy-rsa/
 	rm -f ~/EasyRSA-unix-v${version}.tgz
 
-	cd /etc/openvpn/easy-rsa/
+	cd /etc/openvpn/easy-rsa/ || return
 	case $CERT_TYPE in
 		1)
 			echo "set_var EASYRSA_ALGO ec" > vars
@@ -1083,7 +1085,7 @@ function revokeClient () {
 	fi
 
 	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-	cd /etc/openvpn/easy-rsa/
+	cd /etc/openvpn/easy-rsa/ || return
 	./easyrsa --batch revoke "$CLIENT"
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# Cleanup
@@ -1139,6 +1141,7 @@ function removeUnbound () {
 
 function removeOpenVPN () {
 	echo ""
+	# shellcheck disable=SC2034
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ "$REMOVE" = 'y' ]]; then
 		# Get OpenVPN port from the configuration
