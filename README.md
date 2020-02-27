@@ -63,6 +63,7 @@ If you want to customise your installation, you can export them or specify them 
 - `CUSTOMIZE_ENC=n`
 - `CLIENT=clientname`
 - `PASS=1`
+- `TUNNEL_CIDR_BLOCKS="10.0.1.0/24 10.0.2.0/16"`
 
 If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
 
@@ -83,6 +84,23 @@ export PASS="1"
 ./openvpn-install.sh
 ```
 
+### Split-tunnel usage
+If you only want to tunnel specific subnets through the VPN-tunnel, you can enable Split-tunnel configuration by passing the TUNNEL_CIDR_BLOCKS environment variable. For example, if you want to tunnel just the subnets 10.0.1.0 with netmask 255.255.255.0 and 10.0.2.0 with netmask 255.255.255.0, you specify 10.0.1.0/24 and 10.0.2.0/24:
+
+On the command line:
+```bash
+TUNNEL_CIDR_BLOCKS=(10.0.1.0/24 10.0.2.0/24) ./openvpn-install.sh
+```
+On in a script:
+```bash
+#!/bin/bash
+export TUNNEL_CIDR_BLOCKS="10.0.1.0/24 10.0.2.0/24"
+./openvpn-install.sh
+```
+_Notes:_
+- _Currently only 8-, 16-, 24- and 32-bits subnets are supported!_
+- _/bin/sh doesn't support array's, so bash is required._
+
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
@@ -99,6 +117,7 @@ export PASS="1"
 - Block DNS leaks on Windows 10
 - Randomised server certificate name
 - Choice to protect clients with a password (private key encryption)
+- Split-tunnel configuration (experimental)
 - Many other little things!
 
 ## Compatibility
