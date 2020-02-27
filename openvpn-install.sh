@@ -787,7 +787,26 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		fi
 		;;
 	esac
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
+
+	# Allow split-tunnel via custom CIDR blocks (ie. 192.168.0.0/24)
+	if [ ${#PUSH_CIDR_BLOCKS[@]} -gt 0 ]; then
+		for cidr in ${PUSH_CIDR_BLOCKS[@]}; do
+			echo "Adding $cidr to routed subnets...";
+			ROUTE_IP=$(echo $cidr | cut -d"/" -f1)
+			ROUTE_BITS=$(echo $cidr | cut -d"/" -f2)
+
+			case $ROUTE_BITS in 
+				8)  ROUTE_MASK="255.0.0.0" ;;
+				16) ROUTE_MASK="255.255.0.0" ;;
+				24) ROUTE_MASK="255.255.255.0" ;;
+				32) ROUTE_MASK="255.255.255.255" ;;
+			esac
+
+			echo "push \"route ${ROUTE_IP} ${ROUTE_MASK}\"" >> /etc/openvpn/server.conf
+		done
+	else
+		echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
+	fi
 
 	# IPv6 network settings if needed
 	if [[ "$IPV6_SUPPORT" = 'y' ]]; then
