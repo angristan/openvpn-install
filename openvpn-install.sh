@@ -1147,6 +1147,7 @@ function removeOpenVPN () {
 	if [[ "$REMOVE" = 'y' ]]; then
 		# Get OpenVPN port from the configuration
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
+		PROTOCOL=$(grep '^proto ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
 		if [[ "$OS" =~ (fedora|arch|centos) ]]; then
@@ -1177,7 +1178,7 @@ function removeOpenVPN () {
 		if hash sestatus 2>/dev/null; then
 			if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 				if [[ "$PORT" != '1194' ]]; then
-					semanage port -d -t openvpn_port_t -p udp "$PORT"
+					semanage port -d -t openvpn_port_t -p "$PROTOCOL" "$PORT"
 				fi
 			fi
 		fi
