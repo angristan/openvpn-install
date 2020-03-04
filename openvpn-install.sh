@@ -741,7 +741,7 @@ persist-key
 persist-tun
 keepalive 10 120
 topology subnet
-server $IP_RANGE 255.255.255.0
+server ${IP_RANGE} 255.255.255.0
 ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 
 	# DNS resolvers
@@ -914,7 +914,7 @@ verb 3" >> /etc/openvpn/server.conf
 
 	# Script to add rules
 	echo "#!/bin/sh
-iptables -t nat -I POSTROUTING 1 -s $IP_RANGE/24 -o $NIC -j MASQUERADE
+iptables -t nat -I POSTROUTING 1 -s ${IP_RANGE}/24 -o ${NIC} -j MASQUERADE
 iptables -I INPUT 1 -i tun0 -j ACCEPT
 iptables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 iptables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
@@ -929,7 +929,7 @@ ip6tables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT" >> /etc/iptables/add-openvpn-r
 
 	# Script to remove rules
 	echo "#!/bin/sh
-iptables -t nat -D POSTROUTING -s #IP_RANGE/24 -o $NIC -j MASQUERADE
+iptables -t nat -D POSTROUTING -s ${IP_RANGE}/24 -o ${NIC} -j MASQUERADE
 iptables -D INPUT -i tun0 -j ACCEPT
 iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT
