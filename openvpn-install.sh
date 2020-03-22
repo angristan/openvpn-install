@@ -668,9 +668,18 @@ function installOpenVPN () {
 	esac
 
 	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
-	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
+	#SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+	#SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+	#echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
+
+	#############Modified Section    
+	SERVER_CN="OPENVPNS1"
+    SERVER_NAME="OPENVPNSRV"
+    echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
+    echo "set_var EASYRSA_CA_EXPIRE      14600" >> vars
+    echo "set_var EASYRSA_CERT_EXPIRE    12775" >> vars
+    #echo "set_var EASYRSA_CERT_EXPIRE    1080" >> vars
+	####################################
 
 	# Create the PKI, set up the CA, the DH params and the server certificate
 	./easyrsa init-pki
