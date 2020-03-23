@@ -842,12 +842,11 @@ ncp-ciphers $CIPHER
 tls-server
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
-status /var/log/openvpn/status.log
+status /var/log/openvpn/status.log 20
 verb 3" >> /etc/openvpn/server.conf
 
 #Creating log files for Openvpn
-echo "status /var/log/openvpn-status.log 20
-status-version 3" >> /etc/openvpn/server.conf
+echo "status-version 3" >> /etc/openvpn/server.conf
 echo "log-append /var/log/openvpn.log" >> /etc/openvpn/server.conf
 
 	# Create log dir
@@ -1266,7 +1265,7 @@ printf "\n"
 }
 
 function showclients() {
-STATUS_LOG="/var/log/openvpn-status.log"
+STATUS_LOG="/var/log/openvpn/status.log"
 
 if [ ! -f "${STATUS_LOG}" ]; then
     echo "The file: $STATUS_LOG was not found!"
