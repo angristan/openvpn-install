@@ -1273,8 +1273,8 @@ function manageMenu () {
 	echo "What do you want to do?"
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
-	echo "   4) List Current Issued Certificates"
-	echo "   5) List Current Users"
+	echo "   3) List Current Issued Certificates"
+	echo "   4) List Current Users"
 	echo "   8) Remove OpenVPN"
 	echo "   9) Exit"
 	until [[ "$MENU_OPTION" =~ ^[1-4]$ ]]; do
@@ -1288,9 +1288,13 @@ function manageMenu () {
 		2)
 			revokeClient
 		;;
-		4)
+		3)
 			listcerts
 		;;
+		4)
+			echo "TBD"
+		;;
+
 
 
 		8)
