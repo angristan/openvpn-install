@@ -961,6 +961,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
 	echo "client" > /etc/openvpn/client-template.txt
 	if [[ "$PROTOCOL" = 'udp' ]]; then
 		echo "proto udp" >> /etc/openvpn/client-template.txt
+		echo "explicit-exit-notify" >> /etc/openvpn/client-template.txt
 	elif [[ "$PROTOCOL" = 'tcp' ]]; then
 		echo "proto tcp-client" >> /etc/openvpn/client-template.txt
 	fi
