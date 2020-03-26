@@ -607,6 +607,19 @@ function installOpenVPN () {
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
+	# $NIC can not be empty for script rm-openvpn-rules.sh
+        if [[ -z "$NIC" ]]; then
+                echo
+                echo "Can not detect public interface."
+                echo "This needs for setup MASQUERADE."
+                until [[ $CONTINUE =~ (y|n) ]]; do
+                        read -rp "Continue? [y/n]: " -e CONTINUE
+                done
+                if [[ "$CONTINUE" = "n" ]]; then
+                        exit 1
+                fi
+        fi
+
 	if [[ "$OS" =~ (debian|ubuntu) ]]; then
 		apt-get update
 		apt-get -y install ca-certificates gnupg
