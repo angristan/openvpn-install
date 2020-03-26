@@ -900,7 +900,7 @@ verb 3" >> /etc/openvpn/server.conf
 	fi
 
 	# Add iptables rules in two scripts
-	mkdir /etc/iptables
+	mkdir -p /etc/iptables
 
 	# Script to add rules
 	echo "#!/bin/sh
