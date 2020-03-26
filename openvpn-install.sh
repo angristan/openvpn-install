@@ -894,6 +894,19 @@ verb 3" >> /etc/openvpn/server.conf
 		# This package uses a sysvinit service
 		systemctl enable openvpn
 		systemctl start openvpn
+	elif [[ -f /lib/systemd/system/openvpn-server@.service ]]; then
+		# On Debian 9, needs to copy from an other place
+		# Don't modify package-provided service
+		cp /lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
+
+		# Workaround to fix OpenVPN service on OpenVZ
+		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
+		# Another workaround to keep using /etc/openvpn/
+		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn-server@.service
+
+		systemctl daemon-reload
+		systemctl restart openvpn-server@server
+		systemctl enable openvpn-server@server
 	else
 		# Don't modify package-provided service
 		cp /lib/systemd/system/openvpn\@.service /etc/systemd/system/openvpn\@.service
@@ -1171,7 +1184,8 @@ function removeOpenVPN () {
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
-		if [[ "$OS" =~ (fedora|arch|centos) ]]; then
+		if [[ -f /etc/systemd/system/openvpn-server@.service ]]; then
+			# fedora, arch, centos, debian 9
 			systemctl disable openvpn-server@server
 			systemctl stop openvpn-server@server
 			# Remove customised service
