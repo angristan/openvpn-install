@@ -887,8 +887,8 @@ verb 3" >> /etc/openvpn/server.conf
 		fi
 
 		systemctl daemon-reload
-		systemctl restart openvpn-server@server
 		systemctl enable openvpn-server@server
+		systemctl restart openvpn-server@server
 	elif [[ "$OS" == "ubuntu" ]] && [[ "$VERSION_ID" == "16.04" ]]; then
 		# On Ubuntu 16.04, we use the package from the OpenVPN repo
 		# This package uses a sysvinit service
@@ -904,8 +904,8 @@ verb 3" >> /etc/openvpn/server.conf
 		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn\@.service
 
 		systemctl daemon-reload
-		systemctl restart openvpn@server
 		systemctl enable openvpn@server
+		systemctl restart openvpn@server
 	fi
 
 	if [[ $DNS == 2 ]];then
