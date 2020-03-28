@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora and Arch Linux
-# https://github.com/angristan/openvpn-install
+# Original Script from https://github.com/angristan/openvpn-install
+# Additional features imported from https://www.pivpn.io/
 
 function isRoot () {
 	if [ "$EUID" -ne 0 ]; then
@@ -1235,7 +1236,10 @@ function removeOpenVPN () {
 }
 
 function listcerts () {
-# PiVPN: list clients script function
+
+# Original Script from PiVPN: list clients script
+# Modified Script to add Certificate expiration Date -- Swamy Goundar 03/28/2020
+
 
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
 printf "\n"
@@ -1244,22 +1248,26 @@ if [ ! -f "${INDEX}" ]; then
         exit 1
 fi
 
-printf ": NOTE : The first entry should always be your valid server!\n"
-printf "\n"
+#printf ": NOTE : The first entry should always be your valid server!\n"
+#printf "\n"
 printf "\e[1m::: Certificate Status List :::\e[0m\n"
-printf " ::\e[4m  Status  \e[0m||\e[4m   Name   \e[0m:: \n"
+printf "\e[4mStatus\e[0m ::  \e[4mName\e[0m\e[0m        ::  \e[4mExpiration \e[0m\n" 
 
 while read -r line || [ -n "$line" ]; do
     STATUS=$(echo "$line" | awk '{print $1}')
     NAME=$(echo "$line" | sed -e 's:.*/CN=::')
+    EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
+        
     if [ "${STATUS}" == "V" ]; then
-        printf "     Valid   ::   %s\n" "$NAME"
+        printf "     Valid   ::   $NAME :: $EXPD \n" 
+
     elif [ "${STATUS}" == "R" ]; then
-        printf "     Revoked ::   %s\n" "$NAME"
+        printf "     Revoked ::   $NAME :: $EXPD \n"
     else
-        printf "     Unknown ::   %s\n" "$NAME"
+        printf "     Unknown ::   $NAME :: $EXPD \n"
+
     fi
-done <${INDEX}
+done <${INDEX} | column -t
 printf "\n"
 
 }
@@ -1366,7 +1374,7 @@ function manageMenu () {
 	echo "   7) Sync Configuration to Alternate Servers *Incomplete"
 	echo "   8) Remove OpenVPN"
 	echo "   9) Exit"
-	until [[ "$MENU_OPTION" =~ ^[1-4]$ ]]; do
+	until [[ "$MENU_OPTION" =~ ^[1-9]$ ]]; do
 		read -rp "Select an option [1-9]: " MENU_OPTION
 	done
 
