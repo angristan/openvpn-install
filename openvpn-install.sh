@@ -1238,6 +1238,43 @@ function removeOpenVPN () {
 	fi
 }
 
+function listcerts () {
+
+# Original Script from PiVPN: list clients script
+# Modified Script to add Certificate expiration Date -- psgoundar  
+
+
+INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
+printf "\n"
+if [ ! -f "${INDEX}" ]; then
+        echo "The file: $INDEX was not found!"
+        exit 1
+fi
+
+#printf ": NOTE : The first entry should always be your valid server!\n"
+#printf "\n"
+printf "\e[1m::: Certificate Status List :::\e[0m\n"
+printf "\e[4mStatus\e[0m ::  \e[4mName\e[0m\e[0m        ::  \e[4mExpiration \e[0m\n" 
+
+while read -r line || [ -n "$line" ]; do
+    STATUS=$(echo "$line" | awk '{print $1}')
+    NAME=$(echo "$line" | sed -e 's:.*/CN=::')
+    EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
+        
+    if [ "${STATUS}" == "V" ]; then
+        printf "     Valid   ::   $NAME :: $EXPD \n" 
+
+    elif [ "${STATUS}" == "R" ]; then
+        printf "     Revoked ::   $NAME :: $EXPD \n"
+    else
+        printf "     Unknown ::   $NAME :: $EXPD \n"
+
+    fi
+done <${INDEX} | column -t
+printf "\n"
+
+}
+
 function manageMenu () {
 	clear
 	echo "Welcome to OpenVPN-install!"
@@ -1248,10 +1285,11 @@ function manageMenu () {
 	echo "What do you want to do?"
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
-	echo "   3) Remove OpenVPN"
-	echo "   4) Exit"
-	until [[ "$MENU_OPTION" =~ ^[1-4]$ ]]; do
-		read -rp "Select an option [1-4]: " MENU_OPTION
+	echo "   3) List Current Issued Certificates"
+	echo "   8) Remove OpenVPN"
+	echo "   9) Exit"
+	until [[ "$MENU_OPTION" =~ ^[1-9]$ ]]; do
+		read -rp "Select an option [1-9]: " MENU_OPTION
 	done
 
 	case $MENU_OPTION in
@@ -1262,9 +1300,13 @@ function manageMenu () {
 			revokeClient
 		;;
 		3)
+			listcerts
+		;;
+
+		8)
 			removeOpenVPN
 		;;
-		4)
+		9)
 			exit 0
 		;;
 	esac
