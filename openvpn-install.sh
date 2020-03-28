@@ -197,7 +197,7 @@ private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
 
 function installQuestions () {
 	echo "Welcome to the OpenVPN installer!"
-	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
+	echo "The git repository is available at: https://github.com/psgoundar/openvpn-install"
 	echo ""
 
 	echo "I need to ask you a few questions before starting the setup."
@@ -687,7 +687,7 @@ function installOpenVPN () {
 
         # Workaround to remove unharmful error until easy-rsa 3.0.7
         # https://github.com/OpenVPN/easy-rsa/issues/261
-        sed -i 's/^RANDFILE/#RANDFILE/g' pki/openssl-easyrsa.cnf
+    	sed -i 's/^RANDFILE/#RANDFILE/g' pki/openssl-easyrsa.cnf
 
 	./easyrsa --batch build-ca nopass
 
@@ -698,6 +698,9 @@ function installOpenVPN () {
 
 	./easyrsa build-server-full "$SERVER_NAME" nopass
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
+#Replace Cert Lifetime back to 1080 Days leaving only the Server Cert as 12775 Days
+	sed -i 's/12775/1080/' vars
+
 
 	case $TLS_SIG in
 		1)
