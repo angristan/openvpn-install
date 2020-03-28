@@ -1360,7 +1360,10 @@ function manageMenu () {
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
 	echo "   3) List Current Issued Certificates"
-	echo "   4) List Current Users"
+	echo "   4) List Current Active Users"
+	echo "   5) Backup Configuration *Incomplete"
+	echo "   6) Restore Configuration from Backup *Incomplete"
+	echo "   7) Sync Configuration to Alternate Servers *Incomplete"
 	echo "   8) Remove OpenVPN"
 	echo "   9) Exit"
 	until [[ "$MENU_OPTION" =~ ^[1-4]$ ]]; do
