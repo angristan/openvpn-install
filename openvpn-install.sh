@@ -1260,7 +1260,11 @@ function removeOpenVPN () {
 function listcerts () {
 
 # Original Script from PiVPN: list clients script
+<<<<<<< HEAD
 # Modified Script to add Certificate expiration Date -- Swamy Goundar  03/28/2020
+=======
+# Modified Script to add Certificate expiration Date -- psgoundar  
+>>>>>>> 4dce304... Added List function to Show Issued Certificates
 
 
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
@@ -1273,8 +1277,12 @@ fi
 #printf ": NOTE : The first entry should always be your valid server!\n"
 #printf "\n"
 printf "\e[1m::: Certificate Status List :::\e[0m\n"
+<<<<<<< HEAD
 {
 printf "\\e[4mStatus\\e[0m  \t  \\e[4mName\\e[0m\\e[0m  \t  \\e[4mExpiration\\e[0m\\n"
+=======
+printf "\e[4mStatus\e[0m ::  \e[4mName\e[0m\e[0m        ::  \e[4mExpiration \e[0m\n" 
+>>>>>>> 4dce304... Added List function to Show Issued Certificates
 
 while read -r line || [ -n "$line" ]; do
     STATUS=$(echo "$line" | awk '{print $1}')
@@ -1282,6 +1290,7 @@ while read -r line || [ -n "$line" ]; do
     EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
         
     if [ "${STATUS}" == "V" ]; then
+<<<<<<< HEAD
         printf "Valid  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
     elif [ "${STATUS}" == "R" ]; then
         printf "Revoked  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
@@ -1428,6 +1437,18 @@ echo "Restore Script"
 Backup_Location="/opt/backup"
 Last_Backup_Config_Archive_File=$(ls -t $Backup_Location/config* | head -n 1)
 Last_Backup_Ovpn_Archive_File=$(ls -t $Backup_Location/ovpn* | head -n 1)
+=======
+        printf "     Valid   ::   $NAME :: $EXPD \n" 
+
+    elif [ "${STATUS}" == "R" ]; then
+        printf "     Revoked ::   $NAME :: $EXPD \n"
+    else
+        printf "     Unknown ::   $NAME :: $EXPD \n"
+
+    fi
+done <${INDEX} | column -t
+printf "\n"
+>>>>>>> 4dce304... Added List function to Show Issued Certificates
 
 }
 
@@ -1442,10 +1463,13 @@ function manageMenu () {
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
 	echo "   3) List Current Issued Certificates"
+<<<<<<< HEAD
 	echo "   4) List Current Active Users"
 	echo "   5) Backup Configuration"
 	echo "   6) Restore Configuration from Backup *Incomplete"
 	echo "   7) Sync Configuration to Alternate Servers *Incomplete"
+=======
+>>>>>>> 4dce304... Added List function to Show Issued Certificates
 	echo "   8) Remove OpenVPN"
 	echo "   9) Exit"
 	until [[ "$MENU_OPTION" =~ ^[1-9]$ ]]; do
@@ -1461,6 +1485,7 @@ function manageMenu () {
 		;;
 		3)
 			listcerts
+<<<<<<< HEAD
 		;;
 		4)
 			showclients
@@ -1473,6 +1498,13 @@ function manageMenu () {
 		8)
 			removeOpenVPN
 		;;
+=======
+		;;
+
+		8)
+			removeOpenVPN
+		;;
+>>>>>>> 4dce304... Added List function to Show Issued Certificates
 		9)
 			exit 0
 		;;
