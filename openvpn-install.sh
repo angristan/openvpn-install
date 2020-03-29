@@ -1268,7 +1268,7 @@ function listcerts () {
 
 
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
-printf "\n"
+printf "\\n"
 if [ ! -f "${INDEX}" ]; then
         echo "The file: $INDEX was not found!"
         exit 1
@@ -1276,6 +1276,7 @@ fi
 
 #printf ": NOTE : The first entry should always be your valid server!\n"
 #printf "\n"
+<<<<<<< HEAD
 printf "\e[1m::: Certificate Status List :::\e[0m\n"
 <<<<<<< HEAD
 {
@@ -1283,13 +1284,18 @@ printf "\\e[4mStatus\\e[0m  \t  \\e[4mName\\e[0m\\e[0m  \t  \\e[4mExpiration\\e[
 =======
 printf "\e[4mStatus\e[0m ::  \e[4mName\e[0m\e[0m        ::  \e[4mExpiration \e[0m\n" 
 >>>>>>> 4dce304... Added List function to Show Issued Certificates
+=======
+printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
+printf "\\e[4mStatus\\e[0m ::  \\e[4mName\\e[0m\\e[0m        ::  \\e[4mExpiration \\e[0m\\n" 
+>>>>>>> 163f729... Updated Syntax Formating
 
 while read -r line || [ -n "$line" ]; do
     STATUS=$(echo "$line" | awk '{print $1}')
-    NAME=$(echo "$line" | sed -e 's:.*/CN=::')
+    NAME=$(echo "$line" | awk '{print $5}' | awk -F= '{print $2}')
     EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
         
     if [ "${STATUS}" == "V" ]; then
+<<<<<<< HEAD
 <<<<<<< HEAD
         printf "Valid  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
     elif [ "${STATUS}" == "R" ]; then
@@ -1439,16 +1445,24 @@ Last_Backup_Config_Archive_File=$(ls -t $Backup_Location/config* | head -n 1)
 Last_Backup_Ovpn_Archive_File=$(ls -t $Backup_Location/ovpn* | head -n 1)
 =======
         printf "     Valid   ::   $NAME :: $EXPD \n" 
+=======
+     
+        printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
+>>>>>>> 163f729... Updated Syntax Formating
 
     elif [ "${STATUS}" == "R" ]; then
-        printf "     Revoked ::   $NAME :: $EXPD \n"
+        printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
     else
-        printf "     Unknown ::   $NAME :: $EXPD \n"
+        printf "     Unknown   ::   %s :: %s\\n" "$NAME" "$EXPD"
 
     fi
 done <${INDEX} | column -t
+<<<<<<< HEAD
 printf "\n"
 >>>>>>> 4dce304... Added List function to Show Issued Certificates
+=======
+printf "\\n"
+>>>>>>> 163f729... Updated Syntax Formating
 
 }
 
