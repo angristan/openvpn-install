@@ -662,6 +662,9 @@ function installOpenVPN () {
 			# Install required dependencies and upgrade the system
 			pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 		fi
+		if [[ -d /etc/openvpn/easy-rsa/ ]]; then
+			rm -rf /etc/openvpn/easy-rsa/
+		fi
 	fi
 
 	# Find out if the machine uses nogroup or nobody for the permissionless group
@@ -678,7 +681,7 @@ function installOpenVPN () {
 
 	# Install the latest version of easy-rsa from source, if not already
 	# installed.
-	if [[ ! -d /etc/openvpn/easy-rsa-auto/ ]]; then
+	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
 		local version="3.0.6"
 		wget -O ~/EasyRSA-unix-v${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-unix-v${version}.tgz
 		tar xzf ~/EasyRSA-unix-v${version}.tgz -C ~/
