@@ -98,6 +98,7 @@ function initialCheck () {
 }
 
 function installUnbound () {
+	# If Unbound isn't installed, install it
 	if [[ ! -e /etc/unbound/unbound.conf ]]; then
 
 		if [[ "$OS" =~ (debian|ubuntu) ]]; then
@@ -137,7 +138,9 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 			# Get root servers list
 			curl -o /etc/unbound/root.hints https://www.internic.net/domain/named.cache
 
-			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
+			if [[ ! -f /etc/unbound/unbound.conf.old ]]; then
+				mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
+			fi
 
 			echo 'server:
 	use-syslog: yes
@@ -596,8 +599,12 @@ function installOpenVPN () {
 		PASS=${PASS:-1}
 		CONTINUE=${CONTINUE:-y}
 
-		# Behind NAT, we'll default to the publicly reachable IPv4.
-		PUBLIC_IPV4=$(curl ifconfig.co)
+		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
+		if [[ $IPV6_SUPPORT == "y" ]]; then
+			PUBLIC_IPV4=$(curl ifconfig.co)
+		else
+			PUBLIC_IPV4=$(curl -4 ifconfig.co)
+		fi
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IPV4}
 	fi
 
@@ -623,33 +630,38 @@ function installOpenVPN () {
                 fi
         fi
 
-	if [[ "$OS" =~ (debian|ubuntu) ]]; then
-		apt-get update
-		apt-get -y install ca-certificates gnupg
-		# We add the OpenVPN repo to get the latest version.
-		if [[ "$VERSION_ID" == "8" ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
-			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+	# If OpenVPN isn't installed yet, install it. This script is more-or-less
+	# idempotent on multiple runs, but will only install OpenVPN from upstream
+	# the first time.
+	if [[ ! -e /etc/openvpn/server.conf ]]; then
+		if [[ "$OS" =~ (debian|ubuntu) ]]; then
 			apt-get update
+			apt-get -y install ca-certificates gnupg
+			# We add the OpenVPN repo to get the latest version.
+			if [[ "$VERSION_ID" = "8" ]]; then
+				echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" > /etc/apt/sources.list.d/openvpn.list
+				wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+				apt-get update
+			fi
+			if [[ "$VERSION_ID" = "16.04" ]]; then
+				echo "deb http://build.openvpn.net/debian/openvpn/stable xenial main" > /etc/apt/sources.list.d/openvpn.list
+				wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
+				apt-get update
+			fi
+			# Ubuntu > 16.04 and Debian > 8 have OpenVPN >= 2.4 without the need of a third party repository.
+			apt-get install -y openvpn iptables openssl wget ca-certificates curl
+		elif [[ "$OS" = 'centos' ]]; then
+			yum install -y epel-release
+			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
+		elif [[ "$OS" = 'amzn' ]]; then
+			amazon-linux-extras install -y epel
+			yum install -y openvpn iptables openssl wget ca-certificates curl
+		elif [[ "$OS" = 'fedora' ]]; then
+			dnf install -y openvpn iptables openssl wget ca-certificates curl
+		elif [[ "$OS" = 'arch' ]]; then
+			# Install required dependencies and upgrade the system
+			pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 		fi
-		if [[ "$VERSION_ID" == "16.04" ]]; then
-			echo "deb http://build.openvpn.net/debian/openvpn/stable xenial main" > /etc/apt/sources.list.d/openvpn.list
-			wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-			apt-get update
-		fi
-		# Ubuntu > 16.04 and Debian > 8 have OpenVPN >= 2.4 without the need of a third party repository.
-		apt-get install -y openvpn iptables openssl wget ca-certificates curl
-	elif [[ "$OS" == 'centos' ]]; then
-		yum install -y epel-release
-		yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
-	elif [[ "$OS" == 'amzn' ]]; then
-		amazon-linux-extras install -y epel
-		yum install -y openvpn iptables openssl wget ca-certificates curl
-	elif [[ "$OS" == 'fedora' ]]; then
-		dnf install -y openvpn iptables openssl wget ca-certificates curl
-	elif [[ "$OS" == 'arch' ]]; then
-		# Install required dependencies and upgrade the system
-		pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 	fi
 
 	# Find out if the machine uses nogroup or nobody for the permissionless group
@@ -664,60 +676,72 @@ function installOpenVPN () {
 		rm -rf /etc/openvpn/easy-rsa/
 	fi
 
-	# Install the latest version of easy-rsa from source
-	local version="3.0.6"
-	wget -O ~/EasyRSA-unix-v${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-unix-v${version}.tgz
-	tar xzf ~/EasyRSA-unix-v${version}.tgz -C ~/
-	mv ~/EasyRSA-v${version} /etc/openvpn/easy-rsa
-	chown -R root:root /etc/openvpn/easy-rsa/
-	rm -f ~/EasyRSA-unix-v${version}.tgz
+	# Install the latest version of easy-rsa from source, if not already
+	# installed.
+	if [[ ! -d /etc/openvpn/easy-rsa-auto/ ]]; then
+		local version="3.0.6"
+		wget -O ~/EasyRSA-unix-v${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-unix-v${version}.tgz
+		tar xzf ~/EasyRSA-unix-v${version}.tgz -C ~/
+		mkdir -p /etc/openvpn/easy-rsa-auto
+		mv ~/EasyRSA-v${version}/* /etc/openvpn/easy-rsa-auto/
+		chown -R root:root /etc/openvpn/easy-rsa-auto/
+		rm -f ~/EasyRSA-unix-v${version}.tgz
 
-	cd /etc/openvpn/easy-rsa/ || return
-	case $CERT_TYPE in
-		1)
-			echo "set_var EASYRSA_ALGO ec" > vars
-			echo "set_var EASYRSA_CURVE $CERT_CURVE" >> vars
-		;;
-		2)
-			echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
-		;;
-	esac
+		cd /etc/openvpn/easy-rsa-auto/ || return
+		case $CERT_TYPE in
+			1)
+				echo "set_var EASYRSA_ALGO ec" > vars
+				echo "set_var EASYRSA_CURVE $CERT_CURVE" >> vars
+			;;
+			2)
+				echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" > vars
+			;;
+		esac
 
-	# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
-	SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-	SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-	echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
+		# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
+		SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+		echo "$SERVER_CN" > SERVER_CN_GENERATED
+		SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+		echo "$SERVER_NAME" > SERVER_NAME_GENERATED
 
-	# Create the PKI, set up the CA, the DH params and the server certificate
-	./easyrsa init-pki
+		echo "set_var EASYRSA_REQ_CN $SERVER_CN" >> vars
 
-        # Workaround to remove unharmful error until easy-rsa 3.0.7
-        # https://github.com/OpenVPN/easy-rsa/issues/261
-        sed -i 's/^RANDFILE/#RANDFILE/g' pki/openssl-easyrsa.cnf
+		# Create the PKI, set up the CA, the DH params and the server certificate
+		./easyrsa init-pki
 
-	./easyrsa --batch build-ca nopass
+		# Workaround to remove unharmful error until easy-rsa 3.0.7
+		# https://github.com/OpenVPN/easy-rsa/issues/261
+		sed -i 's/^RANDFILE/#RANDFILE/g' pki/openssl-easyrsa.cnf
 
-	if [[ $DH_TYPE == "2" ]]; then
-		# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
-		openssl dhparam -out dh.pem $DH_KEY_SIZE
+		./easyrsa --batch build-ca nopass
+
+		if [[ $DH_TYPE == "2" ]]; then
+			# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
+			openssl dhparam -out dh.pem $DH_KEY_SIZE
+		fi
+
+		./easyrsa build-server-full "$SERVER_NAME" nopass
+		EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
+
+		case $TLS_SIG in
+			1)
+				# Generate tls-crypt key
+				openvpn --genkey --secret /etc/openvpn/tls-crypt.key
+			;;
+			2)
+				# Generate tls-auth key
+				openvpn --genkey --secret /etc/openvpn/tls-auth.key
+			;;
+		esac
+	else
+		# If easy-rsa is already installed, grab the generated SERVER_NAME
+		# for client configs
+		cd /etc/openvpn/easy-rsa-auto/ || return
+		SERVER_NAME=$(cat SERVER_NAME_GENERATED)
 	fi
 
-	./easyrsa build-server-full "$SERVER_NAME" nopass
-	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-
-	case $TLS_SIG in
-		1)
-			# Generate tls-crypt key
-			openvpn --genkey --secret /etc/openvpn/tls-crypt.key
-		;;
-		2)
-			# Generate tls-auth key
-			openvpn --genkey --secret /etc/openvpn/tls-auth.key
-		;;
-	esac
-
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa-auto/pki/crl.pem /etc/openvpn
 	if [[ $DH_TYPE == "2" ]]; then
 		cp dh.pem /etc/openvpn
 	fi
@@ -859,8 +883,8 @@ verb 3" >> /etc/openvpn/server.conf
 	mkdir -p /var/log/openvpn
 
 	# Enable routing
-	echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.d/20-openvpn.conf
-	if [[ "$IPV6_SUPPORT" == 'y' ]]; then
+	echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/20-openvpn.conf
+	if [[ "$IPV6_SUPPORT" = 'y' ]]; then
 		echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.d/20-openvpn.conf
 	fi
 	# Apply sysctl rules
@@ -1029,16 +1053,23 @@ function newClient () {
 		read -rp "Select an option [1-2]: " -e -i 1 PASS
 	done
 
-	cd /etc/openvpn/easy-rsa/ || return
-	case $PASS in
-		1)
-			./easyrsa build-client-full "$CLIENT" nopass
-		;;
-		2)
-		echo "⚠️ You will be asked for the client password below ⚠️"
-			./easyrsa build-client-full "$CLIENT"
-		;;
-	esac
+	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa-auto/pki/index.txt | grep -c -E "/CN=$CLIENT\$")
+	if [[ "$CLIENTEXISTS" = '1' ]]; then
+		echo ""
+		echo "The specified client CN was found in easy-rsa."
+	else
+		cd /etc/openvpn/easy-rsa-auto/ || return
+		case $PASS in
+			1)
+				./easyrsa build-client-full "$CLIENT" nopass
+			;;
+			2)
+			echo "⚠️ You will be asked for the client password below ⚠️"
+				./easyrsa build-client-full "$CLIENT"
+			;;
+		esac
+		echo "Client $CLIENT added."
+	fi
 
 	# Home directory of the user, where the client configuration (.ovpn) will be written
 	if [ -e "/home/$CLIENT" ]; then  # if $1 is a user name
@@ -1060,15 +1091,15 @@ function newClient () {
 	cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
 	{
 		echo "<ca>"
-		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
+		cat "/etc/openvpn/easy-rsa-auto/pki/ca.crt"
 		echo "</ca>"
 
 		echo "<cert>"
-		awk '/BEGIN/,/END/' "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt"
+		awk '/BEGIN/,/END/' "/etc/openvpn/easy-rsa-auto/pki/issued/$CLIENT.crt"
 		echo "</cert>"
 
 		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$CLIENT.key"
+		cat "/etc/openvpn/easy-rsa-auto/pki/private/$CLIENT.key"
 		echo "</key>"
 
 		case $TLS_SIG in
@@ -1087,7 +1118,7 @@ function newClient () {
 	} >> "$homeDir/$CLIENT.ovpn"
 
 	echo ""
-	echo "Client $CLIENT added, the configuration file is available at $homeDir/$CLIENT.ovpn."
+	echo "The configuration file has been written to $homeDir/$CLIENT.ovpn."
 	echo "Download the .ovpn file and import it in your OpenVPN client."
 
 	exit 0
@@ -1110,8 +1141,8 @@ function revokeClient () {
 		read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
 	fi
 
-	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-	cd /etc/openvpn/easy-rsa/ || return
+	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa-auto/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	cd /etc/openvpn/easy-rsa-auto/ || return
 	./easyrsa --batch revoke "$CLIENT"
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# Cleanup
@@ -1119,7 +1150,7 @@ function revokeClient () {
 	rm -f "pki/private/$CLIENT.key"
 	rm -f "pki/issued/$CLIENT.crt"
 	rm -f /etc/openvpn/crl.pem
-	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
+	cp /etc/openvpn/easy-rsa-auto/pki/crl.pem /etc/openvpn/crl.pem
 	chmod 644 /etc/openvpn/crl.pem
 	find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	rm -f "/root/$CLIENT.ovpn"
@@ -1277,7 +1308,7 @@ function manageMenu () {
 initialCheck
 
 # Check if OpenVPN is already installed
-if [[ -e /etc/openvpn/server.conf ]]; then
+if [[ -e /etc/openvpn/server.conf && $AUTO_INSTALL != "y" ]]; then
 	manageMenu
 else
 	installOpenVPN
