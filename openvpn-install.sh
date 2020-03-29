@@ -607,6 +607,22 @@ function installOpenVPN () {
 
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+	if [[ -z "$NIC" ]] && [[ "$IPV6_SUPPORT" = 'y' ]]; then
+		NIC=$(ip -6 route show default | sed -ne 's/^default .* dev \([^ ]*\) .*$/\1/p')
+	fi
+
+	# $NIC can not be empty for script rm-openvpn-rules.sh
+        if [[ -z "$NIC" ]]; then
+                echo
+                echo "Can not detect public interface."
+                echo "This needs for setup MASQUERADE."
+                until [[ $CONTINUE =~ (y|n) ]]; do
+                        read -rp "Continue? [y/n]: " -e CONTINUE
+                done
+                if [[ "$CONTINUE" = "n" ]]; then
+                        exit 1
+                fi
+        fi
 
 	if [[ "$OS" =~ (debian|ubuntu) ]]; then
 		apt-get update
@@ -914,7 +930,7 @@ echo "log-append /var/log/openvpn.log" >> /etc/openvpn/server.conf
 	fi
 
 	# Add iptables rules in two scripts
-	mkdir /etc/iptables
+	mkdir -p /etc/iptables
 
 	# Script to add rules
 	echo "#!/bin/sh
@@ -978,6 +994,7 @@ WantedBy=multi-user.target" > /etc/systemd/system/iptables-openvpn.service
 	echo "client" > /etc/openvpn/client-template.txt
 	if [[ "$PROTOCOL" = 'udp' ]]; then
 		echo "proto udp" >> /etc/openvpn/client-template.txt
+		echo "explicit-exit-notify" >> /etc/openvpn/client-template.txt
 	elif [[ "$PROTOCOL" = 'tcp' ]]; then
 		echo "proto tcp-client" >> /etc/openvpn/client-template.txt
 	fi
