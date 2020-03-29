@@ -1239,10 +1239,8 @@ function removeOpenVPN () {
 }
 
 function listcerts () {
-
 # Original Script from PiVPN: list clients script
 # Modified Script to add Certificate expiration Date -- psgoundar  
-
 
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
 printf "\\n"
@@ -1251,8 +1249,6 @@ if [ ! -f "${INDEX}" ]; then
         exit 1
 fi
 
-#printf ": NOTE : The first entry should always be your valid server!\n"
-#printf "\n"
 printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
 printf "\\e[4mStatus\\e[0m ::  \\e[4mName\\e[0m\\e[0m        ::  \\e[4mExpiration \\e[0m\\n" 
 
@@ -1262,15 +1258,13 @@ while read -r line || [ -n "$line" ]; do
     EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
         
     if [ "${STATUS}" == "V" ]; then
-     
-        printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
-
+         printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
     elif [ "${STATUS}" == "R" ]; then
         printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
     else
         printf "     Unknown   ::   %s :: %s\\n" "$NAME" "$EXPD"
-
     fi
+
 done <${INDEX} | column -t
 printf "\\n"
 
