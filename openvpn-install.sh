@@ -682,12 +682,12 @@ function installOpenVPN () {
 		local version="3.0.6"
 		wget -O ~/EasyRSA-unix-v${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-unix-v${version}.tgz
 		tar xzf ~/EasyRSA-unix-v${version}.tgz -C ~/
-		mkdir -p /etc/openvpn/easy-rsa-auto
-		mv ~/EasyRSA-v${version}/* /etc/openvpn/easy-rsa-auto/
-		chown -R root:root /etc/openvpn/easy-rsa-auto/
+		mkdir -p /etc/openvpn/easy-rsa
+		mv ~/EasyRSA-v${version}/* /etc/openvpn/easy-rsa/
+		chown -R root:root /etc/openvpn/easy-rsa/
 		rm -f ~/EasyRSA-unix-v${version}.tgz
 
-		cd /etc/openvpn/easy-rsa-auto/ || return
+		cd /etc/openvpn/easy-rsa/ || return
 		case $CERT_TYPE in
 			1)
 				echo "set_var EASYRSA_ALGO ec" > vars
@@ -736,12 +736,12 @@ function installOpenVPN () {
 	else
 		# If easy-rsa is already installed, grab the generated SERVER_NAME
 		# for client configs
-		cd /etc/openvpn/easy-rsa-auto/ || return
+		cd /etc/openvpn/easy-rsa/ || return
 		SERVER_NAME=$(cat SERVER_NAME_GENERATED)
 	fi
 
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa-auto/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 	if [[ $DH_TYPE == "2" ]]; then
 		cp dh.pem /etc/openvpn
 	fi
@@ -1053,12 +1053,12 @@ function newClient () {
 		read -rp "Select an option [1-2]: " -e -i 1 PASS
 	done
 
-	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa-auto/pki/index.txt | grep -c -E "/CN=$CLIENT\$")
+	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c -E "/CN=$CLIENT\$")
 	if [[ "$CLIENTEXISTS" = '1' ]]; then
 		echo ""
 		echo "The specified client CN was found in easy-rsa."
 	else
-		cd /etc/openvpn/easy-rsa-auto/ || return
+		cd /etc/openvpn/easy-rsa/ || return
 		case $PASS in
 			1)
 				./easyrsa build-client-full "$CLIENT" nopass
@@ -1091,15 +1091,15 @@ function newClient () {
 	cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
 	{
 		echo "<ca>"
-		cat "/etc/openvpn/easy-rsa-auto/pki/ca.crt"
+		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
 		echo "</ca>"
 
 		echo "<cert>"
-		awk '/BEGIN/,/END/' "/etc/openvpn/easy-rsa-auto/pki/issued/$CLIENT.crt"
+		awk '/BEGIN/,/END/' "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt"
 		echo "</cert>"
 
 		echo "<key>"
-		cat "/etc/openvpn/easy-rsa-auto/pki/private/$CLIENT.key"
+		cat "/etc/openvpn/easy-rsa/pki/private/$CLIENT.key"
 		echo "</key>"
 
 		case $TLS_SIG in
@@ -1141,8 +1141,8 @@ function revokeClient () {
 		read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
 	fi
 
-	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa-auto/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-	cd /etc/openvpn/easy-rsa-auto/ || return
+	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	cd /etc/openvpn/easy-rsa/ || return
 	./easyrsa --batch revoke "$CLIENT"
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# Cleanup
@@ -1150,7 +1150,7 @@ function revokeClient () {
 	rm -f "pki/private/$CLIENT.key"
 	rm -f "pki/issued/$CLIENT.crt"
 	rm -f /etc/openvpn/crl.pem
-	cp /etc/openvpn/easy-rsa-auto/pki/crl.pem /etc/openvpn/crl.pem
+	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 	chmod 644 /etc/openvpn/crl.pem
 	find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	rm -f "/root/$CLIENT.ovpn"
