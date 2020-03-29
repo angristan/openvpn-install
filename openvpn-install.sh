@@ -1260,7 +1260,8 @@ while read -r line || [ -n "$line" ]; do
     if [ "${STATUS}" == "V" ]; then
          printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
     elif [ "${STATUS}" == "R" ]; then
-        printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
+        #printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
+		continue
     else
         printf "     Unknown   ::   %s :: %s\\n" "$NAME" "$EXPD"
     fi
