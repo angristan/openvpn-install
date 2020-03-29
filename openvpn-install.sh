@@ -1456,7 +1456,8 @@ Last_Backup_Ovpn_Archive_File=$(ls -t $Backup_Location/ovpn* | head -n 1)
          printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
 >>>>>>> dd5f3e1... Cleaned up Formating
     elif [ "${STATUS}" == "R" ]; then
-        printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
+        #printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
+		continue
     else
         printf "     Unknown   ::   %s :: %s\\n" "$NAME" "$EXPD"
     fi
