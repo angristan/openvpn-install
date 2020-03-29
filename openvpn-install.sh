@@ -1386,7 +1386,8 @@ function backupconfig () {
 ####################################
 
 # What to backup. 
-backup_files="/etc/openvpn /opt/code /opt/ovpn"
+config_files="/etc/openvpn"
+ovpn_files="/opt/ovpn"
 
 # Where to backup to.
 dest="/opt/backup"
@@ -1394,15 +1395,19 @@ dest="/opt/backup"
 # Create archive filename.
 day=$(date +%F)
 hostname=$(hostname -s)
-archive_file="$hostname-$day.tgz"
+config_archive_file="config-$hostname-$day.tgz"
+ovpn_archive_file="ovpn-$hostname-$day.tgz"
 
 # Print start status message.
-echo "Backing up $backup_files to $dest/$archive_file"
+echo "Backing up $config_files to $dest/$config_archive_file"
+echo "Backing up $ovpn_files to $dest/$ovpn_archive_file"
 date
 echo
 
 # Backup the files using tar.
-tar czf $dest/$archive_file $backup_files
+tar czf $dest/$config_archive_file $config_files
+tar czf $dest/$ovpn_archive_file $ovpn_files
+
 
 # Print end status message.
 echo
