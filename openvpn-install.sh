@@ -1423,6 +1423,10 @@ function restoreconfig () {
 #
 ####################################
 echo "Restore Script"
+Backup_Location="/opt/backup"
+Last_Backup_Config_Archive_File=$(ls -t $Backup_Location/config* | head -n 1)
+Last_Backup_Ovpn_Archive_File=$(ls -t $Backup_Location/ovpn* | head -n 1)
+
 }
 
 function manageMenu () {
