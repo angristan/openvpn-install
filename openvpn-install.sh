@@ -1258,14 +1258,12 @@ function removeOpenVPN () {
 }
 
 function listcerts () {
-
 # Original Script from PiVPN: list clients script
 <<<<<<< HEAD
 # Modified Script to add Certificate expiration Date -- Swamy Goundar  03/28/2020
 =======
 # Modified Script to add Certificate expiration Date -- psgoundar  
 >>>>>>> 4dce304... Added List function to Show Issued Certificates
-
 
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
 printf "\\n"
@@ -1274,6 +1272,7 @@ if [ ! -f "${INDEX}" ]; then
         exit 1
 fi
 
+<<<<<<< HEAD
 #printf ": NOTE : The first entry should always be your valid server!\n"
 #printf "\n"
 <<<<<<< HEAD
@@ -1285,6 +1284,8 @@ printf "\\e[4mStatus\\e[0m  \t  \\e[4mName\\e[0m\\e[0m  \t  \\e[4mExpiration\\e[
 printf "\e[4mStatus\e[0m ::  \e[4mName\e[0m\e[0m        ::  \e[4mExpiration \e[0m\n" 
 >>>>>>> 4dce304... Added List function to Show Issued Certificates
 =======
+=======
+>>>>>>> dd5f3e1... Cleaned up Formating
 printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
 printf "\\e[4mStatus\\e[0m ::  \\e[4mName\\e[0m\\e[0m        ::  \\e[4mExpiration \\e[0m\\n" 
 >>>>>>> 163f729... Updated Syntax Formating
@@ -1295,6 +1296,7 @@ while read -r line || [ -n "$line" ]; do
     EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
         
     if [ "${STATUS}" == "V" ]; then
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         printf "Valid  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
@@ -1450,12 +1452,15 @@ Last_Backup_Ovpn_Archive_File=$(ls -t $Backup_Location/ovpn* | head -n 1)
         printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
 >>>>>>> 163f729... Updated Syntax Formating
 
+=======
+         printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
+>>>>>>> dd5f3e1... Cleaned up Formating
     elif [ "${STATUS}" == "R" ]; then
         printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
     else
         printf "     Unknown   ::   %s :: %s\\n" "$NAME" "$EXPD"
-
     fi
+
 done <${INDEX} | column -t
 <<<<<<< HEAD
 printf "\n"
