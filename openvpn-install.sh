@@ -760,6 +760,9 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 		;;
 		2)
 			echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
+			if [[ "$IPV6_SUPPORT" == 'y' ]]; then
+				echo 'push "dhcp-option DNS fd42:42:42:42::1"' >> /etc/openvpn/server.conf
+			fi
 		;;
 		3) # Cloudflare
 			echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
