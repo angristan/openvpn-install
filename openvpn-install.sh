@@ -35,6 +35,8 @@ function checkOS () {
 					exit 1
 				fi
 			fi
+			# Fix $PATH on Debian
+			PATH=${PATH}:/usr/sbin
 		elif [[ "$ID" == "ubuntu" ]];then
 			OS="ubuntu"
 			if [[ ! $VERSION_ID =~ (16.04|18.04|19.04) ]]; then
