@@ -293,8 +293,8 @@ function installQuestions () {
 	echo "   8) OpenDNS (Anycast: worldwide)"
 	echo "   9) Google (Anycast: worldwide)"
 	echo "   10) Yandex Basic (Russia)"
-	echo "   11) AdGuard DNS (Russia)"
-	echo "   12) NextDNS (Worldwide)"
+	echo "   11) AdGuard DNS (Anycast: worldwide)"
+	echo "   12) NextDNS (Anycast: worldwide)"
 	echo "   13) Custom"
 	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 13 ]; do
 		read -rp "DNS [1-12]: " -e -i 3 DNS
