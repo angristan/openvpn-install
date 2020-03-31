@@ -103,33 +103,11 @@ function installUnbound () {
 		if [[ "$OS" =~ (debian|ubuntu) ]]; then
 			apt-get install -y unbound
 
-			# Configuration
-			echo 'interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-hide-identity: yes
-hide-version: yes
-use-caps-for-id: yes
-prefetch: yes' >> /etc/unbound/unbound.conf
-
 		elif [[ "$OS" =~ (centos|amzn) ]]; then
 			yum install -y unbound
 
-			# Configuration
-			sed -i 's|# interface: 0.0.0.0$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
-			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
-			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
-
 		elif [[ "$OS" = "fedora" ]]; then
 			dnf install -y unbound
-
-			# Configuration
-			sed -i 's|# interface: 0.0.0.0$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
-			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
 
 		elif [[ "$OS" = "arch" ]]; then
 			pacman -Syu --noconfirm unbound
@@ -146,48 +124,38 @@ prefetch: yes' >> /etc/unbound/unbound.conf
 	directory: "/etc/unbound"
 	trust-anchor-file: trusted-key.key
 	root-hints: root.hints
-	interface: 10.8.0.1
-	access-control: 10.8.0.1/24 allow
 	port: 53
 	num-threads: 2
-	use-caps-for-id: yes
 	harden-glue: yes
-	hide-identity: yes
-	hide-version: yes
-	qname-minimisation: yes
-	prefetch: yes' > /etc/unbound/unbound.conf
+	qname-minimisation: yes' >/etc/unbound/unbound.conf
 		fi
+	fi
 
-		if [[ ! "$OS" =~ (fedora|centos|amzn) ]];then
-			# DNS Rebinding fix
-			echo "private-address: 10.0.0.0/8
-private-address: 172.16.0.0/12
-private-address: 192.168.0.0/16
-private-address: 169.254.0.0/16
-private-address: fd00::/8
-private-address: fe80::/10
-private-address: 127.0.0.0/8
-private-address: ::ffff:0:0/96" >> /etc/unbound/unbound.conf
-		fi
-	else # Unbound is already installed
-		echo 'include: /etc/unbound/openvpn.conf' >> /etc/unbound/unbound.conf
-
-		# Add Unbound 'server' for the OpenVPN subnet
-		echo 'server:
+	# Add Unbound 'server' for the OpenVPN subnet
+	mkdir -p /etc/unbound/unbound.conf.d
+	echo 'server:
 interface: 10.8.0.1
 access-control: 10.8.0.1/24 allow
 hide-identity: yes
 hide-version: yes
 use-caps-for-id: yes
-prefetch: yes
-private-address: 10.0.0.0/8
+prefetch: yes' >/etc/unbound/unbound.conf.d/openvpn.conf
+
+	if [[ ! "$OS" =~ (fedora|centos|amzn) ]];then
+		# DNS Rebinding fix
+		echo 'private-address: 10.0.0.0/8
 private-address: 172.16.0.0/12
 private-address: 192.168.0.0/16
 private-address: 169.254.0.0/16
 private-address: fd00::/8
 private-address: fe80::/10
 private-address: 127.0.0.0/8
-private-address: ::ffff:0:0/96' > /etc/unbound/openvpn.conf
+private-address: ::ffff:0:0/96' >>/etc/unbound/unbound.conf.d/openvpn.conf
+	fi
+
+	# Add as include, if no wildcard include exist
+	if ! grep -q '/etc/unbound/unbound.conf.d/' /etc/unbound/unbound.conf; then
+		echo 'include: /etc/unbound/unbound.conf.d/openvpn.conf' >>/etc/unbound/unbound.conf
 	fi
 
 		systemctl enable unbound
@@ -1128,8 +1096,8 @@ function revokeClient () {
 
 function removeUnbound () {
 	# Remove OpenVPN-related config
-	sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
-	rm /etc/unbound/openvpn.conf
+	sed -i '/include .*\/openvpn.conf/d' /etc/unbound/unbound.conf
+	rm /etc/unbound/unbound.conf.d/openvpn.conf
 	systemctl restart unbound
 
 	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
@@ -1227,7 +1195,7 @@ function removeOpenVPN () {
 		rm -rf /var/log/openvpn
 
 		# Unbound
-		if [[ -e /etc/unbound/openvpn.conf ]]; then
+		if [[ -e /etc/unbound/unbound.conf.d/openvpn.conf ]]; then
 			removeUnbound
 		fi
 		echo ""
