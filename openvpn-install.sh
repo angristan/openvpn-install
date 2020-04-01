@@ -758,7 +758,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 				echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
 			done
 		;;
-		2) # Self-hosted DNS Resolver (Unbound)
+		2) # Self-hosted DNS resolver (Unbound)
 			echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
 		;;
 		3) # Cloudflare
