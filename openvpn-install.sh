@@ -139,17 +139,16 @@ hide-version: yes
 use-caps-for-id: yes
 harden-glue: yes
 qname-minimisation: yes
-prefetch: yes' >/etc/unbound/unbound.conf.d/openvpn.conf
-
-	# DNS Rebinding fix
-	echo 'private-address: 10.0.0.0/8
+prefetch: yes
+# DNS Rebinding fix
+private-address: 10.0.0.0/8
 private-address: 172.16.0.0/12
 private-address: 192.168.0.0/16
 private-address: 169.254.0.0/16
 private-address: fd00::/8
 private-address: fe80::/10
 private-address: 127.0.0.0/8
-private-address: ::ffff:0:0/96' >>/etc/unbound/unbound.conf.d/openvpn.conf
+private-address: ::ffff:0:0/96' >/etc/unbound/unbound.conf.d/openvpn.conf
 
 	# Add as include, if no wildcard include exist
 	if ! grep -q '/etc/unbound/unbound.conf.d/' /etc/unbound/unbound.conf; then
