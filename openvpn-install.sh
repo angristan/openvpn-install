@@ -125,9 +125,7 @@ function installUnbound () {
 	trust-anchor-file: trusted-key.key
 	root-hints: root.hints
 	port: 53
-	num-threads: 2
-	harden-glue: yes
-	qname-minimisation: yes' >/etc/unbound/unbound.conf
+	num-threads: 2' >/etc/unbound/unbound.conf
 		fi
 	fi
 
@@ -139,6 +137,8 @@ access-control: 10.8.0.1/24 allow
 hide-identity: yes
 hide-version: yes
 use-caps-for-id: yes
+harden-glue: yes
+qname-minimisation: yes
 prefetch: yes' >/etc/unbound/unbound.conf.d/openvpn.conf
 
 	if [[ ! "$OS" =~ (fedora|centos|amzn) ]];then
