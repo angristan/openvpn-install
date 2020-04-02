@@ -267,7 +267,7 @@ function installQuestions () {
 				echo ""
 				echo "Unbound is already installed."
 				echo "You can allow the script to configure it in order to use it from your OpenVPN clients"
-				echo "We will simply add a second server to /etc/unbound/unbound.conf for the OpenVPN subnet."
+				echo "We will simply add a second server to /etc/unbound/unbound.conf.d/openvpn.conf for the OpenVPN subnet."
 				echo "No changes are made to the current configuration."
 				echo ""
 
