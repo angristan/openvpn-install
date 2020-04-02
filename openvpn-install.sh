@@ -1120,7 +1120,7 @@ function revokeClient () {
 	chmod 644 /etc/openvpn/crl.pem
 	find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	rm -f "/root/$CLIENT.ovpn"
-	sed -i "s|^$CLIENT,.*||" /etc/openvpn/ipp.txt
+	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
 
 	echo ""
 	echo "Certificate for client $CLIENT revoked."
