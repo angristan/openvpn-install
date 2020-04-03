@@ -33,7 +33,9 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
 
-If you have any question, head to the [FAQ](#faq) first.
+If you have any question, head to the [FAQ](#faq) and the [Wiki](https://github.com/angristan/openvpn-install/wiki/FAQ) first. Please read everything before opening an issue.
+
+**PLEASE do net send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you. My time is not available for free just for you, you're not special.
 
 ### Headless install
 
