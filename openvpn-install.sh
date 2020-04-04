@@ -120,7 +120,6 @@ function installUnbound () {
 			echo 'server:
 	use-syslog: yes
 	do-daemonize: no
-	username: "unbound"
 	directory: "/etc/unbound"
 	trust-anchor-file: trusted-key.key
 	root-hints: root.hints
