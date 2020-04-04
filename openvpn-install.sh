@@ -1029,11 +1029,11 @@ function newClient () {
 	cd /etc/openvpn/easy-rsa/ || return
 	case $PASS in
 		1)
-			./easyrsa build-client-full "$CLIENT" nopass
+			./easyrsa build-client-full "$CLIENT" nopass || exit $?
 		;;
 		2)
 		echo "⚠️ You will be asked for the client password below ⚠️"
-			./easyrsa build-client-full "$CLIENT"
+			./easyrsa build-client-full "$CLIENT" || exit $?
 		;;
 	esac
 
@@ -1109,7 +1109,7 @@ function revokeClient () {
 
 	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 	cd /etc/openvpn/easy-rsa/ || return
-	./easyrsa --batch revoke "$CLIENT"
+	./easyrsa --batch revoke "$CLIENT" || exit $?
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	# Cleanup
 	rm -f "pki/reqs/$CLIENT.req"
