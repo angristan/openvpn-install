@@ -118,12 +118,9 @@ function installUnbound () {
 			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
 
 			echo 'server:
-	use-syslog: yes
 	do-daemonize: no
-	directory: "/etc/unbound"
 	trust-anchor-file: trusted-key.key
 	root-hints: root.hints
-	port: 53
 	num-threads: 2' >/etc/unbound/unbound.conf
 		fi
 	fi
