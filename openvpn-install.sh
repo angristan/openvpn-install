@@ -1128,7 +1128,7 @@ function revokeClient () {
 
 function removeUnbound () {
 	# Remove OpenVPN-related config
-	sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
+	sed -i '/include: \/etc\/unbound\/openvpn.conf/d' /etc/unbound/unbound.conf
 	rm /etc/unbound/openvpn.conf
 	systemctl restart unbound
 
