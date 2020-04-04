@@ -854,7 +854,7 @@ status /var/log/openvpn/status.log
 verb 3" >> /etc/openvpn/server.conf
 
 	# Create ccd dir
-	mkdir /etc/openvpn/ccd
+	mkdir -p /etc/openvpn/ccd
 	# Create log dir
 	mkdir -p /var/log/openvpn
 
