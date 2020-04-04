@@ -118,7 +118,6 @@ function installUnbound () {
 			mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
 
 			echo 'server:
-	do-daemonize: no
 	trust-anchor-file: trusted-key.key
 	root-hints: root.hints
 	num-threads: 2' >/etc/unbound/unbound.conf
