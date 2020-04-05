@@ -294,8 +294,8 @@ function installQuestions () {
 	echo "   8) OpenDNS (Anycast: worldwide)"
 	echo "   9) Google (Anycast: worldwide)"
 	echo "   10) Yandex Basic (Russia)"
-	echo "   11) AdGuard DNS (Russia)"
-	echo "   12) NextDNS (Worldwide)"
+	echo "   11) AdGuard DNS (Anycast: worldwide)"
+	echo "   12) NextDNS (Anycast: worldwide)"
 	echo "   13) Custom"
 	until [[ "$DNS" =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 13 ]; do
 		read -rp "DNS [1-12]: " -e -i 3 DNS
@@ -758,7 +758,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 
 	# DNS resolvers
 	case $DNS in
-		1)
+		1) # Current system resolvers
 			# Locate the proper resolv.conf
 			# Needed for systems running systemd-resolved
 			if grep -q "127.0.0.53" "/etc/resolv.conf"; then
@@ -771,7 +771,7 @@ ifconfig-pool-persist ipp.txt" >> /etc/openvpn/server.conf
 				echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
 			done
 		;;
-		2)
+		2) # Self-hosted DNS resolver (Unbound)
 			echo 'push "dhcp-option DNS 10.8.0.1"' >> /etc/openvpn/server.conf
 		;;
 		3) # Cloudflare
@@ -904,8 +904,8 @@ echo "log-append /var/log/openvpn.log" >> /etc/openvpn/server.conf
 		fi
 
 		systemctl daemon-reload
-		systemctl restart openvpn-server@server
 		systemctl enable openvpn-server@server
+		systemctl restart openvpn-server@server
 	elif [[ "$OS" == "ubuntu" ]] && [[ "$VERSION_ID" == "16.04" ]]; then
 		# On Ubuntu 16.04, we use the package from the OpenVPN repo
 		# This package uses a sysvinit service
@@ -921,8 +921,8 @@ echo "log-append /var/log/openvpn.log" >> /etc/openvpn/server.conf
 		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn\@.service
 
 		systemctl daemon-reload
-		systemctl restart openvpn@server
 		systemctl enable openvpn@server
+		systemctl restart openvpn@server
 	fi
 
 	if [[ $DNS == 2 ]];then
