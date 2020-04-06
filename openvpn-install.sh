@@ -1130,7 +1130,6 @@ function removeUnbound () {
 	# Remove OpenVPN-related config
 	sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
 	rm /etc/unbound/openvpn.conf
-	systemctl restart unbound
 
 	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
 		echo ""
@@ -1157,6 +1156,7 @@ function removeUnbound () {
 		echo ""
 		echo "Unbound removed!"
 	else
+		systemctl restart unbound
 		echo ""
 		echo "Unbound wasn't removed."
 	fi
