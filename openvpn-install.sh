@@ -127,23 +127,23 @@ function installUnbound () {
 	# Add Unbound 'server' for the OpenVPN subnet
 	mkdir -p /etc/unbound/unbound.conf.d
 	echo 'server:
-interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-hide-identity: yes
-hide-version: yes
-use-caps-for-id: yes
-harden-glue: yes
-qname-minimisation: yes
-prefetch: yes
-# DNS Rebinding fix
-private-address: 10.0.0.0/8
-private-address: 172.16.0.0/12
-private-address: 192.168.0.0/16
-private-address: 169.254.0.0/16
-private-address: fd00::/8
-private-address: fe80::/10
-private-address: 127.0.0.0/8
-private-address: ::ffff:0:0/96' >/etc/unbound/unbound.conf.d/openvpn.conf
+	interface: 10.8.0.1
+	access-control: 10.8.0.1/24 allow
+	hide-identity: yes
+	hide-version: yes
+	use-caps-for-id: yes
+	harden-glue: yes
+	qname-minimisation: yes
+	prefetch: yes
+	# DNS Rebinding fix
+	private-address: 10.0.0.0/8
+	private-address: 172.16.0.0/12
+	private-address: 192.168.0.0/16
+	private-address: 169.254.0.0/16
+	private-address: fd00::/8
+	private-address: fe80::/10
+	private-address: 127.0.0.0/8
+	private-address: ::ffff:0:0/96' >/etc/unbound/unbound.conf.d/openvpn.conf
 
 	# Add as include, if no wildcard include exist
 	if ! grep -q '/etc/unbound/unbound.conf.d/' /etc/unbound/unbound.conf; then
