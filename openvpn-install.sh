@@ -106,10 +106,10 @@ function installUnbound () {
 		elif [[ "$OS" =~ (centos|amzn) ]]; then
 			yum install -y unbound
 
-		elif [[ "$OS" = "fedora" ]]; then
+		elif [[ "$OS" == "fedora" ]]; then
 			dnf install -y unbound
 
-		elif [[ "$OS" = "arch" ]]; then
+		elif [[ "$OS" == "arch" ]]; then
 			pacman -Syu --noconfirm unbound
 
 			# Get root servers list
