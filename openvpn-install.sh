@@ -1120,7 +1120,7 @@ function revokeClient () {
 	chmod 644 /etc/openvpn/crl.pem
 	find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	rm -f "/root/$CLIENT.ovpn"
-	sed -i "s|^$CLIENT,.*||" /etc/openvpn/ipp.txt
+	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
 
 	echo ""
 	echo "Certificate for client $CLIENT revoked."
@@ -1128,7 +1128,7 @@ function revokeClient () {
 
 function removeUnbound () {
 	# Remove OpenVPN-related config
-	sed -i 's|include: \/etc\/unbound\/openvpn.conf||' /etc/unbound/unbound.conf
+	sed -i '/include: \/etc\/unbound\/openvpn.conf/d' /etc/unbound/unbound.conf
 	rm /etc/unbound/openvpn.conf
 
 	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
