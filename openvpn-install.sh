@@ -862,6 +862,7 @@ ncp-ciphers $CIPHER
 tls-server
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
+client-config-dir /etc/openvpn/ccd
 status /var/log/openvpn/status.log 20
 verb 3" >> /etc/openvpn/server.conf
 
@@ -869,6 +870,8 @@ verb 3" >> /etc/openvpn/server.conf
 echo "status-version 3" >> /etc/openvpn/server.conf
 echo "log-append /var/log/openvpn.log" >> /etc/openvpn/server.conf
 
+	# Create client-config-dir dir
+	mkdir -p /etc/openvpn/ccd
 	# Create log dir
 	mkdir -p /var/log/openvpn
 
