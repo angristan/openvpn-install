@@ -865,7 +865,6 @@ tls-cipher $CC_CIPHER
 status /var/log/openvpn/status.log 20
 verb 3" >> /etc/openvpn/server.conf
 
-
 	# Create log dir
 	mkdir -p /var/log/openvpn
 
