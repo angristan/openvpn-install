@@ -323,9 +323,7 @@ The script supports both and uses `tls-crypt` by default.
 
 ## Say thanks
 
-*Sadly saythanks.io doesn't exist anymore... Thanks for the dozens of messages! It's really meaninful to me.*
-
-*Still want to help? Check the "sponsor" button at the top of the page!*
+You can [say thanks](https://saythanks.io/to/angristan%40pm.me) if you want!
 
 ## Credits & Licence
 
