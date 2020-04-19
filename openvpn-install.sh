@@ -601,11 +601,11 @@ function installOpenVPN () {
 
 		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
 		if [[ $IPV6_SUPPORT == "y" ]]; then
-			PUBLIC_IPV4=$(curl https://ifconfig.co)
+			PUBLIC_IP=$(curl https://ifconfig.co)
 		else
-			PUBLIC_IPV4=$(curl -4 https://ifconfig.co)
+			PUBLIC_IP=$(curl -4 https://ifconfig.co)
 		fi
-		ENDPOINT=${ENDPOINT:-$PUBLIC_IPV4}
+		ENDPOINT=${ENDPOINT:-$PUBLIC_IP}
 	fi
 
 	# Run setup questions first, and set other variales if auto-install
