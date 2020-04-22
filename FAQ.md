@@ -88,3 +88,9 @@ If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/s
 Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
 
 ---
+
+**Q:** How can I access computers on the remote nework?
+
+**A:** Add `push "route 192.168.1.0 255.255.255.0"` to `/etc/openvpn/server.conf` and restart openvpn.
+
+---
