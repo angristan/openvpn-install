@@ -88,3 +88,9 @@ If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/s
 Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
 
 ---
+
+**Q:** I can't ping another VPN client
+
+**A:** Add `client-to-client` to your `server.conf`
+
+---
