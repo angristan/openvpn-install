@@ -91,6 +91,6 @@ Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
 
 **Q:** How can I access computers on the remote nework?
 
-**A:** Add `push "route 192.168.1.0 255.255.255.0"` to `/etc/openvpn/server.conf` and restart openvpn.
+**A:** Add a route with the subnet of your remote network to `/etc/openvpn/server.conf` and restart openvpn. Example: `push "route 192.168.1.0 255.255.255.0"`
 
 ---
