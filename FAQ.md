@@ -75,16 +75,8 @@ If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/s
 
 ---
 
-**Q:** How to setup openVPN in a LXC container? (f.e. Proxmox)
-
-**A:** See https://github.com/Nyr/openvpn-install/wiki/How-to-setup-openVPN-in-a-LXC-container-(f.e.-Proxmox)
-
----
-
 **Q:** What syctl and iptables changes are made by the script?
 
 **A:** Iptables rules are saved at `/etc/iptables/add-openvpn-rules.sh` and `/etc/iptables/rm-openvpn-rules.sh`. They are managed by the service `/etc/systemd/system/iptables-openvpn.service`
 
 Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
-
----
