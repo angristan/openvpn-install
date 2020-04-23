@@ -89,7 +89,7 @@ Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
 
 ---
 
-**Q:** I can't ping another VPN client
+**Q:** How can I access another client connected to the same OpenVPN server?
 
 **A:** Add `client-to-client` to your `server.conf`
 
