@@ -91,10 +91,13 @@ Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
 
 **Q:** My router can't connect
 
-**A:** `Options error: No closing quotation (") in config.ovpn:46`:
-type `yes` when asked to customize encryption settings and choose `tls-auth`
+**A:**
+- `Options error: No closing quotation (") in config.ovpn:46` :
 
-`Options error: Unrecognized option or missing parameter(s) in config.ovpn:36: tls-version-min (2.3.2)`:
-see question "Can I use an OpenVPN 2.3 client?"
+   type `yes` when asked to customize encryption settings and choose `tls-auth`
+
+- `Options error: Unrecognized option or missing parameter(s) in config.ovpn:36: tls-version-min (2.3.2)` :
+
+   see question "Can I use an OpenVPN 2.3 client?"
 
 ---
