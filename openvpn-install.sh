@@ -1228,7 +1228,7 @@ function removeOpenVPN() {
 		# SELinux
 		if hash sestatus 2>/dev/null; then
 			if sestatus | grep "Current mode" | grep -qs "enforcing"; then
-				if [[ "$PORT" != '1194' ]]; then
+				if [[ $PORT != '1194' ]]; then
 					semanage port -d -t openvpn_port_t -p "$PROTOCOL" "$PORT"
 				fi
 			fi
