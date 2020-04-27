@@ -678,16 +678,13 @@ function installOpenVPN() {
 		NOGROUP=nobody
 	fi
 
-	# Install the latest version of easy-rsa from source, if not already
-	# installed.
+	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
 		local version="3.0.7"
-		wget -O ~/EasyRSA-unix-v${version}.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
-		tar xzf ~/EasyRSA-unix-v${version}.tgz -C ~/
-		mkdir -p /etc/openvpn/easy-rsa
-		mv ~/EasyRSA-v${version}/* /etc/openvpn/easy-rsa/
-		chown -R root:root /etc/openvpn/easy-rsa/
-		rm -f ~/EasyRSA-unix-v${version}.tgz
+		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
+		mkdir /etc/openvpn/easy-rsa
+		tar xzf ~/easy-rsa.tgz --strip-components=1 --directory /etc/openvpn/easy-rsa
+		rm -f ~/easy-rsa.tgz
 
 		cd /etc/openvpn/easy-rsa/ || return
 		case $CERT_TYPE in
