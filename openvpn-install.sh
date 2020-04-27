@@ -1143,10 +1143,6 @@ function revokeClient () {
 	cd /etc/openvpn/easy-rsa/ || return
 	./easyrsa --batch revoke "$CLIENT"
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-	# Cleanup
-	rm -f "pki/reqs/$CLIENT.req"
-	rm -f "pki/private/$CLIENT.key"
-	rm -f "pki/issued/$CLIENT.crt"
 	rm -f /etc/openvpn/crl.pem
 	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 	chmod 644 /etc/openvpn/crl.pem
