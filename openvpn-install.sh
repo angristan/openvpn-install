@@ -22,11 +22,10 @@ function checkOS () {
 		source /etc/os-release
 
 		if [[ "$ID" == "debian" || "$ID" == "raspbian" ]]; then
-			if [[ ! $VERSION_ID =~ (8|9|10) ]]; then
+			if [[ "$VERSION_ID" -lt 8 ]]; then
 				echo "⚠️ Your version of Debian is not supported."
 				echo ""
-				echo "However, if you're using Debian >= 9 or unstable/testing then you can continue."
-				echo "Keep in mind they are not supported, though."
+				echo "However, if you're using Debian >= 8 or unstable/testing then you can continue, at your own risk."
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Continue? [y/n]: " -e CONTINUE
@@ -37,11 +36,11 @@ function checkOS () {
 			fi
 		elif [[ "$ID" == "ubuntu" ]];then
 			OS="ubuntu"
-			if [[ ! $VERSION_ID =~ (16.04|18.04|19.04) ]]; then
+			MAJOR_UBUNTU_VERSION=$(echo "$VERSION_ID" | cut -d '.' -f1)
+			if [[ $MAJOR_UBUNTU_VERSION -lt 16 ]]; then
 				echo "⚠️ Your version of Ubuntu is not supported."
 				echo ""
-				echo "However, if you're using Ubuntu > 17 or beta, then you can continue."
-				echo "Keep in mind they are not supported, though."
+				echo "However, if you're using Ubuntu >= 16.04 or beta, then you can continue, at your own risk."
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Continue? [y/n]: " -e CONTINUE
