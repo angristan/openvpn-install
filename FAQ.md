@@ -83,6 +83,12 @@ Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
 
 ---
 
+**Q:** How can I access other clients connected to the same OpenVPN server?
+
+**A:** Add `client-to-client` to your `server.conf`
+
+---
+
 **Q:** My router can't connect
 
 **A:**
