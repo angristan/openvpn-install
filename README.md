@@ -8,14 +8,14 @@ You can also check out [wireguard-install](https://github.com/angristan/wireguar
 
 ## Usage
 
-First, get the script and make it executable :
+First, get the script and make it executable:
 
 ```bash
 curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
 
-Then run it :
+Then run it:
 
 ```sh
 ./openvpn-install.sh
@@ -25,7 +25,7 @@ You need to run the script as root and have the TUN module enabled.
 
 The first time you run it, you'll have to follow the assistant and answer a few questions to setup your VPN server.
 
-When OpenVPN is installed, you can run the script again, and you will get the choice to :
+When OpenVPN is installed, you can run the script again, and you will get the choice to:
 
 - Add a client
 - Remove a client
@@ -240,7 +240,7 @@ Indeed, AES is today's standard. It's the fastest and more secure cipher availab
 
 > Of the currently supported ciphers, OpenVPN currently recommends using AES-256-CBC or AES-128-CBC. OpenVPN 2.4 and newer will also support GCM. For 2.4+, we recommend using AES-256-GCM or AES-128-GCM.
 
-AES-256 is 40% slower than AES-128, and there isn't any real reason to use a 256 bits key over a 128 bits key with AES. (Source : [1](http://security.stackexchange.com/questions/14068/why-most-people-use-256-bit-encryption-instead-of-128-bit),[2](http://security.stackexchange.com/questions/6141/amount-of-simple-operations-that-is-safely-out-of-reach-for-all-humanity/6149#6149)). Moreover, AES-256 is more vulnerable to [Timing attacks](https://en.wikipedia.org/wiki/Timing_attack).
+AES-256 is 40% slower than AES-128, and there isn't any real reason to use a 256 bits key over a 128 bits key with AES. (Source: [1](http://security.stackexchange.com/questions/14068/why-most-people-use-256-bit-encryption-instead-of-128-bit),[2](http://security.stackexchange.com/questions/6141/amount-of-simple-operations-that-is-safely-out-of-reach-for-all-humanity/6149#6149)). Moreover, AES-256 is more vulnerable to [Timing attacks](https://en.wikipedia.org/wiki/Timing_attack).
 
 AES-GCM is an [AEAD cipher](https://en.wikipedia.org/wiki/Authenticated_encryption) which means it simultaneously provides confidentiality, integrity, and authenticity assurances on the data.
 
