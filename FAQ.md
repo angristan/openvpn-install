@@ -71,7 +71,7 @@ If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/s
 
 **Q:** DNS is not working on my Linux client
 
-**A:** Make sure the `resolvconf` package is installed. If it does not solve the issue, look at https://wiki.archlinux.org/index.php/OpenVPN#Update_systemd-resolved_script
+**A:** See "How do I fix DNS leaks?" question
 
 ---
 
