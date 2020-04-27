@@ -89,6 +89,24 @@ export PASS="1"
 ./openvpn-install.sh
 ```
 
+The following Bash script adds multiple users
+
+ ```bash
+#!/bin/bash
+userlist=(user1 user2 user3 user4 user5 user6 user7 user8 user9 user10)
+for i in ${userlist[@]}
+
+do
+export MENU_OPTION="1"
+export CLIENT=$i
+export PASS="1"
+
+./openvpn-install.sh
+ls -a | grep $i
+sleep 5
+done
+```
+
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
