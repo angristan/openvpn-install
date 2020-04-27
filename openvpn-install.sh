@@ -779,13 +779,13 @@ ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 		else
 			RESOLVCONF='/etc/resolv.conf'
 		fi
-    # Obtain the resolvers from resolv.conf and use them for OpenVPN
-    sed -ne 's/^nameserver[[:space:]]\+\([^[:space:]]\+\).*$/\1/p' $RESOLVCONF | while read -r line; do
-      # Copy, if it's a IPv4 |or| if IPv6 is enabled, IPv4/IPv6 does not matter
-      if [[ "$line" =~ ^[0-9.]*$ ]] || [[ "$IPV6_SUPPORT" == 'y' ]]; then
-        echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
-      fi
-    done
+		# Obtain the resolvers from resolv.conf and use them for OpenVPN
+		sed -ne 's/^nameserver[[:space:]]\+\([^[:space:]]\+\).*$/\1/p' $RESOLVCONF | while read -r line; do
+			# Copy, if it's a IPv4 |or| if IPv6 is enabled, IPv4/IPv6 does not matter
+			if [[ $line =~ ^[0-9.]*$ ]] || [[ $IPV6_SUPPORT == 'y' ]]; then
+				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server.conf
+			fi
+		done
 		;;
 	2) # Self-hosted DNS resolver (Unbound)
 		echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server.conf
