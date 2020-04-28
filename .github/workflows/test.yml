@@ -10,7 +10,7 @@ name: Test
 jobs:
   install:
     runs-on: ubuntu-latest
-    if: github.repository == 'angristan/openvpn-install'
+    if: github.repository == 'angristan/openvpn-install' && github.actor == 'repo-owner'
     strategy:
       matrix:
         os-image:
