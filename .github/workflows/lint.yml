@@ -14,8 +14,8 @@ jobs:
     - uses: actions/checkout@master
     - name: shellcheck
       uses: ludeeus/action-shellcheck@0.0.1
-      with:
-        args: openvpn-install.sh -e SC1091,SC2164,SC2034,SC1072,SC1073,SC1009
+      env:
+        SHELLCHECK_OPTS: -e SC1091,SC2164,SC2034,SC1072,SC1073,SC1009
   shfmt:
     runs-on: ubuntu-latest
     steps:
