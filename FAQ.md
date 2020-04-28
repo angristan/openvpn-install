@@ -115,18 +115,12 @@ Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
 
 **Q:** How can I add multiple users in one go?
 
-**A:** create a `foo.sh` using the script below and dont forget `chmod +x foo.sh`
+**A:** Here is a sample bash script to achieve this:
 
- ```bash
-#!/bin/bash
-userlist=(user1 user2 user3 user4 user5 user6 user7 user8 user9 user10)
-for i in ${userlist[@]}
-do
-export MENU_OPTION="1"
-export CLIENT=$i
-export PASS="1"
-./openvpn-install.sh
-ls -a | grep $i
-sleep 5
+ ```sh
+userlist=(user1 user2 user3)
+
+for i in ${userlist[@]};do
+    MENU_OPTION=1 CLIENT=$i PASS=1 ./openvpn-install.sh
 done
 ```
