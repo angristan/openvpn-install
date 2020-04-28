@@ -655,7 +655,7 @@ function installOpenVPN() {
 			apt-get install -y openvpn iptables openssl wget ca-certificates curl
 		elif [[ $OS == 'centos' ]]; then
 			yum install -y epel-release
-			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
+			yum install -y openvpn iptables openssl wget ca-certificates curl tar policycoreutils-python
 		elif [[ $OS == 'amzn' ]]; then
 			amazon-linux-extras install -y epel
 			yum install -y openvpn iptables openssl wget ca-certificates curl
