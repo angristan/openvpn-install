@@ -648,7 +648,7 @@ function installOpenVPN() {
 	# If OpenVPN isn't installed yet, install it. This script is more-or-less
 	# idempotent on multiple runs, but will only install OpenVPN from upstream
 	# the first time.
-	if [[ ! -e /etc/openvpn/server.conf ]]; then
+	if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 		if [[ $OS =~ (debian|ubuntu) ]]; then
 			apt-get update
 			apt-get -y install ca-certificates gnupg
@@ -691,14 +691,14 @@ function installOpenVPN() {
 	fi
 
 	# Install the latest version of easy-rsa from source, if not already installed.
-	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
+	if [[ ! -d /etc/openvpn/server/easy-rsa/ ]]; then
 		local version="3.0.7"
 		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
-		mkdir /etc/openvpn/easy-rsa
-		tar xzf ~/easy-rsa.tgz --strip-components=1 --directory /etc/openvpn/easy-rsa
+		mkdir /etc/openvpn/server/easy-rsa
+		tar xzf ~/easy-rsa.tgz --strip-components=1 --directory /etc/openvpn/server/easy-rsa
 		rm -f ~/easy-rsa.tgz
 
-		cd /etc/openvpn/easy-rsa/ || return
+		cd /etc/openvpn/server/easy-rsa/ || return
 		case $CERT_TYPE in
 		1)
 			echo "set_var EASYRSA_ALGO ec" >vars
@@ -737,35 +737,35 @@ function installOpenVPN() {
 		case $TLS_SIG in
 		1)
 			# Generate tls-crypt key
-			openvpn --genkey --secret /etc/openvpn/tls-crypt.key
+			openvpn --genkey --secret /etc/openvpn/server/tls-crypt.key
 			;;
 		2)
 			# Generate tls-auth key
-			openvpn --genkey --secret /etc/openvpn/tls-auth.key
+			openvpn --genkey --secret /etc/openvpn/server/tls-auth.key
 			;;
 		esac
 	else
 		# If easy-rsa is already installed, grab the generated SERVER_NAME
 		# for client configs
-		cd /etc/openvpn/easy-rsa/ || return
+		cd /etc/openvpn/server/easy-rsa/ || return
 		SERVER_NAME=$(cat SERVER_NAME_GENERATED)
 	fi
 
 	# Move all the generated files
-	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server
 	if [[ $DH_TYPE == "2" ]]; then
-		cp dh.pem /etc/openvpn
+		cp dh.pem /etc/openvpn/server
 	fi
 
 	# Make cert revocation list readable for non-root
-	chmod 644 /etc/openvpn/crl.pem
+	chmod 644 /etc/openvpn/server/crl.pem
 
 	# Generate server.conf
-	echo "port $PORT" >/etc/openvpn/server.conf
+	echo "port $PORT" >/etc/openvpn/server/server.conf
 	if [[ $IPV6_SUPPORT == 'n' ]]; then
-		echo "proto $PROTOCOL" >>/etc/openvpn/server.conf
+		echo "proto $PROTOCOL" >>/etc/openvpn/server/server.conf
 	elif [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server.conf
+		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server/server.conf
 	fi
 
 	echo "dev tun
@@ -776,7 +776,7 @@ persist-tun
 keepalive 10 120
 topology subnet
 server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
+ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server/server.conf
 
 	# DNS resolvers
 	case $DNS in
@@ -792,64 +792,64 @@ ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 		sed -ne 's/^nameserver[[:space:]]\+\([^[:space:]]\+\).*$/\1/p' $RESOLVCONF | while read -r line; do
 			# Copy, if it's a IPv4 |or| if IPv6 is enabled, IPv4/IPv6 does not matter
 			if [[ $line =~ ^[0-9.]*$ ]] || [[ $IPV6_SUPPORT == 'y' ]]; then
-				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server.conf
+				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server/server.conf
 			fi
 		done
 		;;
 	2) # Self-hosted DNS resolver (Unbound)
-		echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server/server.conf
 		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
 	3) # Cloudflare
-		echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server/server.conf
 		;;
 	4) # Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server/server.conf
 		;;
 	5) # Quad9 uncensored
-		echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server/server.conf
 		;;
 	6) # FDN
-		echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server/server.conf
 		;;
 	7) # DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server/server.conf
 		;;
 	8) # OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server/server.conf
 		;;
 	9) # Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server/server.conf
 		;;
 	10) # Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server/server.conf
 		;;
 	11) # AdGuard DNS
-		echo 'push "dhcp-option DNS 176.103.130.130"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 176.103.130.131"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 176.103.130.130"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 176.103.130.131"' >>/etc/openvpn/server/server.conf
 		;;
 	12) # NextDNS
-		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server/server.conf
 		;;
 	13) # Custom DNS
-		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server.conf
+		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server/server.conf
 		if [[ $DNS2 != "" ]]; then
-			echo "push \"dhcp-option DNS $DNS2\"" >>/etc/openvpn/server.conf
+			echo "push \"dhcp-option DNS $DNS2\"" >>/etc/openvpn/server/server.conf
 		fi
 		;;
 	esac
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server.conf
+	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server/server.conf
 
 	# IPv6 network settings if needed
 	if [[ $IPV6_SUPPORT == 'y' ]]; then
@@ -857,26 +857,26 @@ ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 tun-ipv6
 push tun-ipv6
 push "route-ipv6 2000::/3"
-push "redirect-gateway ipv6"' >>/etc/openvpn/server.conf
+push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
-		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server.conf
+		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ $DH_TYPE == "1" ]]; then
-		echo "dh none" >>/etc/openvpn/server.conf
-		echo "ecdh-curve $DH_CURVE" >>/etc/openvpn/server.conf
+		echo "dh none" >>/etc/openvpn/server/server.conf
+		echo "ecdh-curve $DH_CURVE" >>/etc/openvpn/server/server.conf
 	elif [[ $DH_TYPE == "2" ]]; then
-		echo "dh dh.pem" >>/etc/openvpn/server.conf
+		echo "dh dh.pem" >>/etc/openvpn/server/server.conf
 	fi
 
 	case $TLS_SIG in
 	1)
-		echo "tls-crypt tls-crypt.key 0" >>/etc/openvpn/server.conf
+		echo "tls-crypt tls-crypt.key 0" >>/etc/openvpn/server/server.conf
 		;;
 	2)
-		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server.conf
+		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server/server.conf
 		;;
 	esac
 
@@ -890,12 +890,12 @@ ncp-ciphers $CIPHER
 tls-server
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
-client-config-dir /etc/openvpn/ccd
+client-config-dir /etc/openvpn/server/ccd
 status /var/log/openvpn/status.log
-verb 3" >>/etc/openvpn/server.conf
+verb 3" >>/etc/openvpn/server/server.conf
 
 	# Create client-config-dir dir
-	mkdir -p /etc/openvpn/ccd
+	mkdir -p /etc/openvpn/server/ccd
 	# Create log dir
 	mkdir -p /var/log/openvpn
 
@@ -1016,12 +1016,12 @@ WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 	fi
 
 	# client-template.txt is created so we have a template to add further users later
-	echo "client" >/etc/openvpn/client-template.txt
+	echo "client" >/etc/openvpn/server/client-template.txt
 	if [[ $PROTOCOL == 'udp' ]]; then
-		echo "proto udp" >>/etc/openvpn/client-template.txt
-		echo "explicit-exit-notify" >>/etc/openvpn/client-template.txt
+		echo "proto udp" >>/etc/openvpn/server/client-template.txt
+		echo "explicit-exit-notify" >>/etc/openvpn/server/client-template.txt
 	elif [[ $PROTOCOL == 'tcp' ]]; then
-		echo "proto tcp-client" >>/etc/openvpn/client-template.txt
+		echo "proto tcp-client" >>/etc/openvpn/server/client-template.txt
 	fi
 	echo "remote $IP $PORT
 dev tun
@@ -1039,10 +1039,10 @@ tls-version-min 1.2
 tls-cipher $CC_CIPHER
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
-verb 3" >>/etc/openvpn/client-template.txt
+verb 3" >>/etc/openvpn/server/client-template.txt
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
-		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/client-template.txt
+		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server/client-template.txt
 	fi
 
 	# Generate the custom client.ovpn
@@ -1069,13 +1069,13 @@ function newClient() {
 		read -rp "Select an option [1-2]: " -e -i 1 PASS
 	done
 
-	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c -E "/CN=$CLIENT\$")
+	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c -E "/CN=$CLIENT\$")
 	if [[ $CLIENTEXISTS == '1' ]]; then
 		echo ""
 		echo "The specified client CN was already found in easy-rsa, please choose another name."
 		exit
 	else
-		cd /etc/openvpn/easy-rsa/ || return
+		cd /etc/openvpn/server/easy-rsa/ || return
 		case $PASS in
 		1)
 			./easyrsa build-client-full "$CLIENT" nopass
@@ -1098,37 +1098,37 @@ function newClient() {
 	fi
 
 	# Determine if we use tls-auth or tls-crypt
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
+	if grep -qs "^tls-crypt" /etc/openvpn/server/server.conf; then
 		TLS_SIG="1"
-	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
+	elif grep -qs "^tls-auth" /etc/openvpn/server/server.conf; then
 		TLS_SIG="2"
 	fi
 
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
+	cp /etc/openvpn/server/client-template.txt "$homeDir/$CLIENT.ovpn"
 	{
 		echo "<ca>"
-		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
+		cat "/etc/openvpn/server/easy-rsa/pki/ca.crt"
 		echo "</ca>"
 
 		echo "<cert>"
-		awk '/BEGIN/,/END/' "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt"
+		awk '/BEGIN/,/END/' "/etc/openvpn/server/easy-rsa/pki/issued/$CLIENT.crt"
 		echo "</cert>"
 
 		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$CLIENT.key"
+		cat "/etc/openvpn/server/easy-rsa/pki/private/$CLIENT.key"
 		echo "</key>"
 
 		case $TLS_SIG in
 		1)
 			echo "<tls-crypt>"
-			cat /etc/openvpn/tls-crypt.key
+			cat /etc/openvpn/server/tls-crypt.key
 			echo "</tls-crypt>"
 			;;
 		2)
 			echo "key-direction 1"
 			echo "<tls-auth>"
-			cat /etc/openvpn/tls-auth.key
+			cat /etc/openvpn/server/tls-auth.key
 			echo "</tls-auth>"
 			;;
 		esac
@@ -1142,7 +1142,7 @@ function newClient() {
 }
 
 function revokeClient() {
-	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
+	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V")
 	if [[ $NUMBEROFCLIENTS == '0' ]]; then
 		echo ""
 		echo "You have no existing clients!"
@@ -1151,7 +1151,7 @@ function revokeClient() {
 
 	echo ""
 	echo "Select the existing client certificate you want to revoke"
-	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+	tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
 		if [[ $CLIENTNUMBER == '1' ]]; then
 			read -rp "Select one client [1]: " CLIENTNUMBER
@@ -1159,16 +1159,16 @@ function revokeClient() {
 			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
 		fi
 	done
-	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
-	cd /etc/openvpn/easy-rsa/ || return
+	CLIENT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	cd /etc/openvpn/server/easy-rsa/ || return
 	./easyrsa --batch revoke "$CLIENT"
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
-	rm -f /etc/openvpn/crl.pem
-	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-	chmod 644 /etc/openvpn/crl.pem
+	rm -f /etc/openvpn/server/crl.pem
+	cp /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server/crl.pem
+	chmod 644 /etc/openvpn/server/crl.pem
 	find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	rm -f "/root/$CLIENT.ovpn"
-	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
+	sed -i "/^$CLIENT,.*/d" /etc/openvpn/server/ipp.txt
 
 	echo ""
 	echo "Certificate for client $CLIENT revoked."
@@ -1216,8 +1216,8 @@ function removeOpenVPN() {
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ $REMOVE == 'y' ]]; then
 		# Get OpenVPN port from the configuration
-		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
-		PROTOCOL=$(grep '^proto ' /etc/openvpn/server.conf | cut -d " " -f 2)
+		PORT=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
+		PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
 		if [[ $OS =~ (fedora|arch|centos) ]]; then
@@ -1270,7 +1270,7 @@ function removeOpenVPN() {
 		# Cleanup
 		find /home/ -maxdepth 2 -name "*.ovpn" -delete
 		find /root/ -maxdepth 1 -name "*.ovpn" -delete
-		rm -rf /etc/openvpn
+		rm -rf /etc/openvpn/server
 		rm -rf /usr/share/doc/openvpn*
 		rm -f /etc/sysctl.d/20-openvpn.conf
 		rm -rf /var/log/openvpn
@@ -1322,7 +1322,7 @@ function manageMenu() {
 initialCheck
 
 # Check if OpenVPN is already installed
-if [[ -e /etc/openvpn/server.conf && $AUTO_INSTALL != "y" ]]; then
+if [[ -e /etc/openvpn/server/server.conf && $AUTO_INSTALL != "y" ]]; then
 	manageMenu
 else
 	installOpenVPN
