@@ -917,35 +917,20 @@ verb 3" >>/etc/openvpn/server/server.conf
 		fi
 	fi
 
-	# Finally, restart and enable OpenVPN
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' ]]; then
-		# Don't modify package-provided service
-		cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
+	# Don't modify package-provided service
+	cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
-		# Workaround to fix OpenVPN service on OpenVZ
-		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
-		# On fedora, the service hardcodes the ciphers. We want to manage the cipher ourselves, so we remove it from the service
-		if [[ $OS == "fedora" ]]; then
-			sed -i 's|--cipher AES-256-GCM --ncp-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC:AES-128-CBC:BF-CBC||' /etc/systemd/system/openvpn-server@.service
-		fi
-
-		systemctl daemon-reload
-		systemctl enable openvpn-server@server
-		systemctl restart openvpn-server@server
-	else
-		# Don't modify package-provided service
-		cp /lib/systemd/system/openvpn\@.service /etc/systemd/system/openvpn\@.service
-
-		# Workaround to fix OpenVPN service on OpenVZ
-		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn\@.service
-		# Another workaround to keep using /etc/openvpn/server
-		sed -i 's|/etc/openvpn|/etc/openvpn/server|' /etc/systemd/system/openvpn\@.service
-		sed -i 's|/etc/openvpn/%i.conf|/etc/openvpn/server/%i.conf|' /etc/systemd/system/openvpn\@.service
-
-		systemctl daemon-reload
-		systemctl enable openvpn@server
-		systemctl restart openvpn@server
+	# Workaround to fix OpenVPN service on OpenVZ
+	sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
+	# On fedora, the service hardcodes the ciphers. We want to manage the cipher ourselves, so we remove it from the service
+	if [[ $OS == "fedora" ]]; then
+		sed -i 's|--cipher AES-256-GCM --ncp-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC:AES-128-CBC:BF-CBC||' /etc/systemd/system/openvpn-server@.service
 	fi
+
+	# Finally, restart and enable OpenVPN
+	systemctl daemon-reload
+	systemctl enable openvpn-server@server
+	systemctl restart openvpn-server@server
 
 	if [[ $DNS == 2 ]]; then
 		installUnbound
@@ -1219,20 +1204,10 @@ function removeOpenVPN() {
 		PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
-		if [[ $OS =~ (fedora|arch|centos) ]]; then
-			systemctl disable openvpn-server@server
-			systemctl stop openvpn-server@server
-			# Remove customised service
-			rm /etc/systemd/system/openvpn-server@.service
-		elif [[ $OS == "ubuntu" ]] && [[ $VERSION_ID == "16.04" ]]; then
-			systemctl disable openvpn
-			systemctl stop openvpn
-		else
-			systemctl disable openvpn@server
-			systemctl stop openvpn@server
-			# Remove customised service
-			rm /etc/systemd/system/openvpn\@.service
-		fi
+		systemctl disable openvpn-server@server
+		systemctl stop openvpn-server@server
+		# Remove customised service
+		rm /etc/systemd/system/openvpn-server@.service
 
 		# Remove the iptables rules related to the script
 		systemctl stop iptables-openvpn
