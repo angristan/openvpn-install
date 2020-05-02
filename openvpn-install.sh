@@ -937,6 +937,9 @@ verb 3" >>/etc/openvpn/server/server.conf
 
 		# Workaround to fix OpenVPN service on OpenVZ
 		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn\@.service
+		# Another workaround to keep using /etc/openvpn/server
+		sed -i 's|/etc/openvpn|/etc/openvpn/server|' /etc/systemd/system/openvpn\@.service
+		sed -i 's|/etc/openvpn/%i.conf|/etc/openvpn/server/%i.conf|' /etc/systemd/system/openvpn\@.service
 
 		systemctl daemon-reload
 		systemctl enable openvpn@server
