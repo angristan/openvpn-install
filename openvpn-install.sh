@@ -1260,10 +1260,14 @@ function removeOpenVPN () {
 function listcerts () {
 # Original Script from PiVPN: list clients script
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Modified Script to add Certificate expiration Date -- Swamy Goundar  03/28/2020
 =======
 # Modified Script to add Certificate expiration Date -- psgoundar  
 >>>>>>> 4dce304... Added List function to Show Issued Certificates
+=======
+# Modified Script to add Certificate expiration Date -- psgoundar  
+>>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
 
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
 printf "\\n"
@@ -1272,6 +1276,7 @@ if [ ! -f "${INDEX}" ]; then
         exit 1
 fi
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 #printf ": NOTE : The first entry should always be your valid server!\n"
 #printf "\n"
@@ -1289,6 +1294,10 @@ printf "\e[4mStatus\e[0m ::  \e[4mName\e[0m\e[0m        ::  \e[4mExpiration \e[0
 printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
 printf "\\e[4mStatus\\e[0m ::  \\e[4mName\\e[0m\\e[0m        ::  \\e[4mExpiration \\e[0m\\n" 
 >>>>>>> 163f729... Updated Syntax Formating
+=======
+printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
+printf "\\e[4mStatus\\e[0m ::  \\e[4mName\\e[0m\\e[0m        ::  \\e[4mExpiration \\e[0m\\n" 
+>>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
 
 while read -r line || [ -n "$line" ]; do
     STATUS=$(echo "$line" | awk '{print $1}')
@@ -1296,6 +1305,7 @@ while read -r line || [ -n "$line" ]; do
     EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
         
     if [ "${STATUS}" == "V" ]; then
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -1455,6 +1465,9 @@ Last_Backup_Ovpn_Archive_File=$(ls -t $Backup_Location/ovpn* | head -n 1)
 =======
          printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
 >>>>>>> dd5f3e1... Cleaned up Formating
+=======
+         printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
+>>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
     elif [ "${STATUS}" == "R" ]; then
         #printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
 		continue
@@ -1464,11 +1477,15 @@ Last_Backup_Ovpn_Archive_File=$(ls -t $Backup_Location/ovpn* | head -n 1)
 
 done <${INDEX} | column -t
 <<<<<<< HEAD
+<<<<<<< HEAD
 printf "\n"
 >>>>>>> 4dce304... Added List function to Show Issued Certificates
 =======
 printf "\\n"
 >>>>>>> 163f729... Updated Syntax Formating
+=======
+printf "\\n"
+>>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
 
 }
 
@@ -1484,12 +1501,15 @@ function manageMenu () {
 	echo "   2) Revoke existing user"
 	echo "   3) List Current Issued Certificates"
 <<<<<<< HEAD
+<<<<<<< HEAD
 	echo "   4) List Current Active Users"
 	echo "   5) Backup Configuration"
 	echo "   6) Restore Configuration from Backup *Incomplete"
 	echo "   7) Sync Configuration to Alternate Servers *Incomplete"
 =======
 >>>>>>> 4dce304... Added List function to Show Issued Certificates
+=======
+>>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
 	echo "   8) Remove OpenVPN"
 	echo "   9) Exit"
 	until [[ "$MENU_OPTION" =~ ^[1-9]$ ]]; do
@@ -1505,6 +1525,7 @@ function manageMenu () {
 		;;
 		3)
 			listcerts
+<<<<<<< HEAD
 <<<<<<< HEAD
 		;;
 		4)
@@ -1525,6 +1546,13 @@ function manageMenu () {
 			removeOpenVPN
 		;;
 >>>>>>> 4dce304... Added List function to Show Issued Certificates
+=======
+		;;
+
+		8)
+			removeOpenVPN
+		;;
+>>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
 		9)
 			exit 0
 		;;
