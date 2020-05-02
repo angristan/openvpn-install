@@ -1258,234 +1258,39 @@ function removeOpenVPN () {
 }
 
 function listcerts () {
+
 # Original Script from PiVPN: list clients script
-<<<<<<< HEAD
-<<<<<<< HEAD
-# Modified Script to add Certificate expiration Date -- Swamy Goundar  03/28/2020
-=======
 # Modified Script to add Certificate expiration Date -- psgoundar  
->>>>>>> 4dce304... Added List function to Show Issued Certificates
-=======
-# Modified Script to add Certificate expiration Date -- psgoundar  
->>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
+
 
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
-printf "\\n"
+printf "\n"
 if [ ! -f "${INDEX}" ]; then
         echo "The file: $INDEX was not found!"
         exit 1
 fi
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 #printf ": NOTE : The first entry should always be your valid server!\n"
 #printf "\n"
-<<<<<<< HEAD
 printf "\e[1m::: Certificate Status List :::\e[0m\n"
-<<<<<<< HEAD
-{
-printf "\\e[4mStatus\\e[0m  \t  \\e[4mName\\e[0m\\e[0m  \t  \\e[4mExpiration\\e[0m\\n"
-=======
 printf "\e[4mStatus\e[0m ::  \e[4mName\e[0m\e[0m        ::  \e[4mExpiration \e[0m\n" 
->>>>>>> 4dce304... Added List function to Show Issued Certificates
-=======
-=======
->>>>>>> dd5f3e1... Cleaned up Formating
-printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
-printf "\\e[4mStatus\\e[0m ::  \\e[4mName\\e[0m\\e[0m        ::  \\e[4mExpiration \\e[0m\\n" 
->>>>>>> 163f729... Updated Syntax Formating
-=======
-printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
-printf "\\e[4mStatus\\e[0m ::  \\e[4mName\\e[0m\\e[0m        ::  \\e[4mExpiration \\e[0m\\n" 
->>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
 
 while read -r line || [ -n "$line" ]; do
     STATUS=$(echo "$line" | awk '{print $1}')
-    NAME=$(echo "$line" | awk '{print $5}' | awk -FCN= '{print $2}')
+    NAME=$(echo "$line" | sed -e 's:.*/CN=::')
     EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
         
     if [ "${STATUS}" == "V" ]; then
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-        printf "Valid  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
-    elif [ "${STATUS}" == "R" ]; then
-        printf "Revoked  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
-    else
-        printf "Unknown  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
-    fi
-done <${INDEX} 
-printf "\\n"
-} | column -t -s $'\t'
-
-}
-
-function showclients() {
-STATUS_LOG="/var/log/openvpn/status.log"
-
-if [ ! -f "${STATUS_LOG}" ]; then
-    echo "The file: $STATUS_LOG was not found!"
-    exit 1
-fi
-
-scriptusage(){
-    echo "::: List any connected clients to the server"
-    echo ":::"
-    echo "::: Usage: pivpn <-c|clients> [-b|bytes]"
-    echo ":::"
-    echo "::: Commands:"
-    echo ":::  [none]              List clients with human readable format"
-    echo ":::  -b, bytes           List clients with dotted decimal notation"
-    echo ":::  -h, help            Show this usage dialog"
-}
-
-hr(){
-    numfmt --to=iec-i --suffix=B "$1"
-}
-
-
-listClients(){
-    printf ": NOTE : The output below is NOT real-time!\n"
-    printf ":      : It may be off by a few minutes.\n"
-    printf "\n"
-    printf "\e[1m::: Client Status List :::\e[0m\n"
-
-    {
-    printf "\e[4mName\e[0m  \t  \e[4mRemote IP\e[0m  \t  \e[4mVirtual IP\e[0m  \t  \e[4mBytes Received\e[0m  \t  \e[4mBytes Sent\e[0m  \t  \e[4mConnected Since\e[0m\n"
-
-    if grep -q "^CLIENT_LIST" "${STATUS_LOG}"; then
-            if [ -n "$(type -t numfmt)" ]; then
-                if [ "$HR" = 1 ]; then
-                    while read -r line; do
-                        read -r -a array <<< $line
-                        [[ ${array[0]} = CLIENT_LIST ]] || continue
-                        printf "%s  \t  %s  \t  %s  \t  %s  \t  %s  \t  %s %s %s - %s\n" ${array[1]} ${array[2]} ${array[3]} $(hr ${array[4]}) $(hr ${array[5]}) ${array[7]} ${array[8]} ${array[10]} ${array[9]}
-                    done <$STATUS_LOG
-                else
-                    while read -r line; do
-                        read -r -a array <<< $line
-                        [[ ${array[0]} = CLIENT_LIST ]] || continue
-                        printf "%s  \t  %s  \t  %s  \t  %'d  \t  %'d  \t  %s %s %s - %s\n" ${array[1]} ${array[2]} ${array[3]} ${array[4]} ${array[5]} ${array[7]} ${array[8]} ${array[10]} ${array[9]}
-                    done <$STATUS_LOG
-                fi
-            else
-                awk -F' ' -v s='CLIENT_LIST' '$1 == s {print $2"\t\t"$3"\t"$4"\t"$5"\t\t"$6"\t\t"$8" "$9" "$11" - "$10"\n"}' ${STATUS_LOG}
-            fi
-    else
-        printf "\nNo Clients Connected!\n"
-    fi
-
-    printf "\n"
-    } | column -t -s $'\t'
-}
-
-if [[ $# -eq 0 ]]; then
-    HR=1
-    listClients
-else
-    while true; do
-        case "$1" in
-            -b|bytes)
-                HR=0
-                listClients
-                exit 0
-                ;;
-            -h|help)
-                scriptusage
-                exit 0
-                ;;
-            *)
-                HR=0
-                listClients
-                exit 0
-                ;;
-        esac
-    done
-fi
-
-
-}
-
-function backupconfig () {
-####################################
-#
-# Backup script.
-#
-####################################
-
-# What to backup. 
-config_files="/etc/openvpn"
-ovpn_files="/opt/ovpn"
-
-# Where to backup to.
-dest="/opt/backup"
-
-# Create archive filename.
-day=$(date +%F)
-hostname=$(hostname -s)
-config_archive_file="config-$hostname-$day.tgz"
-ovpn_archive_file="ovpn-$hostname-$day.tgz"
-
-# Print start status message.
-echo "Backing up $config_files to $dest/$config_archive_file"
-echo "Backing up $ovpn_files to $dest/$ovpn_archive_file"
-date
-echo
-
-# Backup the files using tar.
-tar czf $dest/$config_archive_file $config_files
-tar czf $dest/$ovpn_archive_file $ovpn_files
-
-
-# Print end status message.
-echo
-echo "Backup finished"
-date
-
-}
-
-function restoreconfig () {
-####################################
-#
-# Restore script.
-#
-####################################
-echo "Restore Script"
-Backup_Location="/opt/backup"
-Last_Backup_Config_Archive_File=$(ls -t $Backup_Location/config* | head -n 1)
-Last_Backup_Ovpn_Archive_File=$(ls -t $Backup_Location/ovpn* | head -n 1)
-=======
         printf "     Valid   ::   $NAME :: $EXPD \n" 
-=======
-     
-        printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
->>>>>>> 163f729... Updated Syntax Formating
 
-=======
-         printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
->>>>>>> dd5f3e1... Cleaned up Formating
-=======
-         printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
->>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
     elif [ "${STATUS}" == "R" ]; then
-        #printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
-		continue
+        printf "     Revoked ::   $NAME :: $EXPD \n"
     else
-        printf "     Unknown   ::   %s :: %s\\n" "$NAME" "$EXPD"
-    fi
+        printf "     Unknown ::   $NAME :: $EXPD \n"
 
+    fi
 done <${INDEX} | column -t
-<<<<<<< HEAD
-<<<<<<< HEAD
 printf "\n"
->>>>>>> 4dce304... Added List function to Show Issued Certificates
-=======
-printf "\\n"
->>>>>>> 163f729... Updated Syntax Formating
-=======
-printf "\\n"
->>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
 
 }
 
@@ -1500,20 +1305,10 @@ function manageMenu () {
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
 	echo "   3) List Current Issued Certificates"
-<<<<<<< HEAD
-<<<<<<< HEAD
-	echo "   4) List Current Active Users"
-	echo "   5) Backup Configuration"
-	echo "   6) Restore Configuration from Backup *Incomplete"
-	echo "   7) Sync Configuration to Alternate Servers *Incomplete"
-=======
->>>>>>> 4dce304... Added List function to Show Issued Certificates
-=======
->>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
-	echo "   8) Remove OpenVPN"
-	echo "   9) Exit"
-	until [[ "$MENU_OPTION" =~ ^[1-9]$ ]]; do
-		read -rp "Select an option [1-9]: " MENU_OPTION
+	echo "   4) Remove OpenVPN"
+	echo "   5) Exit"
+	until [[ "$MENU_OPTION" =~ ^[1-5]$ ]]; do
+		read -rp "Select an option [1-5]: " MENU_OPTION
 	done
 
 	case $MENU_OPTION in
@@ -1525,35 +1320,12 @@ function manageMenu () {
 		;;
 		3)
 			listcerts
-<<<<<<< HEAD
-<<<<<<< HEAD
 		;;
+
 		4)
-			showclients
+			removeOpenVPN
 		;;
 		5)
-			backupconfig
-		;;
-
-
-		8)
-			removeOpenVPN
-		;;
-=======
-		;;
-
-		8)
-			removeOpenVPN
-		;;
->>>>>>> 4dce304... Added List function to Show Issued Certificates
-=======
-		;;
-
-		8)
-			removeOpenVPN
-		;;
->>>>>>> dbae6a17c143f6fcc7c3f1bbfb82f42d41260984
-		9)
 			exit 0
 		;;
 	esac
