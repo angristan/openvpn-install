@@ -677,6 +677,7 @@ function installOpenVPN() {
 			# Install required dependencies and upgrade the system
 			pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 		fi
+		mkdir -p /etc/openvpn/server
 		# An old version of easy-rsa was available by default in some openvpn packages
 		if [[ -d /etc/openvpn/easy-rsa/ ]]; then
 			rm -rf /etc/openvpn/easy-rsa/
