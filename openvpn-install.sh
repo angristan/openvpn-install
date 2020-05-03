@@ -896,8 +896,6 @@ verb 3" >>/etc/openvpn/server/server.conf
 
 	# Create client-config-dir dir
 	mkdir -p /etc/openvpn/server/ccd
-	# Create log dir
-	mkdir -p /var/log/openvpn
 
 	# Enable routing
 	echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/20-openvpn.conf
@@ -1246,7 +1244,6 @@ function removeOpenVPN() {
 		rm -rf /etc/openvpn/server
 		rm -rf /usr/share/doc/openvpn*
 		rm -f /etc/sysctl.d/20-openvpn.conf
-		rm -rf /var/log/openvpn
 
 		# Unbound
 		if [[ -e /etc/unbound/openvpn.conf ]]; then
