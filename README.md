@@ -6,6 +6,8 @@
 
 [原项目](https://github.com/angristan/openvpn-install)
 
+有些选项实在是看不懂就没翻译。。
+
 ## 使用方法
 
 第一步，下载脚本：
