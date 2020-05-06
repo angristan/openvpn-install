@@ -23,12 +23,12 @@ function checkOS() {
 
 		if [[ $ID == "debian" || $ID == "raspbian" ]]; then
 			if [[ $VERSION_ID -lt 8 ]]; then
-				echo "⚠️ Your version of Debian is not supported."
+				echo "⚠️ 你的Debian版本没有被支持。"
 				echo ""
-				echo "However, if you're using Debian >= 8 or unstable/testing then you can continue, at your own risk."
+				echo "如果你用的是Debian8及以上的版本或者unstable/testing分支，你可以继续，但是风险自负。"
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
-					read -rp "Continue? [y/n]: " -e CONTINUE
+					read -rp "继续 [y/n]: " -e CONTINUE
 				done
 				if [[ $CONTINUE == "n" ]]; then
 					exit 1
@@ -38,12 +38,12 @@ function checkOS() {
 			OS="ubuntu"
 			MAJOR_UBUNTU_VERSION=$(echo "$VERSION_ID" | cut -d '.' -f1)
 			if [[ $MAJOR_UBUNTU_VERSION -lt 16 ]]; then
-				echo "⚠️ Your version of Ubuntu is not supported."
+				echo "⚠️ 你的Ubuntu版本没有被支持。"
 				echo ""
-				echo "However, if you're using Ubuntu >= 16.04 or beta, then you can continue, at your own risk."
+				echo "如果你用的是Ubuntu16.04及以上的版本或beta分支，你可以继续，但是风险自负。"
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
-					read -rp "Continue? [y/n]: " -e CONTINUE
+					read -rp "继续 [y/n]: " -e CONTINUE
 				done
 				if [[ $CONTINUE == "n" ]]; then
 					exit 1
@@ -59,9 +59,9 @@ function checkOS() {
 		if [[ $ID == "centos" ]]; then
 			OS="centos"
 			if [[ ! $VERSION_ID =~ (7|8) ]]; then
-				echo "⚠️ Your version of CentOS is not supported."
+				echo "⚠️ 你的CentOS版本不被支持。"
 				echo ""
-				echo "The script only support CentOS 7."
+				echo "本脚本仅支持CentOS7。"
 				echo ""
 				exit 1
 			fi
@@ -69,9 +69,9 @@ function checkOS() {
 		if [[ $ID == "amzn" ]]; then
 			OS="amzn"
 			if [[ $VERSION_ID != "2" ]]; then
-				echo "⚠️ Your version of Amazon Linux is not supported."
+				echo "⚠️ 你的Amazon Linux版本不被支持。"
 				echo ""
-				echo "The script only support Amazon Linux 2."
+				echo "本脚本仅支持Amazon Linux 2。"
 				echo ""
 				exit 1
 			fi
@@ -79,145 +79,35 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2 or Arch Linux system"
+		echo "看起来你并没有在 Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2 或 Arch Linux 系统上运行本脚本。"
 		exit 1
 	fi
 }
 
 function initialCheck() {
 	if ! isRoot; then
-		echo "Sorry, you need to run this as root"
+		echo "请以root身份运行这个脚本"
 		exit 1
 	fi
 	if ! tunAvailable; then
-		echo "TUN is not available"
+		echo "你的设备不支持TUN"
 		exit 1
 	fi
 	checkOS
 }
 
-function installUnbound() {
-	# If Unbound isn't installed, install it
-	if [[ ! -e /etc/unbound/unbound.conf ]]; then
-
-		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get install -y unbound
-
-			# Configuration
-			echo 'interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-hide-identity: yes
-hide-version: yes
-use-caps-for-id: yes
-prefetch: yes' >>/etc/unbound/unbound.conf
-
-		elif [[ $OS =~ (centos|amzn) ]]; then
-			yum install -y unbound
-
-			# Configuration
-			sed -i 's|# interface: 0.0.0.0$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
-			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
-			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
-
-		elif [[ $OS == "fedora" ]]; then
-			dnf install -y unbound
-
-			# Configuration
-			sed -i 's|# interface: 0.0.0.0$|interface: 10.8.0.1|' /etc/unbound/unbound.conf
-			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
-
-		elif [[ $OS == "arch" ]]; then
-			pacman -Syu --noconfirm unbound
-
-			# Get root servers list
-			curl -o /etc/unbound/root.hints https://www.internic.net/domain/named.cache
-
-			if [[ ! -f /etc/unbound/unbound.conf.old ]]; then
-				mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
-			fi
-
-			echo 'server:
-	use-syslog: yes
-	do-daemonize: no
-	username: "unbound"
-	directory: "/etc/unbound"
-	trust-anchor-file: trusted-key.key
-	root-hints: root.hints
-	interface: 10.8.0.1
-	access-control: 10.8.0.1/24 allow
-	port: 53
-	num-threads: 2
-	use-caps-for-id: yes
-	harden-glue: yes
-	hide-identity: yes
-	hide-version: yes
-	qname-minimisation: yes
-	prefetch: yes' >/etc/unbound/unbound.conf
-		fi
-
-		# IPv6 DNS for all OS
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'interface: fd42:42:42:42::1
-access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/unbound.conf
-		fi
-
-		if [[ ! $OS =~ (fedora|centos|amzn) ]]; then
-			# DNS Rebinding fix
-			echo "private-address: 10.0.0.0/8
-private-address: fd42:42:42:42::/112
-private-address: 172.16.0.0/12
-private-address: 192.168.0.0/16
-private-address: 169.254.0.0/16
-private-address: fd00::/8
-private-address: fe80::/10
-private-address: 127.0.0.0/8
-private-address: ::ffff:0:0/96" >>/etc/unbound/unbound.conf
-		fi
-	else # Unbound is already installed
-		echo 'include: /etc/unbound/openvpn.conf' >>/etc/unbound/unbound.conf
-
-		# Add Unbound 'server' for the OpenVPN subnet
-		echo 'server:
-interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-hide-identity: yes
-hide-version: yes
-use-caps-for-id: yes
-prefetch: yes
-private-address: 10.0.0.0/8
-private-address: fd42:42:42:42::/112
-private-address: 172.16.0.0/12
-private-address: 192.168.0.0/16
-private-address: 169.254.0.0/16
-private-address: fd00::/8
-private-address: fe80::/10
-private-address: 127.0.0.0/8
-private-address: ::ffff:0:0/96' >/etc/unbound/openvpn.conf
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'interface: fd42:42:42:42::1
-access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/openvpn.conf
-		fi
-	fi
-
-	systemctl enable unbound
-	systemctl restart unbound
-}
-
 function installQuestions() {
-	echo "Welcome to the OpenVPN installer!"
-	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
+	echo "欢迎使用Openvpn部署工具！"
+	echo "本脚本修改自angristan的安装脚本，项目地址：https://github.com/Nouko61/openvpn-install"
+	echo "原项目地址：https://github.com/angristan/openvpn-install"
 	echo ""
 
-	echo "I need to ask you a few questions before starting the setup."
-	echo "You can leave the default options and just press enter if you are ok with them."
+	echo "脚本会为你搭建一个专门用于局域网游戏的Openvpn服务器，"
+	echo "在搭建之前，你需要回答几个问题，"
+	echo "安装过程中你可以直接按回车来使用脚本的默认值。"
 	echo ""
-	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
-	echo "Unless your server is behind NAT, it should be your public IPv4 address."
+	echo "我们需要知道Openvpn监听的IP地址，"
+	echo "除非你的服务器经过NAT（网络地址转换），否则它应该是你的公网IP。"
 
 	# Detect public IPv4 address and pre-fill for the user
 	IP=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
@@ -227,46 +117,25 @@ function installQuestions() {
 	fi
 	APPROVE_IP=${APPROVE_IP:-n}
 	if [[ $APPROVE_IP =~ n ]]; then
-		read -rp "IP address: " -e -i "$IP" IP
+		read -rp "IP地址: " -e -i "$IP" IP
 	fi
 	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
-		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
-		echo "We need it for the clients to connect to the server."
+		echo "看起来你的服务器经过了NAT（网络地址转换）。请问你的公网IP是什么？"
+		echo "我们需要它来让客户端连接服务器。"
 		until [[ $ENDPOINT != "" ]]; do
-			read -rp "Public IPv4 address or hostname: " -e ENDPOINT
+			read -rp "公网IP或域名: " -e ENDPOINT
 		done
 	fi
 
 	echo ""
-	echo "Checking for IPv6 connectivity..."
-	echo ""
-	# "ping6" and "ping -6" availability varies depending on the distribution
-	if type ping6 >/dev/null 2>&1; then
-		PING6="ping6 -c3 ipv6.google.com > /dev/null 2>&1"
-	else
-		PING6="ping -6 -c3 ipv6.google.com > /dev/null 2>&1"
-	fi
-	if eval "$PING6"; then
-		echo "Your host appears to have IPv6 connectivity."
-		SUGGESTION="y"
-	else
-		echo "Your host does not appear to have IPv6 connectivity."
-		SUGGESTION="n"
-	fi
-	echo ""
-	# Ask the user if they want to enable IPv6 regardless its availability.
-	until [[ $IPV6_SUPPORT =~ (y|n) ]]; do
-		read -rp "Do you want to enable IPv6 support (NAT)? [y/n]: " -e -i $SUGGESTION IPV6_SUPPORT
-	done
-	echo ""
-	echo "What port do you want OpenVPN to listen to?"
-	echo "   1) Default: 1194"
-	echo "   2) Custom"
-	echo "   3) Random [49152-65535]"
+	echo "你想让Openvpn监听哪个端口"
+	echo "   1) 默认: 1194"
+	echo "   2) 自定义"
+	echo "   3) 随机 [49152-65535]"
 	until [[ $PORT_CHOICE =~ ^[1-3]$ ]]; do
-		read -rp "Port choice [1-3]: " -e -i 1 PORT_CHOICE
+		read -rp "选择端口 [1-3]: " -e -i 1 PORT_CHOICE
 	done
 	case $PORT_CHOICE in
 	1)
@@ -274,22 +143,22 @@ function installQuestions() {
 		;;
 	2)
 		until [[ $PORT =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; do
-			read -rp "Custom port [1-65535]: " -e -i 1194 PORT
+			read -rp "自定义端口 [1-65535]: " -e -i 1194 PORT
 		done
 		;;
 	3)
 		# Generate random number within private ports range
 		PORT=$(shuf -i49152-65535 -n1)
-		echo "Random Port: $PORT"
+		echo "随机端口: $PORT"
 		;;
 	esac
 	echo ""
-	echo "What protocol do you want OpenVPN to use?"
-	echo "UDP is faster. Unless it is not available, you shouldn't use TCP."
+	echo "你想让Openvpn使用哪种协议？"
+	echo "UDP更加快速。除非你的机器被禁用UDP，否则不要使用TCP。"
 	echo "   1) UDP"
 	echo "   2) TCP"
 	until [[ $PROTOCOL_CHOICE =~ ^[1-2]$ ]]; do
-		read -rp "Protocol [1-2]: " -e -i 1 PROTOCOL_CHOICE
+		read -rp "协议 [1-2]: " -e -i 1 PROTOCOL_CHOICE
 	done
 	case $PROTOCOL_CHOICE in
 	1)
@@ -300,62 +169,17 @@ function installQuestions() {
 		;;
 	esac
 	echo ""
-	echo "What DNS resolvers do you want to use with the VPN?"
-	echo "   1) Current system resolvers (from /etc/resolv.conf)"
-	echo "   2) Self-hosted DNS Resolver (Unbound)"
-	echo "   3) Cloudflare (Anycast: worldwide)"
-	echo "   4) Quad9 (Anycast: worldwide)"
-	echo "   5) Quad9 uncensored (Anycast: worldwide)"
-	echo "   6) FDN (France)"
-	echo "   7) DNS.WATCH (Germany)"
-	echo "   8) OpenDNS (Anycast: worldwide)"
-	echo "   9) Google (Anycast: worldwide)"
-	echo "   10) Yandex Basic (Russia)"
-	echo "   11) AdGuard DNS (Anycast: worldwide)"
-	echo "   12) NextDNS (Anycast: worldwide)"
-	echo "   13) Custom"
-	until [[ $DNS =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 13 ]; do
-		read -rp "DNS [1-12]: " -e -i 3 DNS
-		if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
-			echo ""
-			echo "Unbound is already installed."
-			echo "You can allow the script to configure it in order to use it from your OpenVPN clients"
-			echo "We will simply add a second server to /etc/unbound/unbound.conf for the OpenVPN subnet."
-			echo "No changes are made to the current configuration."
-			echo ""
-
-			until [[ $CONTINUE =~ (y|n) ]]; do
-				read -rp "Apply configuration changes to Unbound? [y/n]: " -e CONTINUE
-			done
-			if [[ $CONTINUE == "n" ]]; then
-				# Break the loop and cleanup
-				unset DNS
-				unset CONTINUE
-			fi
-		elif [[ $DNS == "13" ]]; then
-			until [[ $DNS1 =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
-				read -rp "Primary DNS: " -e DNS1
-			done
-			until [[ $DNS2 =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
-				read -rp "Secondary DNS (optional): " -e DNS2
-				if [[ $DNS2 == "" ]]; then
-					break
-				fi
-			done
-		fi
-	done
-	echo ""
-	echo "Do you want to use compression? It is not recommended since the VORACLE attack make use of it."
+	echo "你想开启压缩吗？开启后可以略微减少流量消耗但是容易遭受攻击。"
 	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
-		read -rp"Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
+		read -rp"开启压缩 [y/n]: " -e -i n COMPRESSION_ENABLED
 	done
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
-		echo "Choose which compression algorithm you want to use: (they are ordered by efficiency)"
+		echo "选择一种压缩算法: (靠前的算法效率更高)"
 		echo "   1) LZ4-v2"
 		echo "   2) LZ4"
 		echo "   3) LZ0"
 		until [[ $COMPRESSION_CHOICE =~ ^[1-3]$ ]]; do
-			read -rp"Compression algorithm [1-3]: " -e -i 1 COMPRESSION_CHOICE
+			read -rp"压缩算法 [1-3]: " -e -i 1 COMPRESSION_CHOICE
 		done
 		case $COMPRESSION_CHOICE in
 		1)
@@ -370,13 +194,18 @@ function installQuestions() {
 		esac
 	fi
 	echo ""
-	echo "Do you want to customize encryption settings?"
-	echo "Unless you know what you're doing, you should stick with the default parameters provided by the script."
-	echo "Note that whatever you choose, all the choices presented in the script are safe. (Unlike OpenVPN's defaults)"
-	echo "See https://github.com/angristan/openvpn-install#security-and-encryption to learn more."
+	echo "你想允许多人连接同一个账号吗？"
+	until [[ $MULTI_USER =~ (y|n) ]]; do
+		read -rp"允许多人 [y/n]: " -e -i n MULTI_USER
+	done
+	echo ""
+	echo "你想自定义Openvpn的加密方式吗？"
+	echo "除非你知道它们是做什么的，你应该使用脚本默认的加密方式。"
+	echo "注意，本脚本中默认的选项永远都是最安全的。(而不像Openvpn的默认设置)"
+	echo "访问 https://github.com/angristan/openvpn-install#security-and-encryption 了解更多"
 	echo ""
 	until [[ $CUSTOMIZE_ENC =~ (y|n) ]]; do
-		read -rp "Customize encryption settings? [y/n]: " -e -i n CUSTOMIZE_ENC
+		read -rp "自定义加密方式 [y/n]: " -e -i n CUSTOMIZE_ENC
 	done
 	if [[ $CUSTOMIZE_ENC == "n" ]]; then
 		# Use default, sane and fast parameters
@@ -390,15 +219,15 @@ function installQuestions() {
 		TLS_SIG="1" # tls-crypt
 	else
 		echo ""
-		echo "Choose which cipher you want to use for the data channel:"
-		echo "   1) AES-128-GCM (recommended)"
+		echo "选择数据的加密算法："
+		echo "   1) AES-128-GCM (推荐)"
 		echo "   2) AES-192-GCM"
 		echo "   3) AES-256-GCM"
 		echo "   4) AES-128-CBC"
 		echo "   5) AES-192-CBC"
 		echo "   6) AES-256-CBC"
 		until [[ $CIPHER_CHOICE =~ ^[1-6]$ ]]; do
-			read -rp "Cipher [1-6]: " -e -i 1 CIPHER_CHOICE
+			read -rp "加密算法 [1-6]: " -e -i 1 CIPHER_CHOICE
 		done
 		case $CIPHER_CHOICE in
 		1)
@@ -421,17 +250,17 @@ function installQuestions() {
 			;;
 		esac
 		echo ""
-		echo "Choose what kind of certificate you want to use:"
-		echo "   1) ECDSA (recommended)"
+		echo "选择证书私钥的类型："
+		echo "   1) ECDSA (推荐)"
 		echo "   2) RSA"
 		until [[ $CERT_TYPE =~ ^[1-2]$ ]]; do
-			read -rp"Certificate key type [1-2]: " -e -i 1 CERT_TYPE
+			read -rp"私钥类型 [1-2]: " -e -i 1 CERT_TYPE
 		done
 		case $CERT_TYPE in
 		1)
 			echo ""
 			echo "Choose which curve you want to use for the certificate's key:"
-			echo "   1) prime256v1 (recommended)"
+			echo "   1) prime256v1 (推荐)"
 			echo "   2) secp384r1"
 			echo "   3) secp521r1"
 			until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
@@ -451,12 +280,12 @@ function installQuestions() {
 			;;
 		2)
 			echo ""
-			echo "Choose which size you want to use for the certificate's RSA key:"
-			echo "   1) 2048 bits (recommended)"
+			echo "选择证书的私钥长度："
+			echo "   1) 2048 bits (推荐)"
 			echo "   2) 3072 bits"
 			echo "   3) 4096 bits"
 			until [[ $RSA_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "RSA key size [1-3]: " -e -i 1 RSA_KEY_SIZE_CHOICE
+				read -rp "私钥长度 [1-3]: " -e -i 1 RSA_KEY_SIZE_CHOICE
 			done
 			case $RSA_KEY_SIZE_CHOICE in
 			1)
@@ -591,11 +420,11 @@ function installQuestions() {
 		done
 	fi
 	echo ""
-	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
-	echo "You will be able to generate a client at the end of the installation."
+	echo "好的，我们已经得到所有需要的信息，已经准备好为你部署Openvpn服务器了。"
+	echo "脚本会在安装完成后生成客户端配置文件。"
 	APPROVE_INSTALL=${APPROVE_INSTALL:-n}
 	if [[ $APPROVE_INSTALL =~ n ]]; then
-		read -n1 -r -p "Press any key to continue..."
+		read -n1 -r -p "按任意键继续。。。"
 	fi
 }
 
@@ -604,46 +433,22 @@ function installOpenVPN() {
 		# Set default choices so that no questions will be asked.
 		APPROVE_INSTALL=${APPROVE_INSTALL:-y}
 		APPROVE_IP=${APPROVE_IP:-y}
-		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
-		DNS=${DNS:-1}
 		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
 		CONTINUE=${CONTINUE:-y}
+		MULTI_USER=${CONTINUE:-y}
 
 		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
-		if [[ $IPV6_SUPPORT == "y" ]]; then
-			PUBLIC_IP=$(curl https://ifconfig.co)
-		else
-			PUBLIC_IP=$(curl -4 https://ifconfig.co)
-		fi
+		PUBLIC_IP=$(curl -4 https://ifconfig.co)
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IP}
 	fi
 
 	# Run setup questions first, and set other variales if auto-install
 	installQuestions
-
-	# Get the "public" interface from the default route
-	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
-	if [[ -z $NIC ]] && [[ $IPV6_SUPPORT == 'y' ]]; then
-		NIC=$(ip -6 route show default | sed -ne 's/^default .* dev \([^ ]*\) .*$/\1/p')
-	fi
-
-	# $NIC can not be empty for script rm-openvpn-rules.sh
-	if [[ -z $NIC ]]; then
-		echo
-		echo "Can not detect public interface."
-		echo "This needs for setup MASQUERADE."
-		until [[ $CONTINUE =~ (y|n) ]]; do
-			read -rp "Continue? [y/n]: " -e CONTINUE
-		done
-		if [[ $CONTINUE == "n" ]]; then
-			exit 1
-		fi
-	fi
 
 	# If OpenVPN isn't installed yet, install it. This script is more-or-less
 	# idempotent on multiple runs, but will only install OpenVPN from upstream
@@ -768,100 +573,21 @@ function installOpenVPN() {
 		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server.conf
 	fi
 
-	echo "dev tun
+	echo "dev tap
 user nobody
 group $NOGROUP
 persist-key
 persist-tun
 keepalive 10 120
-topology subnet
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 
-	# DNS resolvers
-	case $DNS in
-	1) # Current system resolvers
-		# Locate the proper resolv.conf
-		# Needed for systems running systemd-resolved
-		if grep -q "127.0.0.53" "/etc/resolv.conf"; then
-			RESOLVCONF='/run/systemd/resolve/resolv.conf'
-		else
-			RESOLVCONF='/etc/resolv.conf'
-		fi
-		# Obtain the resolvers from resolv.conf and use them for OpenVPN
-		sed -ne 's/^nameserver[[:space:]]\+\([^[:space:]]\+\).*$/\1/p' $RESOLVCONF | while read -r line; do
-			# Copy, if it's a IPv4 |or| if IPv6 is enabled, IPv4/IPv6 does not matter
-			if [[ $line =~ ^[0-9.]*$ ]] || [[ $IPV6_SUPPORT == 'y' ]]; then
-				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server.conf
-			fi
-		done
-		;;
-	2) # Self-hosted DNS resolver (Unbound)
-		echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server.conf
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server.conf
-		fi
-		;;
-	3) # Cloudflare
-		echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server.conf
-		;;
-	4) # Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server.conf
-		;;
-	5) # Quad9 uncensored
-		echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server.conf
-		;;
-	6) # FDN
-		echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server.conf
-		;;
-	7) # DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server.conf
-		;;
-	8) # OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server.conf
-		;;
-	9) # Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server.conf
-		;;
-	10) # Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server.conf
-		;;
-	11) # AdGuard DNS
-		echo 'push "dhcp-option DNS 176.103.130.130"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 176.103.130.131"' >>/etc/openvpn/server.conf
-		;;
-	12) # NextDNS
-		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server.conf
-		;;
-	13) # Custom DNS
-		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server.conf
-		if [[ $DNS2 != "" ]]; then
-			echo "push \"dhcp-option DNS $DNS2\"" >>/etc/openvpn/server.conf
-		fi
-		;;
-	esac
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server.conf
-
-	# IPv6 network settings if needed
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo 'server-ipv6 fd42:42:42:42::/112
-tun-ipv6
-push tun-ipv6
-push "route-ipv6 2000::/3"
-push "redirect-gateway ipv6"' >>/etc/openvpn/server.conf
-	fi
-
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
 		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server.conf
+	fi
+	
+	if [[ $MULTI_USER == "y" ]]; then
+		echo "duplicate-cn" >>/etc/openvpn/server.conf
 	fi
 
 	if [[ $DH_TYPE == "1" ]]; then
@@ -892,20 +618,13 @@ tls-version-min 1.2
 tls-cipher $CC_CIPHER
 client-config-dir /etc/openvpn/ccd
 status /var/log/openvpn/status.log
-verb 3" >>/etc/openvpn/server.conf
+verb 3
+client-to-client" >>/etc/openvpn/server.conf
 
 	# Create client-config-dir dir
 	mkdir -p /etc/openvpn/ccd
 	# Create log dir
 	mkdir -p /var/log/openvpn
-
-	# Enable routing
-	echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/20-openvpn.conf
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo 'net.ipv6.conf.all.forwarding=1' >>/etc/sysctl.d/20-openvpn.conf
-	fi
-	# Apply sysctl rules
-	sysctl --system
 
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
@@ -952,68 +671,6 @@ verb 3" >>/etc/openvpn/server.conf
 		systemctl restart openvpn@server
 	fi
 
-	if [[ $DNS == 2 ]]; then
-		installUnbound
-	fi
-
-	# Add iptables rules in two scripts
-	mkdir -p /etc/iptables
-
-	# Script to add rules
-	echo "#!/bin/sh
-iptables -t nat -I POSTROUTING 1 -s 10.8.0.0/24 -o $NIC -j MASQUERADE
-iptables -I INPUT 1 -i tun0 -j ACCEPT
-iptables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
-iptables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
-iptables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >/etc/iptables/add-openvpn-rules.sh
-
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo "ip6tables -t nat -I POSTROUTING 1 -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
-ip6tables -I INPUT 1 -i tun0 -j ACCEPT
-ip6tables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
-ip6tables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
-ip6tables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/add-openvpn-rules.sh
-	fi
-
-	# Script to remove rules
-	echo "#!/bin/sh
-iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
-iptables -D INPUT -i tun0 -j ACCEPT
-iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
-iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT
-iptables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >/etc/iptables/rm-openvpn-rules.sh
-
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
-ip6tables -D INPUT -i tun0 -j ACCEPT
-ip6tables -D FORWARD -i $NIC -o tun0 -j ACCEPT
-ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT
-ip6tables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/rm-openvpn-rules.sh
-	fi
-
-	chmod +x /etc/iptables/add-openvpn-rules.sh
-	chmod +x /etc/iptables/rm-openvpn-rules.sh
-
-	# Handle the rules via a systemd script
-	echo "[Unit]
-Description=iptables rules for OpenVPN
-Before=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/etc/iptables/add-openvpn-rules.sh
-ExecStop=/etc/iptables/rm-openvpn-rules.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
-
-	# Enable service and apply rules
-	systemctl daemon-reload
-	systemctl enable iptables-openvpn
-	systemctl start iptables-openvpn
-
 	# If the server is behind a NAT, use the correct IP address for the clients to connect to
 	if [[ $ENDPOINT != "" ]]; then
 		IP=$ENDPOINT
@@ -1028,7 +685,7 @@ WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 		echo "proto tcp-client" >>/etc/openvpn/client-template.txt
 	fi
 	echo "remote $IP $PORT
-dev tun
+dev tap
 resolv-retry infinite
 nobind
 persist-key
@@ -1040,10 +697,7 @@ auth-nocache
 cipher $CIPHER
 tls-client
 tls-version-min 1.2
-tls-cipher $CC_CIPHER
-ignore-unknown-option block-outside-dns
-setenv opt block-outside-dns # Prevent Windows 10 DNS leak
-verb 3" >>/etc/openvpn/client-template.txt
+tls-cipher $CC_CIPHER" >>/etc/openvpn/client-template.txt
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
 		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/client-template.txt
@@ -1051,32 +705,31 @@ verb 3" >>/etc/openvpn/client-template.txt
 
 	# Generate the custom client.ovpn
 	newClient
-	echo "If you want to add more clients, you simply need to run this script another time!"
+	echo "如果你想添加更多的账号，你可以重新运行本脚本！"
 }
 
 function newClient() {
 	echo ""
-	echo "Tell me a name for the client."
-	echo "Use one word only, no special characters."
+	echo "请告诉我客户端名称。"
+	echo "只能使用字母，不允许有特殊符号。"
 
 	until [[ $CLIENT =~ ^[a-zA-Z0-9_]+$ ]]; do
-		read -rp "Client name: " -e CLIENT
+		read -rp "客户端名称: " -e CLIENT
 	done
 
 	echo ""
-	echo "Do you want to protect the configuration file with a password?"
-	echo "(e.g. encrypt the private key with a password)"
-	echo "   1) Add a passwordless client"
-	echo "   2) Use a password for the client"
+	echo "你想用私钥加密你的配置文件吗？"
+	echo "   1) 添加一个没有私钥的账号"
+	echo "   2) 添加一个带私钥的账号"
 
 	until [[ $PASS =~ ^[1-2]$ ]]; do
-		read -rp "Select an option [1-2]: " -e -i 1 PASS
+		read -rp "选项 [1-2]: " -e -i 1 PASS
 	done
 
 	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c -E "/CN=$CLIENT\$")
 	if [[ $CLIENTEXISTS == '1' ]]; then
 		echo ""
-		echo "The specified client CN was already found in easy-rsa, please choose another name."
+		echo "这个客户端名称已被使用。"
 		exit
 	else
 		cd /etc/openvpn/easy-rsa/ || return
@@ -1085,11 +738,11 @@ function newClient() {
 			./easyrsa build-client-full "$CLIENT" nopass
 			;;
 		2)
-			echo "⚠️ You will be asked for the client password below ⚠️"
+			echo "⚠️ 下面会询问你的私钥 ⚠️"
 			./easyrsa build-client-full "$CLIENT"
 			;;
 		esac
-		echo "Client $CLIENT added."
+		echo "客户端 $CLIENT 已添加。"
 	fi
 
 	# Home directory of the user, where the client configuration (.ovpn) will be written
@@ -1139,8 +792,8 @@ function newClient() {
 	} >>"$homeDir/$CLIENT.ovpn"
 
 	echo ""
-	echo "The configuration file has been written to $homeDir/$CLIENT.ovpn."
-	echo "Download the .ovpn file and import it in your OpenVPN client."
+	echo "配置文件已经成功写入 $homeDir/$CLIENT.ovpn"
+	echo "下载这个.ovpn文件然后导入你的客户端即可。"
 
 	exit 0
 }
@@ -1149,18 +802,18 @@ function revokeClient() {
 	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
 	if [[ $NUMBEROFCLIENTS == '0' ]]; then
 		echo ""
-		echo "You have no existing clients!"
+		echo "你还没有添加客户端！"
 		exit 1
 	fi
 
 	echo ""
-	echo "Select the existing client certificate you want to revoke"
+	echo "选择你想删除的客户端"
 	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
 		if [[ $CLIENTNUMBER == '1' ]]; then
-			read -rp "Select one client [1]: " CLIENTNUMBER
+			read -rp "客户端 [1]: " CLIENTNUMBER
 		else
-			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
+			read -rp "客户端 [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
 		fi
 	done
 	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
@@ -1175,49 +828,13 @@ function revokeClient() {
 	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
 
 	echo ""
-	echo "Certificate for client $CLIENT revoked."
-}
-
-function removeUnbound() {
-	# Remove OpenVPN-related config
-	sed -i '/include: \/etc\/unbound\/openvpn.conf/d' /etc/unbound/unbound.conf
-	rm /etc/unbound/openvpn.conf
-
-	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
-		echo ""
-		echo "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
-		read -rp "Do you want to completely remove Unbound? [y/n]: " -e REMOVE_UNBOUND
-	done
-
-	if [[ $REMOVE_UNBOUND == 'y' ]]; then
-		# Stop Unbound
-		systemctl stop unbound
-
-		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get autoremove --purge -y unbound
-		elif [[ $OS == 'arch' ]]; then
-			pacman --noconfirm -R unbound
-		elif [[ $OS =~ (centos|amzn) ]]; then
-			yum remove -y unbound
-		elif [[ $OS == 'fedora' ]]; then
-			dnf remove -y unbound
-		fi
-
-		rm -rf /etc/unbound/
-
-		echo ""
-		echo "Unbound removed!"
-	else
-		systemctl restart unbound
-		echo ""
-		echo "Unbound wasn't removed."
-	fi
+	echo "$CLIENT 已被删除。"
 }
 
 function removeOpenVPN() {
 	echo ""
 	# shellcheck disable=SC2034
-	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+	read -rp "确定要卸载Openvpn吗？ [y/n]: " -e -i n REMOVE
 	if [[ $REMOVE == 'y' ]]; then
 		# Get OpenVPN port from the configuration
 		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
@@ -1279,31 +896,28 @@ function removeOpenVPN() {
 		rm -f /etc/sysctl.d/20-openvpn.conf
 		rm -rf /var/log/openvpn
 
-		# Unbound
-		if [[ -e /etc/unbound/openvpn.conf ]]; then
-			removeUnbound
-		fi
 		echo ""
-		echo "OpenVPN removed!"
+		echo "OpenVPN 卸载完成！"
 	else
 		echo ""
-		echo "Removal aborted!"
+		echo "卸载已取消。"
 	fi
 }
 
 function manageMenu() {
-	echo "Welcome to OpenVPN-install!"
-	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
+	echo "欢迎使用Openvpn部署工具！"
+	echo "本脚本修改自angristan的安装脚本，项目地址：https://github.com/Nouko61/openvpn-install"
+	echo "原项目地址：https://github.com/angristan/openvpn-install"
 	echo ""
-	echo "It looks like OpenVPN is already installed."
+	echo "看起来你已经把Openvpn安装好了"
 	echo ""
-	echo "What do you want to do?"
-	echo "   1) Add a new user"
-	echo "   2) Revoke existing user"
-	echo "   3) Remove OpenVPN"
-	echo "   4) Exit"
+	echo "你想要做什么"
+	echo "   1) 添加一个新账号"
+	echo "   2) 删除一个现有的账号"
+	echo "   3) 卸载Openvpn"
+	echo "   4) 退出"
 	until [[ $MENU_OPTION =~ ^[1-4]$ ]]; do
-		read -rp "Select an option [1-4]: " MENU_OPTION
+		read -rp "选项 [1-4]: " MENU_OPTION
 	done
 
 	case $MENU_OPTION in
