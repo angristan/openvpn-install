@@ -2,6 +2,8 @@
 
 一键部署一个用于局域网游戏的Openvpn服务器
 
+精简了原脚本，去除NAT和DNS，仅保留局域网功能
+
 [原项目](https://github.com/angristan/openvpn-install)
 
 ## 使用方法
