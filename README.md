@@ -1,6 +1,4 @@
-# openvpn-install
-
-一键部署一个用于局域网游戏的Openvpn服务器
+# 部署用于局域网游戏的Openvpn服务器
 
 设置Openvpn为TAP模式（为游戏优化）
 
