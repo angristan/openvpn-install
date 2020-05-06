@@ -5,8 +5,6 @@
 自动设置Openvpn为TAP模式（为游戏优化）
 去除NAT和DNS，仅保留局域网功能。
 
-客户端下载（需要科学上网）https://openvpn.net/community-downloads/
-
 有些选项实在是看不懂就没翻译。。
 
 ## 使用方法
@@ -25,6 +23,8 @@ chmod +x openvpn-install.sh
 ```
 
 ## 更多
+
+客户端下载（需科学上网）https://openvpn.net/community-downloads/
 
 更多信息请前往[原项目](https://github.com/angristan/openvpn-install)
 
