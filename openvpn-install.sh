@@ -154,7 +154,7 @@ function installQuestions() {
 	esac
 	echo ""
 	echo "你想让Openvpn使用哪种协议？"
-	echo "UDP更加快速。除非你的机器被禁用UDP，否则不要使用TCP。"
+	echo "UDP更加快速。除非你的设备不能使用UDP，否则不要使用TCP。"
 	echo "   1) UDP"
 	echo "   2) TCP"
 	until [[ $PROTOCOL_CHOICE =~ ^[1-2]$ ]]; do
@@ -196,7 +196,7 @@ function installQuestions() {
 	echo ""
 	echo "你想允许多人连接同一个账号吗？"
 	until [[ $MULTI_USER =~ (y|n) ]]; do
-		read -rp"允许多人 [y/n]: " -e -i n MULTI_USER
+		read -rp"允许多人 [y/n]: " -e -i y MULTI_USER
 	done
 	echo ""
 	echo "你想自定义Openvpn的加密方式吗？"
