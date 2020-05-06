@@ -11,7 +11,7 @@
 第一步，下载脚本：
 
 ```bash
-curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
+curl -O https://raw.githubusercontent.com/Nouko61/openvpn-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
 
