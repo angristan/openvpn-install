@@ -219,7 +219,7 @@ function installQuestions() {
 		TLS_SIG="1" # tls-crypt
 	else
 		echo ""
-		echo "选择数据的加密算法："
+		echo "选择用于数据信道的加密算法："
 		echo "   1) AES-128-GCM (推荐)"
 		echo "   2) AES-192-GCM"
 		echo "   3) AES-256-GCM"
@@ -227,7 +227,7 @@ function installQuestions() {
 		echo "   5) AES-192-CBC"
 		echo "   6) AES-256-CBC"
 		until [[ $CIPHER_CHOICE =~ ^[1-6]$ ]]; do
-			read -rp "加密算法 [1-6]: " -e -i 1 CIPHER_CHOICE
+			read -rp "数据信道加密算法 [1-6]: " -e -i 1 CIPHER_CHOICE
 		done
 		case $CIPHER_CHOICE in
 		1)
@@ -259,12 +259,12 @@ function installQuestions() {
 		case $CERT_TYPE in
 		1)
 			echo ""
-			echo "Choose which curve you want to use for the certificate's key:"
+			echo "请选择证书私钥的加密曲线："
 			echo "   1) prime256v1 (推荐)"
 			echo "   2) secp384r1"
 			echo "   3) secp521r1"
 			until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp"Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
+				read -rp"加密曲线 [1-3]: " -e -i 1 CERT_CURVE_CHOICE
 			done
 			case $CERT_CURVE_CHOICE in
 			1)
@@ -301,13 +301,13 @@ function installQuestions() {
 			;;
 		esac
 		echo ""
-		echo "Choose which cipher you want to use for the control channel:"
+		echo "选择用于控制信道的加密算法："
 		case $CERT_TYPE in
 		1)
-			echo "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
+			echo "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (推荐)"
 			echo "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
 			until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-				read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+				read -rp"控制信道加密算法 [1-2]: " -e -i 1 CC_CIPHER_CHOICE
 			done
 			case $CC_CIPHER_CHOICE in
 			1)
@@ -319,10 +319,10 @@ function installQuestions() {
 			esac
 			;;
 		2)
-			echo "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
+			echo "   1) ECDHE-RSA-AES-128-GCM-SHA256 (推荐)"
 			echo "   2) ECDHE-RSA-AES-256-GCM-SHA384"
 			until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-				read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+				read -rp"控制信道加密算法 [1-2]: " -e -i 1 CC_CIPHER_CHOICE
 			done
 			case $CC_CIPHER_CHOICE in
 			1)
@@ -335,21 +335,21 @@ function installQuestions() {
 			;;
 		esac
 		echo ""
-		echo "Choose what kind of Diffie-Hellman key you want to use:"
-		echo "   1) ECDH (recommended)"
+		echo "选择密钥协商算法："
+		echo "   1) ECDH (推荐)"
 		echo "   2) DH"
 		until [[ $DH_TYPE =~ [1-2] ]]; do
-			read -rp"DH key type [1-2]: " -e -i 1 DH_TYPE
+			read -rp"密钥协商算法 [1-2]: " -e -i 1 DH_TYPE
 		done
 		case $DH_TYPE in
 		1)
 			echo ""
-			echo "Choose which curve you want to use for the ECDH key:"
-			echo "   1) prime256v1 (recommended)"
+			echo "选择密钥协商私钥的加密曲线："
+			echo "   1) prime256v1 (推荐)"
 			echo "   2) secp384r1"
 			echo "   3) secp521r1"
 			while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
-				read -rp"Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
+				read -rp"加密曲线 [1-3]: " -e -i 1 DH_CURVE_CHOICE
 			done
 			case $DH_CURVE_CHOICE in
 			1)
@@ -365,12 +365,12 @@ function installQuestions() {
 			;;
 		2)
 			echo ""
-			echo "Choose what size of Diffie-Hellman key you want to use:"
-			echo "   1) 2048 bits (recommended)"
+			echo "选择密钥协商私钥的长度:"
+			echo "   1) 2048 bits (推荐)"
 			echo "   2) 3072 bits"
 			echo "   3) 4096 bits"
 			until [[ $DH_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
+				read -rp "私钥长度 [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
 			done
 			case $DH_KEY_SIZE_CHOICE in
 			1)
