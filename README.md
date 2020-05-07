@@ -21,7 +21,7 @@ chmod +x openvpn-install.sh
 
 ## 更多
 
-客户端下载（需科学上网）https://openvpn.net/community-downloads/
+[客户端下载](https://openvpn.net/community-downloads/)
 
 更多信息请前往[原项目](https://github.com/angristan/openvpn-install)
 
