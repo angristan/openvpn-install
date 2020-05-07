@@ -194,7 +194,7 @@ function installQuestions() {
 		esac
 	fi
 	echo ""
-	echo "你想允许多人连接同一个账号吗？"
+	echo "你想允许多人连接同一个账号吗？如果选择n，则需要给每个人分配一个账号。"
 	until [[ $MULTI_USER =~ (y|n) ]]; do
 		read -rp"允许多人 [y/n]: " -e -i y MULTI_USER
 	done
