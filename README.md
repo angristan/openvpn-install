@@ -25,4 +25,4 @@ chmod +x openvpn-install.sh
 
 更多信息请前往[原项目](https://github.com/angristan/openvpn-install)
 
-This project is under the [MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
+This project is under the [MIT Licence](https://raw.githubusercontent.com/N/openvpn-install/master/LICENSE)
