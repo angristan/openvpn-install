@@ -21,7 +21,7 @@ chmod +x openvpn-install.sh
 
 ## 更多
 
-[客户端下载](https://openvpn.net/community-downloads/)
+[自制客户端](https://github.com/Nouko61/Simple-Lancher)
 
 更多信息请前往[原项目](https://github.com/angristan/openvpn-install)
 
