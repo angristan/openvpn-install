@@ -573,15 +573,14 @@ function installOpenVPN() {
 		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server.conf
 	fi
 
-	echo 'dev tap
+	echo "dev tap
 user nobody
 group $NOGROUP
 persist-key
 persist-tun
 keepalive 10 120
 server 10.233.0.0 255.255.0.0
-push "route 10.233.0.0 255.255.0.0"
-ifconfig-pool-persist ipp.txt' >>/etc/openvpn/server.conf
+ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
 		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server.conf
