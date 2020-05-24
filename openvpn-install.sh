@@ -719,11 +719,6 @@ function installOpenVPN() {
 
 		# Create the PKI, set up the CA, the DH params and the server certificate
 		./easyrsa init-pki
-
-		# Workaround to remove unharmful error until easy-rsa 3.0.7
-		# https://github.com/OpenVPN/easy-rsa/issues/261
-		sed -i 's/^RANDFILE/#RANDFILE/g' pki/openssl-easyrsa.cnf
-
 		./easyrsa --batch build-ca nopass
 
 		if [[ $DH_TYPE == "2" ]]; then

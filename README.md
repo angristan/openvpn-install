@@ -37,7 +37,7 @@ In your home directory, you will have `.ovpn` files. These are the client config
 
 If you have any question, head to the [FAQ](#faq) first. Please read everything before opening an issue.
 
-**PLEASE do net send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you. My time is not available for free just for you, you're not special.
+**PLEASE do not send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you. My time is not available for free just for you, you're not special.
 
 ### Headless install
 
@@ -183,7 +183,22 @@ Solutions that provision a ready to use OpenVPN server based on this script in o
 
 - AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install)
 
-## Contributing / Code formatting
+## Contributing
+
+### Contributors hall-of-fame
+
+Thanks ❤️
+
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/0)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/1)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/2)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/3)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/4)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/5)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/6)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/7)](https://github.com/angristan/openvpn-install/graphs/contributors)
+
+### Code formatting
 
 We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the configuration [here](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/push.yml).
 
