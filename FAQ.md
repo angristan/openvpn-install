@@ -69,7 +69,7 @@ If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/s
 
 **Q:** IPv6 is not working on my Hetzner VM
 
-**A:** This an issue on their side. See https://angristan.xyz/fix-ipv6-hetzner-cloud/
+**A:** This an issue on their side. See <https://angristan.xyz/fix-ipv6-hetzner-cloud/>
 
 ---
 
@@ -117,11 +117,11 @@ Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
 
 **A:** Here is a sample bash script to achieve this:
 
- ```sh
+```sh
 userlist=(user1 user2 user3)
 
 for i in ${userlist[@]};do
-    MENU_OPTION=1 CLIENT=$i PASS=1 ./openvpn-install.sh
+   MENU_OPTION=1 CLIENT=$i PASS=1 ./openvpn-install.sh
 done
 ```
 
@@ -137,8 +137,9 @@ done
 
 **A:** You would need to edit the `.ovpn` file. You can edit the template out of which those files are created by editing `/etc/openvpn/client-template.txt` file and adding
 
- ```sh
+```sh
 route-nopull
 route 10.0.0.0 255.0.0.0
 ```
+
 So for example - here it would route all traffic of `10.0.0.0/8` to the vpn. And the rest through the internet.
