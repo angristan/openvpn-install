@@ -10,7 +10,7 @@ You can, of course, it's even recommended, update the `openvpn` package with you
 
 **Q:** How do I check for DNS leaks?
 
-**A:** Go to [dnsleaktest.com](https://dnsleaktest.com/) or [ipleak.net](https://ipleak.net/) with your browser. Only your server's IP should show up.
+**A:** Go to [browserleaks.com](https://browserleaks.com/dns) or [ipleak.net](https://ipleak.net/) (both perform IPv4 and IPv6 check) with your browser. Only your server's IP should show up.
 
 ---
 
