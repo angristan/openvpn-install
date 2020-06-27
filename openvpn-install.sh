@@ -61,7 +61,7 @@ function checkOS() {
 			if [[ ! $VERSION_ID =~ (7|8) ]]; then
 				echo "⚠️ Your version of CentOS is not supported."
 				echo ""
-				echo "The script only support CentOS 7."
+				echo "The script only support CentOS 7 and CentOS 8."
 				echo ""
 				exit 1
 			fi
