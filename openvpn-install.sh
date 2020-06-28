@@ -22,10 +22,10 @@ function checkOS() {
 		source /etc/os-release
 
 		if [[ $ID == "debian" || $ID == "raspbian" ]]; then
-			if [[ $VERSION_ID -lt 8 ]]; then
+			if [[ $VERSION_ID -lt 9 ]]; then
 				echo "⚠️ Your version of Debian is not supported."
 				echo ""
-				echo "However, if you're using Debian >= 8 or unstable/testing then you can continue, at your own risk."
+				echo "However, if you're using Debian >= 9 or unstable/testing then you can continue, at your own risk."
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Continue? [y/n]: " -e CONTINUE

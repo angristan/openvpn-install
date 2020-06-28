@@ -119,7 +119,6 @@ The script supports these OS and architectures:
 | Arch Linux      | ❔   | ✅    | ❔    | ✅    |
 | CentOS 7        | ✅   | ✅    | ✅    | ✅    |
 | CentOS 8        | ❌   | ✅    | ❌    | ✅    |
-| Debian 8        | ✅   | ✅    | ✅    | ✅    |
 | Debian >= 9     | ✅   | ✅    | ✅    | ✅    |
 | Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
 | Ubuntu 16.04    | ✅   | ✅    | ❔    | ❔    |
