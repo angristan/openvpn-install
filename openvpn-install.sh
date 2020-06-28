@@ -1151,13 +1151,11 @@ function removeOpenVPN () {
 			# Get OpenVPN protocol from the configuration
 			PROTOCOL=$(grep '^proto ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
-            if [[ "$PORT" == '1194' ]] && [[ "$PROTOCOL" == "udp" ]]; then
-                firewall-cmd --zone=public --remove-service=openvpn
-                firewall-cmd --permanent --zone=public --remove-service=openvpn
-            else
-                firewall-cmd --zone=public --remove-port="$PORT/$PROTOCOL"
-                firewall-cmd --permanent --zone=public --remove-port="$PORT/$PROTOCOL"
-		    fi          
+            firewall-cmd --zone=public --remove-service=openvpn
+            firewall-cmd --permanent --zone=public --remove-service=openvpn
+            
+            # Remove defined openvpn service
+            rm /etc/firewalld/services/openvpn.xml
 
             firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
             firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
