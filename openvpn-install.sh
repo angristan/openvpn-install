@@ -855,13 +855,13 @@ verb 3" >> /etc/openvpn/server.conf
     # Add firewall rules --> firewalld / iptable (systemd scripts)
     if pgrep firewalld; then
         # Allow incoming traffic
-		if [[ "$PORT" == '1194' ]] && [[ "$PROTOCOL" == "udp" ]]; then
-			firewall-cmd --zone=public --add-service=openvpn
+            # Define new openvpn service
+            cp /usr/lib/firewalld/services/openvpn.xml /etc/firewalld/services
+            sed -i "s|udp|${PROTOCOL}|" /etc/firewalld/services/openvpn.xml
+            sed -i "s|1194|${PORT}|" /etc/firewalld/services/openvpn.xml
+                    
+            firewall-cmd --zone=public --add-service=openvpn
             firewall-cmd --permanent --zone=public --add-service=openvpn
-        else
-            firewall-cmd --zone=public --add-port="$PORT/$PROTOCOL"
-            firewall-cmd --permanent --zone=public --add-port="$PORT/$PROTOCOL"
-		fi
         
         # Add trusted zone
 		firewall-cmd --zone=trusted --add-source=10.8.0.0/24		
