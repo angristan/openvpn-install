@@ -22,10 +22,10 @@ function checkOS() {
 		source /etc/os-release
 
 		if [[ $ID == "debian" || $ID == "raspbian" ]]; then
-			if [[ $VERSION_ID -lt 8 ]]; then
+			if [[ $VERSION_ID -lt 9 ]]; then
 				echo "⚠️ Your version of Debian is not supported."
 				echo ""
-				echo "However, if you're using Debian >= 8 or unstable/testing then you can continue, at your own risk."
+				echo "However, if you're using Debian >= 9 or unstable/testing then you can continue, at your own risk."
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Continue? [y/n]: " -e CONTINUE
@@ -653,11 +653,6 @@ function installOpenVPN() {
 			apt-get update
 			apt-get -y install ca-certificates gnupg
 			# We add the OpenVPN repo to get the latest version.
-			if [[ $VERSION_ID == "8" ]]; then
-				echo "deb http://build.openvpn.net/debian/openvpn/stable jessie main" >/etc/apt/sources.list.d/openvpn.list
-				wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-				apt-get update
-			fi
 			if [[ $VERSION_ID == "16.04" ]]; then
 				echo "deb http://build.openvpn.net/debian/openvpn/stable xenial main" >/etc/apt/sources.list.d/openvpn.list
 				wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
