@@ -1286,7 +1286,7 @@ function removeOpenVPN() {
 	fi
 }
 
-function listcerts () {
+function listCerts () {
 # Original Script from PiVPN: list clients script
 # Modified Script to add Certificate expiration Date -- psgoundar  
 INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
@@ -1303,12 +1303,11 @@ while read -r line || [ -n "$line" ]; do
     EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
         
     if [ "${STATUS}" == "V" ]; then
-         printf "     Valid   ::   %s :: %s\\n" "$NAME" "$EXPD"
+         printf "Valid  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
     elif [ "${STATUS}" == "R" ]; then
-        #printf "     Revoked   ::   %s :: %s\\n" "$NAME" "$EXPD"
-		continue
+        printf "Revoked  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
     else
-        printf "     Unknown   ::   %s :: %s\\n" "$NAME" "$EXPD"
+        printf "Unknown  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
     fi
 done <${INDEX} | column -t
 printf "\\n"
@@ -1323,7 +1322,7 @@ function manageMenu() {
 	echo "What do you want to do?"
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
-	echo "   3) List Current Issued Certificates"
+	echo "   3) List current issued certificates"
 	echo "   4) Remove OpenVPN"
 	echo "   5) Exit"
 	until [[ $MENU_OPTION =~ ^[1-5]$ ]]; do
@@ -1338,7 +1337,7 @@ function manageMenu() {
 		revokeClient
 		;;
 	3)
-			listcerts
+		listCerts
 		;;
 	4)
 		removeOpenVPN
