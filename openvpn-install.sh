@@ -1296,7 +1296,9 @@ if [ ! -f "${INDEX}" ]; then
         exit 1
 fi
 printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
-printf "\\e[4mStatus\\e[0m ::  \\e[4mName\\e[0m\\e[0m        ::  \\e[4mExpiration \\e[0m\\n" 
+printf "\\n%6s\\t%14s\\t%22s\\n" "Status" "Name" "Expiration"
+printf '=%.0s' {1..50}
+printf '\n'
 while read -r line || [ -n "$line" ]; do
     STATUS=$(echo "$line" | awk '{print $1}')
     NAME=$(echo "$line" | awk '{print $5}' | awk -FCN= '{print $2}')
