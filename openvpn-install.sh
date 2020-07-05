@@ -1301,7 +1301,7 @@ printf '=%.0s' {1..50}
 printf '\n'
 while read -r line || [ -n "$line" ]; do
     STATUS=$(echo "$line" | awk '{print $1}')
-    NAME=$(echo "$line" | awk '{print $5}' | awk -FCN= '{print $2}')
+    NAME=$(echo "$line" | cut -d '=' -f2)
     EXPD=$(echo "$line" | awk '{if (length($2) == 15) print $2; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
         
     if [ "${STATUS}" == "V" ]; then
