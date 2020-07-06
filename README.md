@@ -1,6 +1,6 @@
 # openvpn-install
 
-[![Travis CI](https://travis-ci.com/angristan/openvpn-install.svg?branch=master)](https://travis-ci.com/angristan/openvpn-install)
+![Test](https://github.com/angristan/openvpn-install/workflows/Test/badge.svg) ![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
 
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS and Arch Linux.
 
@@ -8,14 +8,14 @@ This script will let you setup your own secure VPN server in just a few seconds.
 
 ## Usage
 
-First, get the script and make it executable :
+First, get the script and make it executable:
 
 ```bash
 curl -O https://raw.githubusercontent.com/joaduo/openvpn-install/master/openvpn-install.sh
 chmod +x openvpn-install.sh
 ```
 
-Then run it :
+Then run it:
 
 ```sh
 ./openvpn-install.sh
@@ -25,7 +25,7 @@ You need to run the script as root and have the TUN module enabled.
 
 The first time you run it, you'll have to follow the assistant and answer a few questions to setup your VPN server.
 
-When OpenVPN is installed, you can run the script again, and you will get the choice to :
+When OpenVPN is installed, you can run the script again, and you will get the choice to:
 
 - Add a client
 - Remove a client
@@ -33,13 +33,16 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
 
-If you have any question, head to the [FAQ](#faq) first.
+If you have any question, head to the [FAQ](#faq) first. Please read everything before opening an issue.
+
+**PLEASE do not send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you. My time is not available for free just for you, you're not special.
 
 ### Headless install
 
 It's also possible to run the script headless, e.g. without waiting for user input, in an automated manner.
 
 Example usage:
+
 ```bash
 AUTO_INSTALL=y ./openvpn-install.sh
 
@@ -70,6 +73,22 @@ Other variables can be set depending on your choice (encryption, compression). Y
 
 Password-protected clients are not supported by the headless installation method since user input is expected by Easy-RSA.
 
+The headless install is more-or-less idempotent, in that it has been made safe to run multiple times with the same parameters, e.g. by a state provisioner like Ansible/Terraform/Salt/Chef/Puppet. It will only install and regenerate the Easy-RSA PKI if it doesn't already exist, and it will only install OpenVPN and other upstream dependencies if OpenVPN isn't already installed. It will recreate all local config and re-generate the client file on each headless run.
+
+### Headless User Addition
+
+It's also possible to automate the addition of a new user. Here, the key is to provide the (string) value of the `MENU_OPTION` variable along with the remaining mandatory variables before invoking the script.
+
+The following Bash script adds a new user `foo` to an existing OpenVPN configuration
+
+```bash
+#!/bin/bash
+export MENU_OPTION="1"
+export CLIENT="foo"
+export PASS="1"
+./openvpn-install.sh
+```
+
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
@@ -92,18 +111,17 @@ Password-protected clients are not supported by the headless installation method
 
 The script supports these OS and architectures:
 
-|              | i386 | amd64 | armhf | arm64 |
-| ------------ | ---- | ----- | ----- | ----- |
-|  Arch Linux  |   ❔  |  ✅  |   ❔   |   ❔  |
-|   CentOS 7   |   ❔  |  ✅  |   ❌   |   ✅  |
-|   Debian 8   |   ✅  |  ✅  |   ❌   |   ❌  |
-|   Debian 9   |   ❌  |  ✅  |   ✅   |   ✅  |
-|   Debian 10  |   ❔  |  ✅  |   ✅   |   ❔  |
-|   Fedora 27  |   ❔  |  ✅  |   ❔   |   ❔  |
-|   Fedora 28  |   ❔  |  ✅  |   ❔   |   ❔  |
-| Ubuntu 16.04 |   ✅  |  ✅  |   ❌   |   ❌  |
-| Ubuntu 18.04 |   ❌  |  ✅  |   ✅   |   ✅  |
-| Ubuntu 19.04 |   ❌  |  ✅  |   ✅   |   ✅  |
+|                 | i386 | amd64 | armhf | arm64 |
+| --------------- | ---- | ----- | ----- | ----- |
+| Amazon Linux 2  | ❔   | ✅    | ❔    | ❔    |
+| Arch Linux      | ❔   | ✅    | ❔    | ✅    |
+| CentOS 7        | ❔   | ✅    | ❌    | ✅    |
+| CentOS 8        | ❌   | ✅    | ❔    | ❔    |
+| Debian 8        | ✅   | ✅    | ❌    | ❌    |
+| Debian >= 9     | ❌   | ✅    | ✅    | ✅    |
+| Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
+| Ubuntu 16.04    | ✅   | ✅    | ❌    | ❌    |
+| Ubuntu >= 18.04 | ❌   | ✅    | ✅    | ✅    |
 
 To be noted:
 
@@ -119,17 +137,15 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 
 ## FAQ
 
-**LOOK AT THE [WIKI](https://github.com/angristan/openvpn-install/wiki/FAQ) FOR MORE INFORMATION. PLEASE READ BOTH BEFORE OPENING AN ISSUE.**
-
-**PLEASE do net send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you.
+More Q&A in [FAQ.md](FAQ.md).
 
 **Q:** Which provider do you recommend?
 
 **A:** I recommend these:
 
-- [Vultr](https://goo.gl/Xyd1Sc): Worldwide locations, IPv6 support, starting at $3.50/month
+- [Vultr](https://goo.gl/Xyd1Sc): Worldwide locations, IPv6 support, starting at \$3.50/month
 - [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
-- [Digital Ocean](https://goo.gl/qXrNLK): Worldwide locations, IPv6 support, starting at $5/month
+- [Digital Ocean](https://goo.gl/qXrNLK): Worldwide locations, IPv6 support, starting at \$5/month
 
 ---
 
@@ -139,7 +155,7 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 
 - Windows: [The official OpenVPN community client](https://openvpn.net/index.php/download/community-downloads.html).
 - Linux: The `openvpn` package from your distribution. There is an [official APT repository](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Debian/Ubuntu based distributions.
-- macOS: [Tunnelblick](https://tunnelblick.net/).
+- macOS: [Tunnelblick](https://tunnelblick.net/), [Viscosity](https://www.sparklabs.com/viscosity/).
 - Android: [OpenVPN for Android](https://play.google.com/store/apps/details?id=de.blinkt.openvpn).
 - iOS: [The official OpenVPN Connect client](https://itunes.apple.com/us/app/openvpn-connect/id590379981).
 
@@ -157,6 +173,33 @@ Since 2016, the two scripts have diverged and are not alike anymore, especially 
 
 ---
 
+More Q&A in [FAQ.md](FAQ.md).
+
+## One-stop solutions for public cloud
+
+Solutions that provision a ready to use OpenVPN server based on this script in one go are available for:
+
+- AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install)
+
+## Contributing
+
+### Contributors hall-of-fame
+
+Thanks ❤️
+
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/0)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/1)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/2)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/3)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/4)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/5)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/6)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/7)](https://github.com/angristan/openvpn-install/graphs/contributors)
+
+### Code formatting
+
+We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the configuration [here](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/push.yml).
+
 ## Security and Encryption
 
 OpenVPN's default settings are pretty weak regarding encryption. This script aims to improve that.
@@ -166,11 +209,12 @@ OpenVPN 2.4 was a great update regarding encryption. It added support for ECDSA,
 If you want more information about an option mentioned below, head to the [OpenVPN manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage). It is very complete.
 
 Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.6/easyrsa3/vars.example) file.
+
 ### Compression
 
 By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 (v1/v2) algorithms, the latter being more efficient.
 
-However, it is discouraged to use compression since it since the [VORACLE attack](https://protonvpn.com/blog/voracle-attack/) makes use of it.
+However, it is discouraged to use compression since the [VORACLE attack](https://protonvpn.com/blog/voracle-attack/) makes use of it.
 
 ### TLS version
 
@@ -203,15 +247,15 @@ By default, OpenVPN uses `BF-CBC` as the data channel cipher. Blowfish is an old
 >
 > Using BF-CBC is no longer recommended, because of its 64-bit block size. This small block size allows attacks based on collisions, as demonstrated by SWEET32. See https://community.openvpn.net/openvpn/wiki/SWEET32 for details.
 
->Security researchers at INRIA published an attack on 64-bit block ciphers, such as 3DES and Blowfish. They show that they are able to recover plaintext when the same data is sent often enough, and show how they can use cross-site scripting vulnerabilities to send data of interest often enough. This works over HTTPS, but also works for HTTP-over-OpenVPN. See ​https://sweet32.info/ for a much better and more elaborate explanation.
+> Security researchers at INRIA published an attack on 64-bit block ciphers, such as 3DES and Blowfish. They show that they are able to recover plaintext when the same data is sent often enough, and show how they can use cross-site scripting vulnerabilities to send data of interest often enough. This works over HTTPS, but also works for HTTP-over-OpenVPN. See https://sweet32.info/ for a much better and more elaborate explanation.
 >
 > OpenVPN's default cipher, BF-CBC, is affected by this attack.
 
-Indeed, AES is today's standard. It's the fastest and more secure cipher available today. [SEED](https://en.wikipedia.org/wiki/SEED) and [Camellia](https://en.wikipedia.org/wiki/Camellia_(cipher)) are not vulnerable to date but are slower than AES and relatively less trusted.
+Indeed, AES is today's standard. It's the fastest and more secure cipher available today. [SEED](https://en.wikipedia.org/wiki/SEED) and [Camellia](<https://en.wikipedia.org/wiki/Camellia_(cipher)>) are not vulnerable to date but are slower than AES and relatively less trusted.
 
 > Of the currently supported ciphers, OpenVPN currently recommends using AES-256-CBC or AES-128-CBC. OpenVPN 2.4 and newer will also support GCM. For 2.4+, we recommend using AES-256-GCM or AES-128-GCM.
 
-AES-256 is 40% slower than AES-128, and there isn't any real reason to use a 256 bits key over a 128 bits key with AES. (Source : [1](http://security.stackexchange.com/questions/14068/why-most-people-use-256-bit-encryption-instead-of-128-bit),[2](http://security.stackexchange.com/questions/6141/amount-of-simple-operations-that-is-safely-out-of-reach-for-all-humanity/6149#6149)). Moreover, AES-256 is more vulnerable to [Timing attacks](https://en.wikipedia.org/wiki/Timing_attack).
+AES-256 is 40% slower than AES-128, and there isn't any real reason to use a 256 bits key over a 128 bits key with AES. (Source: [1](http://security.stackexchange.com/questions/14068/why-most-people-use-256-bit-encryption-instead-of-128-bit),[2](http://security.stackexchange.com/questions/6141/amount-of-simple-operations-that-is-safely-out-of-reach-for-all-humanity/6149#6149)). Moreover, AES-256 is more vulnerable to [Timing attacks](https://en.wikipedia.org/wiki/Timing_attack).
 
 AES-GCM is an [AEAD cipher](https://en.wikipedia.org/wiki/Authenticated_encryption) which means it simultaneously provides confidentiality, integrity, and authenticity assurances on the data.
 
@@ -226,7 +270,7 @@ The script supports the following ciphers:
 
 And defaults to `AES-128-GCM`.
 
-OpenVPN 2.4 added a feature called "NCP": *Negotiable Crypto Parameters*. It means you can provide a cipher suite like with HTTPS. It is set to `AES-256-GCM:AES-128-GCM` by default and overrides the `--cipher` parameter when used with an OpenVPN 2.4 client. For the sake of simplicity, the script set both the `--cipher` and `--ncp-cipher` to the cipher chosen above.
+OpenVPN 2.4 added a feature called "NCP": _Negotiable Crypto Parameters_. It means you can provide a cipher suite like with HTTPS. It is set to `AES-256-GCM:AES-128-GCM` by default and overrides the `--cipher` parameter when used with an OpenVPN 2.4 client. For the sake of simplicity, the script set both the `--cipher` and `--ncp-cipher` to the cipher chosen above.
 
 ### Control channel
 
@@ -287,6 +331,7 @@ About `tls-crypt`:
 > Encrypt and authenticate all control channel packets with the key from keyfile. (See --tls-auth for more background.)
 >
 > Encrypting (and authenticating) control channel packets:
+>
 > - provides more privacy by hiding the certificate used for the TLS connection,
 > - makes it harder to identify OpenVPN traffic as such,
 > - provides "poor-man's" post-quantum security, against attackers who will never know the pre-shared key (i.e. no forward secrecy).
@@ -299,7 +344,7 @@ The script supports both and uses `tls-crypt` by default.
 
 ## Say thanks
 
-You can [say thanks](https://saythanks.io/to/Angristan) if you want!
+You can [say thanks](https://saythanks.io/to/angristan%40pm.me) if you want!
 
 ## Credits & Licence
 

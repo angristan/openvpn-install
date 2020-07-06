@@ -1,4 +1,0 @@
-language: shell
-
-script:
-  - shellcheck -e SC1091,SC2164,SC2034,SC1072,SC1073,SC1009 openvpn-install.sh
