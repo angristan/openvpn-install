@@ -22,8 +22,6 @@ jobs:
           - centos-8-x64
     steps:
     - uses: actions/checkout@v2
-      with:
-        ref: master
 
     - name: Setup doctl
       uses: digitalocean/action-doctl@v2

@@ -13,9 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-      with:
-        ref: master
-
     - name: shellcheck
       uses: ludeeus/action-shellcheck@0.4.1
       env:
@@ -25,9 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-      with:
-        ref: master
-
     - name: shfmt
       uses: bltavares/actions/shfmt@master
       env:
