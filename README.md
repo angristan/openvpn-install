@@ -121,7 +121,7 @@ The script supports these OS and architectures:
 | CentOS 8        | ❌   | ✅    | ❌    | ✅    |
 | Debian >= 9     | ✅   | ✅    | ✅    | ✅    |
 | Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
-| Ubuntu 16.04    | ✅   | ✅    | ❔    | ❔    |
+| Ubuntu 16.04    | ✅   | ✅    | ❌    | ❌    |
 | Ubuntu >= 18.04 | ✅   | ✅    | ✅    | ✅    |
 
 To be noted:
