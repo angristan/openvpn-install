@@ -117,13 +117,12 @@ The script supports these OS and architectures:
 | --------------- | ---- | ----- | ----- | ----- |
 | Amazon Linux 2  | ❔   | ✅    | ❔    | ❔    |
 | Arch Linux      | ❔   | ✅    | ❔    | ✅    |
-| CentOS 7        | ❔   | ✅    | ❌    | ✅    |
-| CentOS 8        | ❌   | ✅    | ❔    | ❔    |
-| Debian 8        | ✅   | ✅    | ❌    | ❌    |
-| Debian >= 9     | ❌   | ✅    | ✅    | ✅    |
+| CentOS 7        | ✅   | ✅    | ✅    | ✅    |
+| CentOS 8        | ❌   | ✅    | ❌    | ✅    |
+| Debian >= 9     | ✅   | ✅    | ✅    | ✅    |
 | Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
 | Ubuntu 16.04    | ✅   | ✅    | ❌    | ❌    |
-| Ubuntu >= 18.04 | ❌   | ✅    | ✅    | ✅    |
+| Ubuntu >= 18.04 | ✅   | ✅    | ✅    | ✅    |
 
 To be noted:
 
