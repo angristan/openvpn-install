@@ -689,7 +689,7 @@ function installOpenVPN() {
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
 		local version="3.0.7"
 		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
-		mkdir /etc/openvpn/easy-rsa
+		mkdir -p /etc/openvpn/easy-rsa
 		tar xzf ~/easy-rsa.tgz --strip-components=1 --directory /etc/openvpn/easy-rsa
 		rm -f ~/easy-rsa.tgz
 
