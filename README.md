@@ -145,8 +145,9 @@ More Q&A in [FAQ.md](FAQ.md).
 **A:** I recommend these:
 
 - [Vultr](https://goo.gl/Xyd1Sc): Worldwide locations, IPv6 support, starting at \$3.50/month
-- [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
+- [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Germany, IPv6, 20 TB of traffic, starting at €3/month
 - [Digital Ocean](https://goo.gl/qXrNLK): Worldwide locations, IPv6 support, starting at \$5/month
+- [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
 
 ---
 
