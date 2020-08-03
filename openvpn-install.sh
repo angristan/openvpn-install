@@ -18,7 +18,6 @@ function tunAvailable() {
 function checkOS() {
 	if [[ -e /etc/debian_version ]]; then
 		OS="debian"
-		# shellcheck disable=SC1091
 		source /etc/os-release
 
 		if [[ $ID == "debian" || $ID == "raspbian" ]]; then
@@ -51,7 +50,6 @@ function checkOS() {
 			fi
 		fi
 	elif [[ -e /etc/system-release ]]; then
-		# shellcheck disable=SC1091
 		source /etc/os-release
 		if [[ $ID == "fedora" ]]; then
 			OS="fedora"
@@ -1206,7 +1204,6 @@ function removeUnbound() {
 
 function removeOpenVPN() {
 	echo ""
-	# shellcheck disable=SC2034
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ $REMOVE == 'y' ]]; then
 		# Get OpenVPN port from the configuration
