@@ -37,7 +37,7 @@ In your home directory, you will have `.ovpn` files. These are the client config
 
 If you have any question, head to the [FAQ](#faq) first. Please read everything before opening an issue.
 
-**PLEASE do net send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you. My time is not available for free just for you, you're not special.
+**PLEASE do not send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you. My time is not available for free just for you, you're not special.
 
 ### Headless install
 
@@ -117,13 +117,12 @@ The script supports these OS and architectures:
 | --------------- | ---- | ----- | ----- | ----- |
 | Amazon Linux 2  | ❔   | ✅    | ❔    | ❔    |
 | Arch Linux      | ❔   | ✅    | ❔    | ✅    |
-| CentOS 7        | ❔   | ✅    | ❌    | ✅    |
-| CentOS 8        | ❌   | ✅    | ❔    | ❔    |
-| Debian 8        | ✅   | ✅    | ❌    | ❌    |
-| Debian >= 9     | ❌   | ✅    | ✅    | ✅    |
+| CentOS 7        | ✅   | ✅    | ✅    | ✅    |
+| CentOS 8        | ❌   | ✅    | ❌    | ✅    |
+| Debian >= 9     | ✅   | ✅    | ✅    | ✅    |
 | Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
 | Ubuntu 16.04    | ✅   | ✅    | ❌    | ❌    |
-| Ubuntu >= 18.04 | ❌   | ✅    | ✅    | ✅    |
+| Ubuntu >= 18.04 | ✅   | ✅    | ✅    | ✅    |
 
 To be noted:
 
@@ -146,8 +145,9 @@ More Q&A in [FAQ.md](FAQ.md).
 **A:** I recommend these:
 
 - [Vultr](https://goo.gl/Xyd1Sc): Worldwide locations, IPv6 support, starting at \$3.50/month
-- [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
+- [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Germany, IPv6, 20 TB of traffic, starting at €3/month
 - [Digital Ocean](https://goo.gl/qXrNLK): Worldwide locations, IPv6 support, starting at \$5/month
+- [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
 
 ---
 
@@ -183,7 +183,22 @@ Solutions that provision a ready to use OpenVPN server based on this script in o
 
 - AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install)
 
-## Contributing / Code formatting
+## Contributing
+
+### Contributors hall-of-fame
+
+Thanks ❤️
+
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/0)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/1)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/2)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/3)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/4)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/5)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/6)](https://github.com/angristan/openvpn-install/graphs/contributors)
+[![](https://sourcerer.io/fame/angristan/angristan/openvpn-install/images/7)](https://github.com/angristan/openvpn-install/graphs/contributors)
+
+### Code formatting
 
 We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the configuration [here](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/push.yml).
 
@@ -195,13 +210,13 @@ OpenVPN 2.4 was a great update regarding encryption. It added support for ECDSA,
 
 If you want more information about an option mentioned below, head to the [OpenVPN manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage). It is very complete.
 
-Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.6/easyrsa3/vars.example) file.
+Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.7/easyrsa3/vars.example) file.
 
 ### Compression
 
 By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 (v1/v2) algorithms, the latter being more efficient.
 
-However, it is discouraged to use compression since it since the [VORACLE attack](https://protonvpn.com/blog/voracle-attack/) makes use of it.
+However, it is discouraged to use compression since the [VORACLE attack](https://protonvpn.com/blog/voracle-attack/) makes use of it.
 
 ### TLS version
 
