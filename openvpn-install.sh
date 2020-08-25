@@ -99,8 +99,7 @@ function installUnbound() {
 	if [[ ! -e /etc/unbound/unbound.conf ]]; then
 
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get install -y unbound
-
+			until apt-get install -y unbound; do sleep 1; done
 			# Configuration
 			echo 'interface: 10.8.0.1
 access-control: 10.8.0.1/24 allow
@@ -648,16 +647,16 @@ function installOpenVPN() {
 	# the first time.
 	if [[ ! -e /etc/openvpn/server.conf ]]; then
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get update
-			apt-get -y install ca-certificates gnupg
+			until apt-get update; do sleep 1; done
+			until apt-get -y install ca-certificates gnupg; do sleep 1; done
 			# We add the OpenVPN repo to get the latest version.
 			if [[ $VERSION_ID == "16.04" ]]; then
 				echo "deb http://build.openvpn.net/debian/openvpn/stable xenial main" >/etc/apt/sources.list.d/openvpn.list
 				wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-				apt-get update
+				until apt-get update; do sleep 1; done
 			fi
 			# Ubuntu > 16.04 and Debian > 8 have OpenVPN >= 2.4 without the need of a third party repository.
-			apt-get install -y openvpn iptables openssl wget ca-certificates curl
+			until apt-get install -y openvpn iptables openssl wget ca-certificates curl; do sleep 1; done
 		elif [[ $OS == 'centos' ]]; then
 			yum install -y epel-release
 			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
@@ -1182,7 +1181,7 @@ function removeUnbound() {
 		systemctl stop unbound
 
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get autoremove --purge -y unbound
+			until apt-get autoremove --purge -y unbound; do sleep 1; done
 		elif [[ $OS == 'arch' ]]; then
 			pacman --noconfirm -R unbound
 		elif [[ $OS =~ (centos|amzn) ]]; then
@@ -1245,10 +1244,10 @@ function removeOpenVPN() {
 		fi
 
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get autoremove --purge -y openvpn
+			until apt-get autoremove --purge -y openvpn; do sleep 1; done
 			if [[ -e /etc/apt/sources.list.d/openvpn.list ]]; then
 				rm /etc/apt/sources.list.d/openvpn.list
-				apt-get update
+				until apt-get update; do sleep 1; done
 			fi
 		elif [[ $OS == 'arch' ]]; then
 			pacman --noconfirm -R openvpn
