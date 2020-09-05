@@ -1144,7 +1144,7 @@ function revokeClient() {
 	echo ""
 	echo "Select the existing client certificate you want to revoke"
 	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-	until [[ "$CLIENT" =~ ^[a-zA-Z0-9_]+$ ]]; do
+	until [[ $CLIENT =~ ^[a-zA-Z0-9_]+$ ]]; do
 		until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
 			if [[ $CLIENTNUMBER == '1' ]]; then
 				read -rp "Select one client [1]: " CLIENTNUMBER
