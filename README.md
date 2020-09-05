@@ -8,6 +8,13 @@ This script will let you setup your own secure VPN server in just a few seconds.
 
 You can also check out [wireguard-install](https://github.com/angristan/wireguard-install), a simple installer for a simpler, safer, faster and more modern VPN protocol.
 
+
+##  One-Stop Solutions for the Public Cloud
+
+Solutions that provision a ready to use OpenVPN server based on `openvpn-install` in one go are available for
+ - AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install) and described in [Ready to Use OpenVPN Servers in AWS For Everyone](https://www.how-hard-can-it.be/openvpn-server-install-terraform-aws/)
+
+
 ## Usage
 
 First, get the script and make it executable:
