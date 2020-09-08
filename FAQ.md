@@ -124,3 +124,14 @@ for i in ${userlist[@]};do
     MENU_OPTION=1 CLIENT=$i PASS=1 ./openvpn-install.sh
 done
 ```
+---
+
+**Q:** For my clients - I want to set my internal network to pass through the VPN and the rest to go through my internet?
+
+**A:** You would need to edit the `.ovpn` file. You can edit the template out of which those files are created by editing `/etc/openvpn/client-template.txt` file and adding
+
+ ```sh
+route-nopull
+route 10.0.0.0 255.0.0.0
+```
+So for example - here it would route all traffic of `10.0.0.0/8` to the vpn. And the rest through the internet.
