@@ -142,8 +142,8 @@ prefetch: yes" >>/etc/unbound/unbound.conf
 			echo "server:
 	use-syslog: yes
 	do-daemonize: no
-	username: "unbound"
-	directory: "/etc/unbound"
+	username: \"unbound\"
+	directory: \"/etc/unbound\"
 	trust-anchor-file: trusted-key.key
 	root-hints: root.hints
 	interface: $VPN_NETWORK.1
@@ -219,7 +219,7 @@ function installQuestions() {
 	until [[ $VPN_NETWORK =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){2}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
 		echo "Format bust be like XXX.XXX.XXX"
 		VPN_NETWORK=${VPN_NETWORK:-10.8.0}
-		read -rp "VPN_NETWORK: " -e  -i "$VPN_NETWORK" VPN_NETWORK
+		read -rp "VPN_NETWORK: " -e -i "$VPN_NETWORK" VPN_NETWORK
 	done
 
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
@@ -793,7 +793,7 @@ ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 		done
 		;;
 	2) # Self-hosted DNS resolver (Unbound)
-		echo 'push "dhcp-option DNS $VPN_NETWORK.1"' >>/etc/openvpn/server.conf
+		echo "push \"dhcp-option DNS $VPN_NETWORK.1\"" >>/etc/openvpn/server.conf
 		if [[ $IPV6_SUPPORT == 'y' ]]; then
 			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server.conf
 		fi
@@ -848,7 +848,7 @@ ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 		echo "No DNS push config"
 		;;
 	esac
-	if (($DNS != 14)); then
+	if [[ $DNS != 14 ]]; then
 		echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server.conf
 	fi
 
@@ -1048,10 +1048,10 @@ verb 3" >>/etc/openvpn/client-template.txt
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
 		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/client-template.txt
 	fi
-	if [[ "$CLIENT_TEMPLATE_APPEND" != "" ]]; then
+	if [[ $CLIENT_TEMPLATE_APPEND != "" ]]; then
 		echo "appending costum config CLIENT_TEMPLATE_APPEND to /etc/openvpn/client-template.txt ..."
-		echo "" >> /etc/openvpn/client-template.txt
-		echo "$CLIENT_TEMPLATE_APPEND" >> /etc/openvpn/client-template.txt
+		echo "" >>/etc/openvpn/client-template.txt
+		echo "$CLIENT_TEMPLATE_APPEND" >>/etc/openvpn/client-template.txt
 	fi
 
 	# Generate the custom client.ovpn
