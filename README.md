@@ -115,13 +115,12 @@ The script supports these OS and architectures:
 | --------------- | ---- | ----- | ----- | ----- |
 | Amazon Linux 2  | ❔   | ✅    | ❔    | ❔    |
 | Arch Linux      | ❔   | ✅    | ❔    | ✅    |
-| CentOS 7        | ❔   | ✅    | ❌    | ✅    |
-| CentOS 8        | ❌   | ✅    | ❔    | ❔    |
-| Debian 8        | ✅   | ✅    | ❌    | ❌    |
-| Debian >= 9     | ❌   | ✅    | ✅    | ✅    |
+| CentOS 7        | ✅   | ✅    | ✅    | ✅    |
+| CentOS 8        | ❌   | ✅    | ❌    | ✅    |
+| Debian >= 9     | ✅   | ✅    | ✅    | ✅    |
 | Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
 | Ubuntu 16.04    | ✅   | ✅    | ❌    | ❌    |
-| Ubuntu >= 18.04 | ❌   | ✅    | ✅    | ✅    |
+| Ubuntu >= 18.04 | ✅   | ✅    | ✅    | ✅    |
 
 To be noted:
 
@@ -144,8 +143,9 @@ More Q&A in [FAQ.md](FAQ.md).
 **A:** I recommend these:
 
 - [Vultr](https://goo.gl/Xyd1Sc): Worldwide locations, IPv6 support, starting at \$3.50/month
-- [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
+- [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Germany, IPv6, 20 TB of traffic, starting at €3/month
 - [Digital Ocean](https://goo.gl/qXrNLK): Worldwide locations, IPv6 support, starting at \$5/month
+- [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
 
 ---
 
@@ -208,7 +208,7 @@ OpenVPN 2.4 was a great update regarding encryption. It added support for ECDSA,
 
 If you want more information about an option mentioned below, head to the [OpenVPN manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage). It is very complete.
 
-Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.6/easyrsa3/vars.example) file.
+Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.7/easyrsa3/vars.example) file.
 
 ### Compression
 
