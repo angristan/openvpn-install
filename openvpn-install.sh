@@ -217,8 +217,7 @@ function installQuestions() {
 
 	echo "Please provide the VPN network prefix. If you are going to use  10.8.0.0/24, then type prefix 10.8.0"
 	until [[ $VPN_NETWORK =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){2}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
-		echo "Format bust be like XXX.XXX.XXX"
-		VPN_NETWORK=${VPN_NETWORK:-10.8.0}
+		echo "Format must be like XXX.XXX.XXX"
 		read -rp "VPN_NETWORK: " -e -i "$VPN_NETWORK" VPN_NETWORK
 	done
 
@@ -611,6 +610,7 @@ function installOpenVPN() {
 		APPROVE_INSTALL=${APPROVE_INSTALL:-y}
 		APPROVE_IP=${APPROVE_IP:-y}
 		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
+		VPN_NETWORK=${VPN_NETWORK:-10.8.0}
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
 		DNS=${DNS:-1}
