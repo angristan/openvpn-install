@@ -318,7 +318,7 @@ function installQuestions() {
 	echo "   11) AdGuard DNS (Anycast: worldwide)"
 	echo "   12) NextDNS (Anycast: worldwide)"
 	echo "   13) Custom"
-	echo "   14) None"
+	echo "   14) No DNS server and No traffic redirection to VPN"
 	until [[ $DNS =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 14 ]; do
 		read -rp "DNS [1-14]: " -e -i 11 DNS
 		if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
