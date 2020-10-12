@@ -124,6 +124,13 @@ for i in ${userlist[@]};do
     MENU_OPTION=1 CLIENT=$i PASS=1 ./openvpn-install.sh
 done
 ```
+
+---
+
+**Q:** How do I change the default `.ovpn` file created for future clients?
+
+**A:** You can edit the template out of which `.ovpn` files are created by editing `/etc/openvpn/client-template.txt`
+
 ---
 
 **Q:** For my clients - I want to set my internal network to pass through the VPN and the rest to go through my internet?
