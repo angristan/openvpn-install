@@ -219,7 +219,7 @@ function installQuestions() {
 
 	# Detect public IPv4 address and pre-fill for the user
 	IP=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
-	
+
 	if [[ -z $IP ]]; then
 		# Detect public IPv6 address
 		IP=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
@@ -233,7 +233,7 @@ function installQuestions() {
 		echo ""
 		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
 		echo "We need it for the clients to connect to the server."
-		
+
 		PUBLICIP=$(curl -s https://api.ipify.org)
 		until [[ $ENDPOINT != "" ]]; do
 			read -rp "Public IPv4 address or hostname: " -e -i "$PUBLICIP" ENDPOINT
