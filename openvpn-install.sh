@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC1091,SC2164,SC2034,SC1072,SC1073,SC1009
 
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora and Arch Linux
 # https://github.com/angristan/openvpn-install
