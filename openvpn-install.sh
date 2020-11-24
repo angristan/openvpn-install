@@ -827,8 +827,8 @@ ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server.conf
 		;;
 	11) # AdGuard DNS
-		echo 'push "dhcp-option DNS 176.103.130.130"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 176.103.130.131"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server.conf
 		;;
 	12) # NextDNS
 		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server.conf
