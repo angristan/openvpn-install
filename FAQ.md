@@ -125,6 +125,14 @@ for i in ${userlist[@]};do
 done
 ```
 
+From a list in a text file:
+
+```sh
+while read USER
+    do MENU_OPTION="1" CLIENT="$USER" PASS="1" ./openvpn-install.sh
+done < users.txt
+```
+
 ---
 
 **Q:** How do I change the default `.ovpn` file created for future clients?
