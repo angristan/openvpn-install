@@ -254,7 +254,7 @@ function installQuestions () {
 			IP_RANGE="10.8.0.0"
 		;;
 		2)
-			until [[ "$IP_RANGE" =~ ^([0-9]{1,3}\.){3}0$ ]]; do
+			until [[ "$IP_RANGE" =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}0$ ]]; do
 				read -rp "Custom IP [x.x.x.0]: " -e -i 10.8.0.0 IP_RANGE
 			done
 		;;
