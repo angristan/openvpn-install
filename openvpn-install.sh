@@ -1084,13 +1084,16 @@ function newClient() {
 		echo "Client $CLIENT added."
 	fi
 
-	# Home directory of the user, where the client configuration (.ovpn) will be written
-	if [ -e "/home/$CLIENT" ]; then # if $1 is a user name
-		homeDir="/home/$CLIENT"
-	elif [ "${SUDO_USER}" ]; then # if not, use SUDO_USER
-		homeDir="/home/${SUDO_USER}"
-	else # if not SUDO_USER, use /root
-		homeDir="/root"
+
+	if [[ -z $CERTIFICATE_DIR ]]; then
+		# Home directory of the user, where the client configuration (.ovpn) will be written
+		if [ -e "/home/$CLIENT" ]; then # if $1 is a user name
+			CERTIFICATE_DIR="/home/$CLIENT"
+		elif [ "${SUDO_USER}" ]; then # if not, use SUDO_USER
+			CERTIFICATE_DIR="/home/${SUDO_USER}"
+		else # if not SUDO_USER, use /root
+			CERTIFICATE_DIR="/root"
+		fi
 	fi
 
 	# Determine if we use tls-auth or tls-crypt
@@ -1101,7 +1104,7 @@ function newClient() {
 	fi
 
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
+	cp /etc/openvpn/client-template.txt "$CERTIFICATE_DIR/$CLIENT.ovpn"
 	{
 		echo "<ca>"
 		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
@@ -1128,10 +1131,10 @@ function newClient() {
 			echo "</tls-auth>"
 			;;
 		esac
-	} >>"$homeDir/$CLIENT.ovpn"
+	} >>"$CERTIFICATE_DIR/$CLIENT.ovpn"
 
 	echo ""
-	echo "The configuration file has been written to $homeDir/$CLIENT.ovpn."
+	echo "The configuration file has been written to $CERTIFICATE_DIR/$CLIENT.ovpn."
 	echo "Download the .ovpn file and import it in your OpenVPN client."
 
 	exit 0
