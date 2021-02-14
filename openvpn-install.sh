@@ -52,7 +52,7 @@ function checkOS() {
 		fi
 	elif [[ -e /etc/system-release ]]; then
 		source /etc/os-release
-		if [[ $ID == "fedora" ]]; then
+		if [[ $ID == "fedora" || $ID_LIKE == "fedora" ]]; then
 			OS="fedora"
 		fi
 		if [[ $ID == "centos" ]]; then
