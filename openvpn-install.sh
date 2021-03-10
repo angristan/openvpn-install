@@ -1186,7 +1186,7 @@ function removeUnbound() {
 		systemctl stop unbound
 
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get autoremove --purge -y unbound
+			apt-get remove --purge -y unbound
 		elif [[ $OS == 'arch' ]]; then
 			pacman --noconfirm -R unbound
 		elif [[ $OS =~ (centos|amzn) ]]; then
@@ -1249,7 +1249,7 @@ function removeOpenVPN() {
 		fi
 
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get autoremove --purge -y openvpn
+			apt-get remove --purge -y openvpn
 			if [[ -e /etc/apt/sources.list.d/openvpn.list ]]; then
 				rm /etc/apt/sources.list.d/openvpn.list
 				apt-get update
