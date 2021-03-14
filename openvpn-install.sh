@@ -68,10 +68,10 @@ function checkOS() {
 		if [[ $ID == "oracle" ]]; then
 			OS="oracle"
 			if [[ ! $VERSION_ID =~ (8) ]]; then
-					echo "Your version of Oracle Linux is not supported."
-					echo ""
-					echo "The script only support Oracle Linux 8."
-					exit 1
+				echo "Your version of Oracle Linux is not supported."
+				echo ""
+				echo "The script only support Oracle Linux 8."
+				exit 1
 			fi
 		fi
 		if [[ $ID == "amzn" ]]; then
@@ -921,7 +921,7 @@ verb 3" >>/etc/openvpn/server.conf
 	fi
 
 	# Finally, restart and enable OpenVPN
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos'|| $OS == 'oracle' ]]; then
+	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' ]]; then
 		# Don't modify package-provided service
 		cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
