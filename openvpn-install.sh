@@ -65,14 +65,14 @@ function checkOS() {
 				exit 1
 			fi
 		fi
-        if [[ $ID == "oracle" ]]; then
-                        OS="oracle"
-                        if [[ ! $VERSION_ID =~ (8) ]]; then
-                                echo "Your version of Oracle Linux is not supported."
-                                echo ""
-                                echo "The script only support Oracle Linux 8."
-                                exit 1
-                        fi
+		if [[ $ID == "oracle" ]]; then
+			OS="oracle"
+            	if [[ ! $VERSION_ID =~ (8) ]]; then
+                	echo "Your version of Oracle Linux is not supported."
+					echo ""
+                    echo "The script only support Oracle Linux 8."
+                    exit 1
+                fi
 		fi
 		if [[ $ID == "amzn" ]]; then
 			OS="amzn"
@@ -675,8 +675,8 @@ function installOpenVPN() {
 			yum install -y epel-release
 			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-                        yum install -y 'oracle-epel-release-*'
-                        yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
+			yum install -y 'oracle-epel-release-*'
+			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'amzn' ]]; then
 			amazon-linux-extras install -y epel
 			yum install -y openvpn iptables openssl wget ca-certificates curl
