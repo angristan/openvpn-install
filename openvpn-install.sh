@@ -65,7 +65,7 @@ function checkOS() {
 				exit 1
 			fi
 		fi
-		if [[ $ID == "oracle" ]]; then
+		if [[ $ID == "ol" ]]; then
 			OS="oracle"
 			if [[ ! $VERSION_ID =~ (8) ]]; then
 				echo "Your version of Oracle Linux is not supported."

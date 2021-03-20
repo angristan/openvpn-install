@@ -4,7 +4,7 @@
 ![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
 ![visitors](https://visitor-badge.glitch.me/badge?page_id=angristan.openvpn-install)
 
-OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Oracle Linux 8 and Arch Linux.
+OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Oracle Linux and Arch Linux.
 
 This script will let you setup your own secure VPN server in just a few seconds.
 
