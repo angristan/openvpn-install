@@ -125,7 +125,7 @@ The script supports these OS and architectures:
 | Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
 | Ubuntu 16.04    | ✅   | ✅    | ❌    | ❌    |
 | Ubuntu >= 18.04 | ✅   | ✅    | ✅    | ✅    |
-| Oracle Linux 8  | ❌   | ✅    | ❌    | ❔   |
+| Oracle Linux 8  | ❌   | ✅    | ❌    | ❔    |
 
 To be noted:
 
