@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC1091,SC2164,SC2034,SC1072,SC1073,SC1009
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora and Arch Linux
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8 and Arch Linux
 # https://github.com/angristan/openvpn-install
 
 function isRoot() {
@@ -65,6 +65,15 @@ function checkOS() {
 				exit 1
 			fi
 		fi
+		if [[ $ID == "ol" ]]; then
+			OS="oracle"
+			if [[ ! $VERSION_ID =~ (8) ]]; then
+				echo "Your version of Oracle Linux is not supported."
+				echo ""
+				echo "The script only support Oracle Linux 8."
+				exit 1
+			fi
+		fi
 		if [[ $ID == "amzn" ]]; then
 			OS="amzn"
 			if [[ $VERSION_ID != "2" ]]; then
@@ -78,7 +87,7 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2 or Arch Linux system"
+		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux 8 or Arch Linux system"
 		exit 1
 	fi
 }
@@ -110,7 +119,7 @@ hide-version: yes
 use-caps-for-id: yes
 prefetch: yes' >>/etc/unbound/unbound.conf
 
-		elif [[ $OS =~ (centos|amzn) ]]; then
+		elif [[ $OS =~ (centos|amzn|oracle) ]]; then
 			yum install -y unbound
 
 			# Configuration
@@ -165,7 +174,7 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/unbound.conf
 		fi
 
-		if [[ ! $OS =~ (fedora|centos|amzn) ]]; then
+		if [[ ! $OS =~ (fedora|centos|amzn|oracle) ]]; then
 			# DNS Rebinding fix
 			echo "private-address: 10.0.0.0/8
 private-address: fd42:42:42:42::/112
@@ -665,6 +674,9 @@ function installOpenVPN() {
 		elif [[ $OS == 'centos' ]]; then
 			yum install -y epel-release
 			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
+		elif [[ $OS == 'oracle' ]]; then
+			yum install -y 'oracle-epel-release-*'
+			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'amzn' ]]; then
 			amazon-linux-extras install -y epel
 			yum install -y openvpn iptables openssl wget ca-certificates curl
@@ -909,7 +921,7 @@ verb 3" >>/etc/openvpn/server.conf
 	fi
 
 	# Finally, restart and enable OpenVPN
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' ]]; then
+	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' ]]; then
 		# Don't modify package-provided service
 		cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
@@ -1197,7 +1209,7 @@ function removeUnbound() {
 			apt-get remove --purge -y unbound
 		elif [[ $OS == 'arch' ]]; then
 			pacman --noconfirm -R unbound
-		elif [[ $OS =~ (centos|amzn) ]]; then
+		elif [[ $OS =~ (centos|amzn|oracle) ]]; then
 			yum remove -y unbound
 		elif [[ $OS == 'fedora' ]]; then
 			dnf remove -y unbound
@@ -1223,7 +1235,7 @@ function removeOpenVPN() {
 		PROTOCOL=$(grep '^proto ' /etc/openvpn/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
-		if [[ $OS =~ (fedora|arch|centos) ]]; then
+		if [[ $OS =~ (fedora|arch|centos|oracle) ]]; then
 			systemctl disable openvpn-server@server
 			systemctl stop openvpn-server@server
 			# Remove customised service
@@ -1264,7 +1276,7 @@ function removeOpenVPN() {
 			fi
 		elif [[ $OS == 'arch' ]]; then
 			pacman --noconfirm -R openvpn
-		elif [[ $OS =~ (centos|amzn) ]]; then
+		elif [[ $OS =~ (centos|amzn|oracle) ]]; then
 			yum remove -y openvpn
 		elif [[ $OS == 'fedora' ]]; then
 			dnf remove -y openvpn
