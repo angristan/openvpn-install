@@ -29,3 +29,7 @@ Pease include as much details as possible in your issue:
 - Logs
 - Server/Client versions (OS, OpenVPN, etc)
 - Any context or information that could help
+
+---
+
+<!-- Write your report below this line -->
