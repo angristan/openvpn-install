@@ -3,8 +3,4 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
-    assignees:
-      - "angristan"
-    reviewers:
-      - "angristan"
+      interval: "weekly"
