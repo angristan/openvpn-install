@@ -1,0 +1,14 @@
+on: [push, pull_request]
+
+name: Lint
+
+jobs:
+  super-linter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2.3.4
+      - name: Lint Code Base
+        uses: github/super-linter@v4.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
