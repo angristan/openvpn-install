@@ -1312,11 +1312,12 @@ function manageMenu() {
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
 	echo "   3) Remove OpenVPN"
-	echo "   4) Exit"
-	until [[ $MENU_OPTION =~ ^[1-4]$ ]]; do
-		read -rp "Select an option [1-4]: " MENU_OPTION
+	echo "   4) List current connected users"
+	echo "   5) Exit"
+	until [[ $MENU_OPTION =~ ^[1-5]$ ]]; do
+		read -rp "Select an option [1-5]: " MENU_OPTION
 	done
-
+	
 	case $MENU_OPTION in
 	1)
 		newClient
@@ -1328,6 +1329,9 @@ function manageMenu() {
 		removeOpenVPN
 		;;
 	4)
+		cat /var/log/openvpn/status.log
+		;;
+	5)
 		exit 0
 		;;
 	esac
