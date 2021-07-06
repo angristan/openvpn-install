@@ -55,7 +55,7 @@ function checkOS() {
 		if [[ $ID == "fedora" || $ID_LIKE == "fedora" ]]; then
 			OS="fedora"
 		fi
-		if [[ $ID == "centos" ]]; then
+		if [[ $ID == "centos" || $ID == "rocky" ]]; then
 			OS="centos"
 			if [[ ! $VERSION_ID =~ (7|8) ]]; then
 				echo "⚠️ Your version of CentOS is not supported."
