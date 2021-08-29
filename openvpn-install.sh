@@ -629,7 +629,7 @@ function installOpenVPN() {
 		if [[ $IPV6_SUPPORT == "y" ]]; then
 			PUBLIC_IP=$(curl https://ifconfig.co)
 		else
-			PUBLIC_IP=$(curl -4 https://ifconfig.co)
+			PUBLIC_IP=$(curl -4 https://ip.me)
 		fi
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IP}
 	fi
