@@ -1089,7 +1089,10 @@ function newClient() {
 			./easyrsa build-client-full "$CLIENT" nopass
 			;;
 		2)
-			echo "⚠️ You will be asked for the client password below ⚠️"
+			echo -e "\n\n⚠️ You will be asked for the client password below ⚠️"
+			echo "this is a random password generated"
+			echo `openssl rand -base64 $(shuf -i13-17 -n1) || tr -dc A-Za-z0-9 </dev/urandom | head -c $(shuf -i13-17 -n1)`
+			echo "and can use it"
 			./easyrsa build-client-full "$CLIENT"
 			;;
 		esac
