@@ -675,8 +675,9 @@ function installOpenVPN() {
 			yum install -y epel-release
 			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-			yum install -y 'oracle-epel-release-*'
-			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
+			yum install -y oracle-epel-release-el8
+			yum-config-manager --enable ol8_developer_EPEL
+			yum install -y openvpn iptables openssl wget ca-certificates curl tar policycoreutils-python-utils
 		elif [[ $OS == 'amzn' ]]; then
 			amazon-linux-extras install -y epel
 			yum install -y openvpn iptables openssl wget ca-certificates curl
