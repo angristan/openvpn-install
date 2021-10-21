@@ -188,6 +188,9 @@ Solutions that provision a ready to use OpenVPN server based on this script in o
 
 - AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install)
 - Terraform AWS module [`openvpn-ephemeral`](https://registry.terraform.io/modules/paulmarsicloud/openvpn-ephemeral/aws/latest)
+  - GitLab and CircleCI templates for [`openvpn-ephemeral`](https://registry.terraform.io/modules/paulmarsicloud/openvpn-ephemeral/aws/latest) are also available:
+  - [GitLab Template](https://gitlab.com/paulmarsicloud/openvpn-ephemeral-template/)
+  - [CircleCI Template](https://github.com/paulmarsicloud/openvpn-ephemeral-circleci-template)
 
 ## Contributing
 
