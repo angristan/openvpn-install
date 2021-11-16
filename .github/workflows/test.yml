@@ -22,7 +22,7 @@ jobs:
           - centos-7-x64
           - centos-8-x64
     steps:
-      - uses: actions/checkout@v2.3.4
+      - uses: actions/checkout@v2.3.5
 
       - name: Setup doctl
         uses: digitalocean/action-doctl@v2
