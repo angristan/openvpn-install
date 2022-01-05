@@ -634,7 +634,7 @@ function installOpenVPN() {
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IP}
 	fi
 
-	# Run setup questions first, and set other variales if auto-install
+	# Run setup questions first, and set other variables if auto-install
 	installQuestions
 
 	# Get the "public" interface from the default route
