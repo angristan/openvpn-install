@@ -1093,26 +1093,28 @@ function newClient() {
 		echo "Client $CLIENT added."
 	fi
 
-	# Home directory of the user, where the client configuration will be written
-	if [ -e "/home/${CLIENT}" ]; then
-		# if $1 is a user name
-		homeDir="/home/${CLIENT}"
-		CLIENT_OWNER="$CLIENT"
-	elif [ "${SUDO_USER}" ]; then
-		# if not, use SUDO_USER
-		if [ "${SUDO_USER}" == "root" ]; then
-			# If running sudo as root
-			homeDir="/root"
+	if [[ -z "$CLIENT_FILEPATH" ]]; then
+		# Home directory of the user, where the client configuration will be written
+		if [ -e "/home/${CLIENT}" ]; then
+			# if $1 is a user name
+			homeDir="/home/${CLIENT}"
+			CLIENT_OWNER="$CLIENT"
+		elif [ "${SUDO_USER}" ]; then
+			# if not, use SUDO_USER
+			if [ "${SUDO_USER}" == "root" ]; then
+				# If running sudo as root
+				homeDir="/root"
+			else
+				homeDir="/home/${SUDO_USER}"
+			fi
+			CLIENT_OWNER="$SUDO_USER"
 		else
-			homeDir="/home/${SUDO_USER}"
+			# if not SUDO_USER, use /root
+			homeDir="/root"
 		fi
-		CLIENT_OWNER="$SUDO_USER"
-	else
-		# if not SUDO_USER, use /root
-		homeDir="/root"
-	fi
 
-	CLIENT_FILEPATH="$homeDir/$CLIENT.ovpn"
+		CLIENT_FILEPATH="$homeDir/$CLIENT.ovpn"
+	fi
 
 	# Determine if we use tls-auth or tls-crypt
 	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
