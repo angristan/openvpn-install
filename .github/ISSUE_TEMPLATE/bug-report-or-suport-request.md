@@ -1,35 +1,55 @@
----
-name: Bug report / Support request
-about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
-
----
-
-**⚠️ Unless you are sure you find a bug with the script, please open a [discussion](https://github.com/angristan/openvpn-install/discussions) instead of an issue!**
-
-**Checklist**
-
-- [ ] I read the [README](https://github.com/angristan/openvpn-install/blob/master/README.md)
-- [ ] I read the [FAQ](https://github.com/angristan/openvpn-install/blob/master/FAQ.md)
-- [ ] I searched the [issues](https://github.com/angristan/openvpn-install/issues?q=is%3Aissue+)
-- [ ] I searched the [discussion](https://github.com/angristan/openvpn-install/discussions)
-- [ ] My issue is about the script, and not OpenVPN itself
-
-<!---
-If you need help with OpenVPN itself, please us the [community forums](https://forums.openvpn.net/) or [Stack Overflow](https://stackoverflow.com/questions/tagged/openvpn)
---->
-
-Pease include as much details as possible in your issue:
-
-- Description of the issue
-- How to reproduce the issue
-- What did you expected should happen
-- Logs
-- Server/Client versions (OS, OpenVPN, etc)
-- Any context or information that could help
-
----
-
-<!-- Write your report below this line -->
+name: Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees:
+  - octocat
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+        PLEASE prioritise these communities before opening an issue.
+        - https://forums.openvpn.net
+        - https://stackoverflow.com/questions/tagged/openvpn
+        - https://github.com/angristan/openvpn-install/discussions
+        ANY ISSUE THAT IS NOT CLEARLY A BUG REPORT WILL BE CLOSED AND/OR CONVERTED TO A DISCUSSION.
+  - type: input
+    id: server
+    attributes:
+      label: Server OS
+      description: What OS is the OpenVPN server running on?
+      placeholder: Debian 10
+    validations:
+      required: false
+  - type: input
+    id: openvpn
+    attributes:
+      label: OpenVPN version
+      description: What OpenVPN version is running on your server?
+      placeholder: 2.5.0
+    validations:
+      required: false
+  - type: input
+    id: client
+    attributes:
+      label: Client
+      description: What OS and client are you using? Please specify the versions.
+      placeholder: Viscosity 1.10.1 on macOS 12.1
+    validations:
+      required: false
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is the bug?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+      value: "A bug happened!"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
