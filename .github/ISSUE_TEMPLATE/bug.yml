@@ -19,7 +19,7 @@ body:
       label: Make sure your check these beforehand!
       description: Search before opening an issue.
       options:
-        - label: [Issues](https://github.com/angristan/openvpn-install/issues)
+        - label: Issues: https://github.com/angristan/openvpn-install/issues
           required: true
   
   - type: input
