@@ -6,11 +6,21 @@ body:
     attributes:
       value: |
         Thanks for taking the time to fill out this bug report!
-        PLEASE prioritise these communities before opening an issue.
+        **PLEASE** prioritise these communities before opening an issue.
         - https://forums.openvpn.net
         - https://stackoverflow.com/questions/tagged/openvpn
         - https://github.com/angristan/openvpn-install/discussions
-        ANY ISSUE THAT IS NOT CLEARLY A BUG REPORT WILL BE CLOSED AND/OR CONVERTED TO A DISCUSSION.
+        
+        **ANY ISSUE THAT IS NOT CLEARLY A BUG REPORT WILL BE CLOSED AND/OR CONVERTED TO A DISCUSSION.**
+        
+  - type: checkboxes
+    id: pre
+    attributes:
+      label: Make sure your check these beforehand!
+      description: Search before opening an issue.
+      options:
+        - label: [Issues](https://github.com/angristan/openvpn-install/issues)
+          required: true
   
   - type: input
     id: server
