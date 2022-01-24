@@ -1,9 +1,6 @@
 name: Bug Report
 description: File a bug report
 title: "[Bug]: "
-labels: ["bug", "triage"]
-assignees:
-  - octocat
 body:
   - type: markdown
     attributes:
@@ -14,6 +11,7 @@ body:
         - https://stackoverflow.com/questions/tagged/openvpn
         - https://github.com/angristan/openvpn-install/discussions
         ANY ISSUE THAT IS NOT CLEARLY A BUG REPORT WILL BE CLOSED AND/OR CONVERTED TO A DISCUSSION.
+  
   - type: input
     id: server
     attributes:
@@ -22,6 +20,7 @@ body:
       placeholder: Debian 10
     validations:
       required: false
+  
   - type: input
     id: openvpn
     attributes:
@@ -30,6 +29,7 @@ body:
       placeholder: 2.5.0
     validations:
       required: false
+  
   - type: input
     id: client
     attributes:
@@ -38,6 +38,7 @@ body:
       placeholder: Viscosity 1.10.1 on macOS 12.1
     validations:
       required: false
+  
   - type: textarea
     id: issue
     attributes:
@@ -47,6 +48,7 @@ body:
       value: "A bug happened!"
     validations:
       required: true
+
   - type: textarea
     id: logs
     attributes:
