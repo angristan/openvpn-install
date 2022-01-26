@@ -1,10 +1,9 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: ''
-labels: ''
-assignees: ''
-
+title: ""
+labels: ""
+assignees: ""
 ---
 
 **Checklist**
@@ -20,4 +19,3 @@ If you need help with OpenVPN itself, please us the [community forums](https://f
 PLEASE OPEN A DISCUSSION INSTEAD: https://github.com/angristan/openvpn-install/discussions
 ⚠️
 --->
-

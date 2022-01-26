@@ -6,14 +6,14 @@ body:
     attributes:
       value: |
         Thanks for taking the time to fill out this bug report!
-        
+
         **PLEASE** prioritise these communities before opening an issue.
         - https://forums.openvpn.net
         - https://stackoverflow.com/questions/tagged/openvpn
         - https://github.com/angristan/openvpn-install/discussions
-        
+
         ⚠️ **ANY ISSUE THAT IS NOT CLEARLY A BUG REPORT WILL BE CLOSED AND/OR CONVERTED TO A DISCUSSION.**
-        
+
   - type: checkboxes
     id: pre
     attributes:
@@ -37,7 +37,7 @@ body:
       placeholder: Debian 10
     validations:
       required: false
-  
+
   - type: input
     id: openvpn
     attributes:
@@ -46,7 +46,7 @@ body:
       placeholder: 2.5.0
     validations:
       required: false
-  
+
   - type: input
     id: client
     attributes:
@@ -55,7 +55,7 @@ body:
       placeholder: Viscosity 1.10.1 on macOS 12.1
     validations:
       required: false
-  
+
   - type: textarea
     id: issue
     attributes:
