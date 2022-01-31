@@ -338,7 +338,7 @@ The script supports both and uses `tls-crypt` by default.
 
 ## Say thanks
 
-You can [say thanks](https://saythanks.io/to/angristan%40pm.me) if you want!
+You can [say thanks](https://saythanks.io/to/angristan) if you want!
 
 ## Credits & Licence
 
