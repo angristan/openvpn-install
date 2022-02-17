@@ -1183,6 +1183,7 @@ function revokeClient() {
 	rm -f "/root/$CLIENT.ovpn"
 	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
 	cp /etc/openvpn/easy-rsa/pki/index.txt{,.bk}
+	sed -i "/CN=$CLIENT/d" /etc/openvpn/easy-rsa/pki/index.txt
 
 	echo ""
 	echo "Certificate for client $CLIENT revoked."
