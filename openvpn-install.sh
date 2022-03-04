@@ -4,6 +4,8 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, Rocky Linux and AlmaLinux.
 # https://github.com/angristan/openvpn-install
 
+set EASYRSA_CERT_EXPIRE=3650
+
 function isRoot() {
 	if [ "$EUID" -ne 0 ]; then
 		return 1
@@ -779,6 +781,7 @@ group $NOGROUP
 persist-key
 persist-tun
 keepalive 10 120
+log-append /var/log/openvpn/openvpn.log
 topology subnet
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
@@ -1183,6 +1186,9 @@ function revokeClient() {
 	rm -f "/root/$CLIENT.ovpn"
 	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
 	cp /etc/openvpn/easy-rsa/pki/index.txt{,.bk}
+
+	PATTERN="CN=$CLIENT$"
+	sed -i "/$PATTERN/d" /etc/openvpn/easy-rsa/pki/index.txt
 
 	echo ""
 	echo "Certificate for client $CLIENT revoked."
