@@ -9,6 +9,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v2.4.0
       - name: Lint Code Base
-        uses: github/super-linter@v4.1.0
+        uses: github/super-linter@v4.9.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
