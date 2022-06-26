@@ -3,6 +3,7 @@
 ![Test](https://github.com/angristan/openvpn-install/workflows/Test/badge.svg)
 ![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
 ![visitors](https://visitor-badge.glitch.me/badge?page_id=angristan.openvpn-install)
+[![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/angristan)
 
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
 
@@ -187,6 +188,7 @@ More Q&A in [FAQ.md](FAQ.md).
 Solutions that provision a ready to use OpenVPN server based on this script in one go are available for:
 
 - AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install)
+- Terraform AWS module [`openvpn-ephemeral`](https://registry.terraform.io/modules/paulmarsicloud/openvpn-ephemeral/aws/latest)
 
 ## Contributing
 
@@ -337,7 +339,7 @@ The script supports both and uses `tls-crypt` by default.
 
 ## Say thanks
 
-You can [say thanks](https://saythanks.io/to/angristan%40pm.me) if you want!
+You can [say thanks](https://saythanks.io/to/angristan) if you want!
 
 ## Credits & Licence
 
