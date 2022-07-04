@@ -990,6 +990,7 @@ function installOpenVPN() {
 		CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		CONTINUE=${CONTINUE:-y}
+		NEW_CLIENT=${NEW_CLIENT:-y}
 
 		if [[ -z $ENDPOINT ]]; then
 			ENDPOINT=$(resolvePublicIP)
@@ -1517,9 +1518,13 @@ verb 3" >>/etc/openvpn/server/client-template.txt
 	fi
 
 	# Generate the custom client.ovpn
-	log_info "Generating first client certificate..."
-	newClient
-	log_success "If you want to add more clients, you simply need to run this script another time!"
+	if [[ $NEW_CLIENT == "n" ]]; then
+		log_info "No clients added. To add clients, simply run the script again."
+	else
+		log_info "Generating first client certificate..."
+		newClient
+		log_success "If you want to add more clients, you simply need to run this script another time!"
+	fi
 }
 
 # Helper function to get the home directory for storing client configs
