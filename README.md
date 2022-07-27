@@ -96,6 +96,7 @@ If you want to customise your installation, you can export them or specify them 
 - `CUSTOMIZE_ENC=n`
 - `CLIENT=clientname`
 - `PASS=1`
+- `PASSPHRASE=V3ryS3cureP4ssword#123`
 - `MULTI_CLIENT=n`
 - `CLIENT_CERT_DURATION_DAYS=3650`
 - `SERVER_CERT_DURATION_DAYS=3650`
@@ -104,7 +105,7 @@ If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` va
 
 Other variables can be set depending on your choice (encryption, compression). You can search for them in the `installQuestions()` function of the script.
 
-Password-protected clients are not supported by the headless installation method since user input is expected by Easy-RSA.
+Password-protected clients are supported in headless mode by setting `PASS=2` and providing the `PASSPHRASE` variable.
 
 The headless install is more-or-less idempotent, in that it has been made safe to run multiple times with the same parameters, e.g. by a state provisioner like Ansible/Terraform/Salt/Chef/Puppet. It will only install and regenerate the Easy-RSA PKI if it doesn't already exist, and it will only install OpenVPN and other upstream dependencies if OpenVPN isn't already installed. It will recreate all local config and re-generate the client file on each headless run.
 
@@ -121,6 +122,17 @@ export CLIENT="foo"
 export PASS="1"
 ./openvpn-install.sh
 ```
+
+To add a user with a passphrase instead
+```bash
+#!/bin/bash
+export MENU_OPTION="1"
+export CLIENT="foo"
+export PASS="2"
+export PASSPHRASE="V3ryS3cureP4ssword#123"
+./openvpn-install.sh
+```
+
 
 ## Features
 
