@@ -51,7 +51,7 @@ jobs:
 
       - name: Setup remote server (Debian/Ubuntu)
         if: steps.server_os.outputs.value == 'debian' || steps.server_os.outputs.value == 'ubuntu'
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
@@ -60,7 +60,7 @@ jobs:
 
       - name: Setup remote server (Fedora)
         if: steps.server_os.outputs.value == 'fedora'
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
@@ -69,7 +69,7 @@ jobs:
 
       - name: Setup remote server (CentOS)
         if: steps.server_os.outputs.value == 'centos'
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
@@ -77,7 +77,7 @@ jobs:
           script: set -x && yum install -y git
 
       - name: Download repo and checkout current commit
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
@@ -85,7 +85,7 @@ jobs:
           script: set -x && git clone https://github.com/angristan/openvpn-install.git && cd openvpn-install && git checkout ${{ github.event.pull_request.head.sha }}
 
       - name: Run openvpn-install.sh in headless mode
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
