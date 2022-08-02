@@ -163,7 +163,7 @@ More Q&A in [FAQ.md](FAQ.md).
 
 - Windows: [The official OpenVPN community client](https://openvpn.net/index.php/download/community-downloads.html).
 - Linux: The `openvpn` package from your distribution. There is an [official APT repository](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Debian/Ubuntu based distributions.
-- macOS: [Tunnelblick](https://tunnelblick.net/), [Viscosity](https://www.sparklabs.com/viscosity/).
+- macOS: [Tunnelblick](https://tunnelblick.net/), [Viscosity](https://www.sparklabs.com/viscosity/), [OpenVPN for Mac](https://openvpn.net/client-connect-vpn-for-mac-os/).
 - Android: [OpenVPN for Android](https://play.google.com/store/apps/details?id=de.blinkt.openvpn).
 - iOS: [The official OpenVPN Connect client](https://itunes.apple.com/us/app/openvpn-connect/id590379981).
 
