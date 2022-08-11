@@ -1,13 +1,15 @@
 #!/bin/bash
 # shellcheck disable=SC1091,SC2164,SC2034,SC1072,SC1073,SC1009
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, Rocky Linux and AlmaLinux.
+#If you're using OpenWrt you'll probably need to install the coreutils-fold and bash packages. Don't forget to run this as "bash openvpn-install.sh"
+
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, Rocky Linux and AlmaLinux(and now OpenWrt!!).
 # https://github.com/angristan/openvpn-install
 
 function isRoot() {
 	if [ "$EUID" -ne 0 ]; then
-		return 1
-	fi
+        return 1
+    fi
 }
 
 function tunAvailable() {
@@ -17,7 +19,13 @@ function tunAvailable() {
 }
 
 function checkOS() {
-	if [[ -e /etc/debian_version ]]; then
+	if [[ -e /etc/os-release ]]; then
+		source /etc/os-release
+		if [[ $ID == "openwrt" ]]; then
+			echo "Running on OpenWrt. Compatibility is still in beta phase. Please report any bug. Thank you"
+			OS="openwrt"
+		fi
+	elif [[ -e /etc/debian_version ]]; then
 		OS="debian"
 		source /etc/os-release
 
@@ -50,7 +58,7 @@ function checkOS() {
 				fi
 			fi
 		fi
-	elif [[ -e /etc/system-release ]]; then
+		elif [[ -e /etc/system-release ]]; then
 		source /etc/os-release
 		if [[ $ID == "fedora" || $ID_LIKE == "fedora" ]]; then
 			OS="fedora"
@@ -84,10 +92,11 @@ function checkOS() {
 				exit 1
 			fi
 		fi
+		
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux 8 or Arch Linux system"
+		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux 8, Arch Linux or OpenWrt system"
 		exit 1
 	fi
 }
@@ -166,6 +175,32 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 	hide-version: yes
 	qname-minimisation: yes
 	prefetch: yes' >/etc/unbound/unbound.conf
+
+		elif [[ $OS == "openwrt" ]]; then
+			opkg -V[0] install luci-app-unbound
+
+						if [[ ! -f /etc/unbound/unbound.conf.old ]]; then
+				mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
+			fi
+
+			echo 'server:
+	use-syslog: yes
+	do-daemonize: no
+	username: "unbound"
+	directory: "/etc/unbound"
+	trust-anchor-file: trusted-key.key
+	root-hints: root.hints
+	interface: 10.8.0.1
+	access-control: 10.8.0.1/24 allow
+	port: 53
+	num-threads: 2
+	use-caps-for-id: yes
+	harden-glue: yes
+	hide-identity: yes
+	hide-version: yes
+	qname-minimisation: yes
+	prefetch: yes' >/etc/unbound/unbound.conf
+
 		fi
 
 		# IPv6 DNS for all OS
@@ -212,8 +247,15 @@ access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/openvpn.conf
 		fi
 	fi
 
-	systemctl enable unbound
-	systemctl restart unbound
+	if [[ $OS == "openwrt" ]]; then
+		/etc/init.d/unbound enable
+		/etc/init.d/unbound start
+		/etc/init.d/unbound restart
+
+	else 
+		systemctl enable unbound
+		systemctl restart unbound
+	fi
 }
 
 function installQuestions() {
@@ -238,7 +280,7 @@ function installQuestions() {
 	if [[ $APPROVE_IP =~ n ]]; then
 		read -rp "IP address: " -e -i "$IP" IP
 	fi
-	# If $IP is a private IP address, the server must be behind NAT
+	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
 		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
@@ -638,7 +680,7 @@ function installOpenVPN() {
 	installQuestions
 
 	# Get the "public" interface from the default route
-	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+	NIC=$(ip -4 route | grep default | awk  '{print $5}' | head -1) #removed ls option from ip command and switched from grep to awk to be compatible with openwrt
 	if [[ -z $NIC ]] && [[ $IPV6_SUPPORT == 'y' ]]; then
 		NIC=$(ip -6 route show default | sed -ne 's/^default .* dev \([^ ]*\) .*$/\1/p')
 	fi
@@ -686,6 +728,11 @@ function installOpenVPN() {
 		elif [[ $OS == 'arch' ]]; then
 			# Install required dependencies and upgrade the system
 			pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
+		elif [[ $OS == 'openwrt' ]]; then
+			echo "Updating the repository..."
+			opkg -V[0] update
+			echo "Installing the necessary packages..."
+			opkg -V[0] install openvpn-openssl iptables wget ca-certificates curl coreutils-fold
 		fi
 		# An old version of easy-rsa was available by default in some openvpn packages
 		if [[ -d /etc/openvpn/easy-rsa/ ]]; then
@@ -701,11 +748,17 @@ function installOpenVPN() {
 	fi
 
 	# Install the latest version of easy-rsa from source, if not already installed.
-	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
+	if [[ ! -f /etc/openvpn/easy-rsa/easyrsa ]]; then
 		local version="3.0.7"
 		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
 		mkdir -p /etc/openvpn/easy-rsa
-		tar xzf ~/easy-rsa.tgz --strip-components=1 --directory /etc/openvpn/easy-rsa
+		if [[ $OS == 'openwrt' ]]; then
+			tar xzf ~/easy-rsa.tgz
+			mv ~/EasyRSA-${version}/* /etc/openvpn/easy-rsa/
+			rm -rf ~/EasyRSA-${version}
+		else
+			tar xzf ~/easy-rsa.tgz --strip-components=1 --directory /etc/openvpn/easy-rsa
+		fi
 		rm -f ~/easy-rsa.tgz
 
 		cd /etc/openvpn/easy-rsa/ || return
@@ -910,7 +963,11 @@ verb 3" >>/etc/openvpn/server.conf
 		echo 'net.ipv6.conf.all.forwarding=1' >>/etc/sysctl.d/99-openvpn.conf
 	fi
 	# Apply sysctl rules
-	sysctl --system
+	if [[ $OS == "openwrt" ]]; then
+		sysctl -w
+	else
+		sysctl --system
+	fi
 
 	# If SELinux is enabled and a custom port was selected, we need this
 	if hash sestatus 2>/dev/null; then
@@ -939,6 +996,10 @@ verb 3" >>/etc/openvpn/server.conf
 		# This package uses a sysvinit service
 		systemctl enable openvpn
 		systemctl start openvpn
+	elif [[ $OS == "openwrt" ]]; then
+		/etc/init.d/openvpn enable
+		/etc/init.d/openvpn restart
+		/etc/init.d/openvpn start
 	else
 		# Don't modify package-provided service
 		cp /lib/systemd/system/openvpn\@.service /etc/systemd/system/openvpn\@.service
@@ -957,10 +1018,26 @@ verb 3" >>/etc/openvpn/server.conf
 		installUnbound
 	fi
 
+	# Script to add rules
+	if [[ $OS == "openwrt" ]]; then 
+		uci rename firewall.@zone[0]="lan"
+		uci rename firewall.@zone[1]="wan"
+		uci del_list firewall.lan.device="tun+"
+		uci add_list firewall.lan.device="tun+"
+		uci set firewall.ovpn="rule"
+		uci set firewall.ovpn.name="Allow-OpenVPN"
+		uci set firewall.ovpn.src="wan"
+		uci set firewall.ovpn.dest_port="${PORT}"
+		uci set firewall.ovpn.proto="${PROTOCOL}"
+		uci set firewall.ovpn.target="ACCEPT"
+		uci commit firewall
+		/etc/init.d/firewall restart
+
+	else
+
 	# Add iptables rules in two scripts
 	mkdir -p /etc/iptables
 
-	# Script to add rules
 	echo "#!/bin/sh
 iptables -t nat -I POSTROUTING 1 -s 10.8.0.0/24 -o $NIC -j MASQUERADE
 iptables -I INPUT 1 -i tun0 -j ACCEPT
@@ -1009,11 +1086,19 @@ RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
+	fi
 
 	# Enable service and apply rules
-	systemctl daemon-reload
-	systemctl enable iptables-openvpn
-	systemctl start iptables-openvpn
+	if [[ $OS == "openwrt" ]]; then
+		fw3 reload 
+		/etc/init.d/firewall enable
+		/etc/init.d/firewall start
+
+	else
+		systemctl daemon-reload
+		systemctl enable iptables-openvpn
+		systemctl start iptables-openvpn
+	fi
 
 	# If the server is behind a NAT, use the correct IP address for the clients to connect to
 	if [[ $ENDPOINT != "" ]]; then
@@ -1200,17 +1285,22 @@ function removeUnbound() {
 	done
 
 	if [[ $REMOVE_UNBOUND == 'y' ]]; then
-		# Stop Unbound
-		systemctl stop unbound
 
-		if [[ $OS =~ (debian|ubuntu) ]]; then
-			apt-get remove --purge -y unbound
-		elif [[ $OS == 'arch' ]]; then
-			pacman --noconfirm -R unbound
-		elif [[ $OS =~ (centos|amzn|oracle) ]]; then
-			yum remove -y unbound
-		elif [[ $OS == 'fedora' ]]; then
-			dnf remove -y unbound
+		# Stop Unbound
+		if [[ $OS == 'openwrt' ]]; then
+			/etc/init.d/unbound stop
+			opkg -V[0] remove unbound
+		else
+			systemctl stop unbound
+			if [[ $OS =~ (debian|ubuntu) ]]; then
+				apt-get remove --purge -y unbound
+			elif [[ $OS == 'arch' ]]; then
+				pacman --noconfirm -R unbound
+			elif [[ $OS =~ (centos|amzn|oracle) ]]; then
+				yum remove -y unbound
+			elif [[ $OS == 'fedora' ]]; then
+				dnf remove -y unbound
+			fi
 		fi
 
 		rm -rf /etc/unbound/
@@ -1218,7 +1308,7 @@ function removeUnbound() {
 		echo ""
 		echo "Unbound removed!"
 	else
-		systemctl restart unbound
+
 		echo ""
 		echo "Unbound wasn't removed."
 	fi
@@ -1241,6 +1331,9 @@ function removeOpenVPN() {
 		elif [[ $OS == "ubuntu" ]] && [[ $VERSION_ID == "16.04" ]]; then
 			systemctl disable openvpn
 			systemctl stop openvpn
+		elif [[ $OS == "openwrt" ]]; then
+			/etc/init.d/openvpn disable
+			/etc/init.d/openvpn stop
 		else
 			systemctl disable openvpn@server
 			systemctl stop openvpn@server
@@ -1249,13 +1342,21 @@ function removeOpenVPN() {
 		fi
 
 		# Remove the iptables rules related to the script
-		systemctl stop iptables-openvpn
-		# Cleanup
-		systemctl disable iptables-openvpn
-		rm /etc/systemd/system/iptables-openvpn.service
-		systemctl daemon-reload
-		rm /etc/iptables/add-openvpn-rules.sh
-		rm /etc/iptables/rm-openvpn-rules.sh
+		if [[ $OS == "openwrt" ]]; then
+			uci delete firewall.ovpn
+			uci commit firewall
+			fw3 reload
+			/etc/init.d/firewall restart
+
+		else
+			systemctl stop iptables-openvpn
+			# Cleanup
+			systemctl disable iptables-openvpn
+			rm /etc/systemd/system/iptables-openvpn.service
+			systemctl daemon-reload
+			rm /etc/iptables/add-openvpn-rules.sh
+			rm /etc/iptables/rm-openvpn-rules.sh
+		fi
 
 		# SELinux
 		if hash sestatus 2>/dev/null; then
@@ -1272,6 +1373,8 @@ function removeOpenVPN() {
 				rm /etc/apt/sources.list.d/openvpn.list
 				apt-get update
 			fi
+		elif [[ $OS == 'openwrt' ]]; then
+			opkg -V[0] remove openvpn-openssl
 		elif [[ $OS == 'arch' ]]; then
 			pacman --noconfirm -R openvpn
 		elif [[ $OS =~ (centos|amzn|oracle) ]]; then
@@ -1281,8 +1384,9 @@ function removeOpenVPN() {
 		fi
 
 		# Cleanup
-		find /home/ -maxdepth 2 -name "*.ovpn" -delete
-		find /root/ -maxdepth 1 -name "*.ovpn" -delete
+		#slight change to the find commando for it to be compatible with openwrt
+		find /home/ -maxdepth 2 -name "*.ovpn" -exec rm -rf {} \;
+		find /root/ -maxdepth 1 -name "*.ovpn" -exec rm -rf {} \;
 		rm -rf /etc/openvpn
 		rm -rf /usr/share/doc/openvpn*
 		rm -f /etc/sysctl.d/99-openvpn.conf
