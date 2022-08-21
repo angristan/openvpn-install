@@ -369,7 +369,7 @@ function installQuestions() {
 		fi
 	done
 	echo ""
-	echo "Do you want to use compression? It is not recommended since the VORACLE attack make use of it."
+	echo "Do you want to use compression? It is not recommended since the VORACLE attack makes use of it."
 	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
 		read -rp"Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
 	done
@@ -640,14 +640,14 @@ function installOpenVPN() {
 
 		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
 		if [[ $IPV6_SUPPORT == "y" ]]; then
-			PUBLIC_IP=$(curl https://ifconfig.co)
+			PUBLIC_IP=$(curl --retry 5 --retry-connrefused https://ifconfig.co)
 		else
-			PUBLIC_IP=$(curl -4 https://ifconfig.co)
+			PUBLIC_IP=$(curl --retry 5 --retry-connrefused -4 https://ifconfig.co)
 		fi
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IP}
 	fi
 
-	# Run setup questions first, and set other variales if auto-install
+	# Run setup questions first, and set other variables if auto-install
 	installQuestions
 
 	# Get the "public" interface from the default route
@@ -688,8 +688,9 @@ function installOpenVPN() {
 			yum install -y epel-release
 			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-			yum install -y 'oracle-epel-release-*'
-			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
+			yum install -y oracle-epel-release-el8
+			yum-config-manager --enable ol8_developer_EPEL
+			yum install -y openvpn iptables openssl wget ca-certificates curl tar policycoreutils-python-utils
 		elif [[ $OS == 'amzn' ]]; then
 			amazon-linux-extras install -y epel
 			yum install -y openvpn iptables openssl wget ca-certificates curl
@@ -942,10 +943,6 @@ verb 3" >>/etc/openvpn/server.conf
 		sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
 		# Another workaround to keep using /etc/openvpn/
 		sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn-server@.service
-		# On fedora, the service hardcodes the ciphers. We want to manage the cipher ourselves, so we remove it from the service
-		if [[ $OS == "fedora" ]]; then
-			sed -i 's|--cipher AES-256-GCM --ncp-ciphers AES-256-GCM:AES-128-GCM:AES-256-CBC:AES-128-CBC:BF-CBC||' /etc/systemd/system/openvpn-server@.service
-		fi
 
 		systemctl daemon-reload
 		systemctl enable openvpn-server@server
@@ -1198,6 +1195,7 @@ function revokeClient() {
 	find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	rm -f "/root/$CLIENT.ovpn"
 	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
+	cp /etc/openvpn/easy-rsa/pki/index.txt{,.bk}
 
 	echo ""
 	echo "Certificate for client $CLIENT revoked."

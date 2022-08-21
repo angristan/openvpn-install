@@ -3,6 +3,7 @@
 ![Test](https://github.com/angristan/openvpn-install/workflows/Test/badge.svg)
 ![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
 ![visitors](https://visitor-badge.glitch.me/badge?page_id=angristan.openvpn-install)
+[![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/angristan)
 
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
 
@@ -162,7 +163,7 @@ More Q&A in [FAQ.md](FAQ.md).
 
 - Windows: [The official OpenVPN community client](https://openvpn.net/index.php/download/community-downloads.html).
 - Linux: The `openvpn` package from your distribution. There is an [official APT repository](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for Debian/Ubuntu based distributions.
-- macOS: [Tunnelblick](https://tunnelblick.net/), [Viscosity](https://www.sparklabs.com/viscosity/).
+- macOS: [Tunnelblick](https://tunnelblick.net/), [Viscosity](https://www.sparklabs.com/viscosity/), [OpenVPN for Mac](https://openvpn.net/client-connect-vpn-for-mac-os/).
 - Android: [OpenVPN for Android](https://play.google.com/store/apps/details?id=de.blinkt.openvpn).
 - iOS: [The official OpenVPN Connect client](https://itunes.apple.com/us/app/openvpn-connect/id590379981).
 
@@ -187,6 +188,7 @@ More Q&A in [FAQ.md](FAQ.md).
 Solutions that provision a ready to use OpenVPN server based on this script in one go are available for:
 
 - AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install)
+- Terraform AWS module [`openvpn-ephemeral`](https://registry.terraform.io/modules/paulmarsicloud/openvpn-ephemeral/aws/latest)
 
 ## Contributing
 
@@ -337,7 +339,7 @@ The script supports both and uses `tls-crypt` by default.
 
 ## Say thanks
 
-You can [say thanks](https://saythanks.io/to/angristan%40pm.me) if you want!
+You can [say thanks](https://saythanks.io/to/angristan) if you want!
 
 ## Credits & Licence
 

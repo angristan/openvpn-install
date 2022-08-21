@@ -13,16 +13,14 @@ jobs:
         os-image:
           - debian-9-x64
           - debian-10-x64
+          - debian-11-x64
           - ubuntu-18-04-x64
           - ubuntu-20-04-x64
-          - ubuntu-20-10-x64
-          - ubuntu-21-04-x64
-          - fedora-33-x64
-          - fedora-34-x64
+          - fedora-35-x64
           - centos-7-x64
-          - centos-8-x64
+          - centos-stream-8-x64
     steps:
-      - uses: actions/checkout@v2.3.4
+      - uses: actions/checkout@v3.0.2
 
       - name: Setup doctl
         uses: digitalocean/action-doctl@v2
