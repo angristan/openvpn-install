@@ -702,7 +702,7 @@ function installOpenVPN() {
 
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
-		local version="3.0.7"
+		local version="3.1.1"
 		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
 		mkdir -p /etc/openvpn/easy-rsa
 		tar xzf ~/easy-rsa.tgz --strip-components=1 --directory /etc/openvpn/easy-rsa
@@ -711,8 +711,8 @@ function installOpenVPN() {
 		cd /etc/openvpn/easy-rsa/ || return
 		case $CERT_TYPE in
 		1)
-			echo "set_var EASYRSA_ALGO ec" >vars
-			echo "set_var EASYRSA_CURVE $CERT_CURVE" >>vars
+			echo "set_var EASYRSA_ALGO ec" >/tmp/vars
+			echo "set_var EASYRSA_CURVE $CERT_CURVE" >>/tmp/vars
 			;;
 		2)
 			echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" >vars
@@ -725,10 +725,11 @@ function installOpenVPN() {
 		SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 		echo "$SERVER_NAME" >SERVER_NAME_GENERATED
 
-		echo "set_var EASYRSA_REQ_CN $SERVER_CN" >>vars
+		echo "set_var EASYRSA_REQ_CN $SERVER_CN" >>/tmp/vars
 
 		# Create the PKI, set up the CA, the DH params and the server certificate
 		./easyrsa init-pki
+		mv /tmp/vars pki
 		./easyrsa --batch build-ca nopass
 
 		if [[ $DH_TYPE == "2" ]]; then
