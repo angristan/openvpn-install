@@ -227,8 +227,14 @@ function installQuestions() {
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "Unless your server is behind NAT, it should be your public IPv4 address."
 
-	# Detect public IPv4 address and pre-fill for the user
-	IP=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+	# If detect_from_net is not set detect the IP from the network
+	# Else use this command to detect ip: curl -s https://api.ipify.org
+	if [[ -z $DETECT_FROM_NET ]]; then
+		# Detect public IPv4 address and pre-fill for the user
+		IP=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+	else
+		IP=$(curl -s https://api.ipify.org)
+	fi
 
 	if [[ -z $IP ]]; then
 		# Detect public IPv6 address
