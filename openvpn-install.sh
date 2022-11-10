@@ -4,6 +4,15 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, Rocky Linux and AlmaLinux.
 # https://github.com/angristan/openvpn-install
 
+# Certificate expiration
+
+# Default settings
+# CA_EXPIRE=3650
+# CERT_EXPIRE=825
+
+CA_EXPIRE=7300
+CERT_EXPIRE=7300
+
 function isRoot() {
 	if [ "$EUID" -ne 0 ]; then
 		return 1
@@ -726,6 +735,8 @@ function installOpenVPN() {
 		echo "$SERVER_NAME" >SERVER_NAME_GENERATED
 
 		echo "set_var EASYRSA_REQ_CN $SERVER_CN" >>vars
+		echo "set_var EASYRSA_CA_EXPIRE $CA_EXPIRE" >>vars
+		echo "set_var EASYRSA_CERT_EXPIRE $CERT_EXPIRE" >>vars
 
 		# Create the PKI, set up the CA, the DH params and the server certificate
 		./easyrsa init-pki
