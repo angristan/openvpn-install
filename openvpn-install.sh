@@ -742,11 +742,11 @@ function installOpenVPN() {
 		case $TLS_SIG in
 		1)
 			# Generate tls-crypt key
-			openvpn --genkey --secret /etc/openvpn/tls-crypt.key
+			openvpn --genkey secret /etc/openvpn/tls-crypt.key
 			;;
 		2)
 			# Generate tls-auth key
-			openvpn --genkey --secret /etc/openvpn/tls-auth.key
+			openvpn --genkey secret /etc/openvpn/tls-auth.key
 			;;
 		esac
 	else
