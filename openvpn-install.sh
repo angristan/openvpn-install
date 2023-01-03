@@ -1182,6 +1182,7 @@ function revokeClient() {
 	find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	rm -f "/root/$CLIENT.ovpn"
 	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
+	sed -i "/CN=$CLIENT/d" /etc/openvpn/easy-rsa/pki/index.txt
 	cp /etc/openvpn/easy-rsa/pki/index.txt{,.bk}
 
 	echo ""
