@@ -627,9 +627,9 @@ function installOpenVPN() {
 
 		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
 		if [[ $IPV6_SUPPORT == "y" ]]; then
-			PUBLIC_IP=$(curl --retry 5 --retry-connrefused https://freeipapi.com/ip)
+			PUBLIC_IP=$(curl --retry 5 --retry-connrefused freeipapi.com)
 		else
-			PUBLIC_IP=$(curl --retry 5 --retry-connrefused -4 https://freeipapi.com/ip)
+			PUBLIC_IP=$(curl --retry 5 --retry-connrefused -4 freeipapi.com)
 		fi
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IP}
 	fi
