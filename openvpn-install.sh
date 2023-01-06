@@ -627,9 +627,13 @@ function installOpenVPN() {
 
 		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
 		if [[ $IPV6_SUPPORT == "y" ]]; then
-			PUBLIC_IP=$(curl --retry 5 --retry-connrefused https://ifconfig.co)
+			if ! PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused https://ifconfig.co) ; then
+				PUBLIC_IP=$(dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
+			fi
 		else
-			PUBLIC_IP=$(curl --retry 5 --retry-connrefused -4 https://ifconfig.co)
+			if ! PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused -4 https://ifconfig.co) ; then
+				PUBLIC_IP=$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
+			fi
 		fi
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IP}
 	fi
