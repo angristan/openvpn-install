@@ -218,8 +218,9 @@ access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/openvpn.conf
 
 function installQuestions() {
 	echo "Welcome to the OpenVPN installer!"
-	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
-	echo ""
+	echo "The git repository is available at: https://github.com/alinhayati/openvpn-install"
+	echo "This is based on the work of angristan (https://github.com/angristan/openvpn-install), enabling
+	tsl-crypt-v2"
 
 	echo "I need to ask you a few questions before starting the setup."
 	echo "You can leave the default options and just press enter if you are ok with them."
@@ -593,12 +594,14 @@ function installQuestions() {
 			;;
 		esac
 		echo ""
-		echo "You can add an additional layer of security to the control channel with tls-auth and tls-crypt"
-		echo "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them."
+		echo "You can add an additional layer of security to the control channel with tls-auth, tls-crypt or tls-crypt-v2"
+		echo "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them using shared key. 
+		The tls-crypt-v2 is like tls-crypt but uses private keys which makes it the most secure."
 		echo "   1) tls-crypt (recommended)"
 		echo "   2) tls-auth"
-		until [[ $TLS_SIG =~ [1-2] ]]; do
-			read -rp "Control channel additional security mechanism [1-2]: " -e -i 1 TLS_SIG
+		echo "   3) tls-crypt-v2 (super recommended)"
+		until [[ $TLS_SIG =~ [1-3] ]]; do
+			read -rp "Control channel additional security mechanism [1-3]: " -e -i 1 TLS_SIG
 		done
 	fi
 	echo ""
@@ -748,6 +751,11 @@ function installOpenVPN() {
 			# Generate tls-auth key
 			openvpn --genkey --secret /etc/openvpn/tls-auth.key
 			;;
+		3)
+			# Generate tls-crypt-v2 key
+			openvpn --genkey tls-crypt-v2-server /etc/openvpn/tls-crypt-v2.key
+			mkdir -p /etc/openvpn/keys-v2
+			;;
 		esac
 	else
 		# If easy-rsa is already installed, grab the generated SERVER_NAME
@@ -882,6 +890,9 @@ push "redirect-gateway ipv6"' >>/etc/openvpn/server.conf
 		;;
 	2)
 		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server.conf
+		;;
+	3)
+		echo "tls-crypt-v2 tls-crypt-v2.key" >>/etc/openvpn/server.conf
 		;;
 	esac
 
@@ -1115,6 +1126,8 @@ function newClient() {
 		TLS_SIG="1"
 	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
 		TLS_SIG="2"
+	elif grep -qs "^tls-crypt-v2" /etc/openvpn/server.conf; then
+		TLS_SIG="3"
 	fi
 
 	# Generates the custom client.ovpn
@@ -1143,6 +1156,12 @@ function newClient() {
 			echo "<tls-auth>"
 			cat /etc/openvpn/tls-auth.key
 			echo "</tls-auth>"
+			;;
+		3)
+			openvpn --tls-crypt-v2 /etc/openvpn/tls-crypt-v2.key --genkey tls-crypt-v2-client /etc/openvpn/keys-v2/$CLIENT.key
+            echo "<tls-crypt-v2>"
+			cat /etc/openvpn/keys-v2/$CLIENT.key
+			echo "</tls-crypt-v2>"
 			;;
 		esac
 	} >>"$homeDir/$CLIENT.ovpn"
@@ -1302,7 +1321,7 @@ function removeOpenVPN() {
 
 function manageMenu() {
 	echo "Welcome to OpenVPN-install!"
-	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
+	echo "The git repository is available at: https://github.com/alinhayati/openvpn-install"
 	echo ""
 	echo "It looks like OpenVPN is already installed."
 	echo ""
