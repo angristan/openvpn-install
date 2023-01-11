@@ -595,8 +595,7 @@ function installQuestions() {
 		esac
 		echo ""
 		echo "You can add an additional layer of security to the control channel with tls-auth, tls-crypt or tls-crypt-v2"
-		echo "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them using shared key. 
-		The tls-crypt-v2 is like tls-crypt but uses private keys which makes it the most secure."
+		echo "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them using shared key. The tls-crypt-v2 is like tls-crypt but uses private keys which makes it the most secure."
 		echo "   1) tls-crypt (recommended)"
 		echo "   2) tls-auth"
 		echo "   3) tls-crypt-v2 (super recommended)"
@@ -1126,7 +1125,7 @@ function newClient() {
 		TLS_SIG="1"
 	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
 		TLS_SIG="2"
-	elif grep -qs "^tls-crypt-v2" /etc/openvpn/server.conf; then
+	else grep -qs "^tls-crypt-v2" /etc/openvpn/server.conf;
 		TLS_SIG="3"
 	fi
 
