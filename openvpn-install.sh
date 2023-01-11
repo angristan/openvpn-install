@@ -1125,12 +1125,12 @@ function newClient() {
 	fi
 
 	# Determine if we use tls-auth or tls-crypt
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
-		TLS_SIG="1"
+	if grep -qs "^tls-crypt-v2" /etc/openvpn/server.conf; then
+		TLS_SIG="3"
 	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
 		TLS_SIG="2"
-	else grep -qs "^tls-crypt-v2" /etc/openvpn/server.conf;
-		TLS_SIG="3"
+	else grep -qs "^tls-crypt" /etc/openvpn/server.conf;
+		TLS_SIG="1"
 	fi
 
 	# Generates the custom client.ovpn
