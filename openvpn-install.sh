@@ -1090,8 +1090,15 @@ function newClient() {
 			./easyrsa build-client-full "$CLIENT" nopass
 			;;
 		2)
-			echo "⚠️ You will be asked for the client password below ⚠️"
-			./easyrsa build-client-full "$CLIENT"
+			if [[ -z "$PASSPHRASE" ]]; then
+				echo "⚠️ You will be asked for the client password below ⚠️"
+				./easyrsa build-client-full "$CLIENT"
+			else
+				echo "The password for client was already set"
+				PASSPHRASE="pass:${PASSPHRASE}"
+				./easyrsa --passin=$PASSPHRASE --passout=$PASSPHRASE build-client-full "$CLIENT" 
+
+			fi
 			;;
 		esac
 		echo "Client $CLIENT added."

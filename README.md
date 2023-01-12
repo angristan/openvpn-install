@@ -71,6 +71,7 @@ If you want to customise your installation, you can export them or specify them 
 - `CUSTOMIZE_ENC=n`
 - `CLIENT=clientname`
 - `PASS=1`
+- `PASSPHRASE=V3ryS3cureP4ssword#123`
 
 If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
 
@@ -93,6 +94,17 @@ export CLIENT="foo"
 export PASS="1"
 ./openvpn-install.sh
 ```
+
+To add a user with a passphrase instead
+```bash
+#!/bin/bash
+export MENU_OPTION="1"
+export CLIENT="foo"
+export PASS="2"
+export PASSPHRASE="V3ryS3cureP4ssword#123"
+./openvpn-install.sh
+```
+
 
 ## Features
 
