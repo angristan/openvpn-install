@@ -38,7 +38,10 @@ print "$issued";
 ## Cleaning
 my $ENVPKI = "/etc/openvpn/easy-rsa/pki/index.txt";
 print "Preparing for cleaning...\n";
+
+print color('RED'); 
 print "Please, choose the username, or if you are not really sure, just press Enter to exit the cleaner...\n";
+print color('RESET');
 
 chomp (my $username = <STDIN>);
 my $cleaner = `sed -i '/$username/d' $ENVPKI`;
