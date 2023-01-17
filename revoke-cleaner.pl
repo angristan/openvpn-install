@@ -24,6 +24,13 @@ print color('RESET');
 my $ENV = `cat /etc/openvpn/easy-rsa/pki/index.txt | grep R`;
 print "$ENV";
 
+print color('Yellow'); 
+print "This is your issued crt's\n";
+print color('RESET');
+
+my $issued = `cat /etc/openvpn/easy-rsa/pki/issued/`;
+print "$issued";
+
 ## Cleaning
 my $ENVPKI = "/etc/openvpn/easy-rsa/pki/index.txt";
 print "Preparing for cleaning...\n";
