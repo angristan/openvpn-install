@@ -45,5 +45,6 @@ print color('RESET');
 
 chomp (my $username = <STDIN>);
 my $cleaner = `sed -i '/$username/d' $ENVPKI`;
+my $cleancobf1g = `rm -rf /etc/openvpn/client/$username`;
 
 	exit 0;
