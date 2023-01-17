@@ -26,24 +26,28 @@ print "If you do not see lines with (R) in the beginning, you will have nothing 
 print color('RESET');
 
 my $ENV = `cat /etc/openvpn/easy-rsa/pki/index.txt | grep R`;
-print "$ENV";
+	print "$ENV";
 
 print color('Yellow'); 
 print "This is your issued crt's\n";
 print color('RESET');
 
 my $issued = `ls -all /etc/openvpn/easy-rsa/pki/issued/`;
-print "$issued";
+	print "$issued";
 
 ## Cleaning
 my $ENVPKI = "/etc/openvpn/easy-rsa/pki/index.txt";
-print "Preparing for cleaning...\n";
+	print "Preparing for cleaning...\n";
 
 print color('RED'); 
 print "Please, choose the username, or if you are not really sure, just press Enter to exit the cleaner...\n";
 print color('RESET');
 
 chomp (my $username = <STDIN>);
-my $cleaner = `sed -i '/$username/d' $ENVPKI`;
+	my $cleaner = `sed -i '/$username/d' $ENVPKI`;
 
+print color('YELLOW')
+print"You clint configurations are...\n";
+my $configs = `ls -all /etc/openvpn/client/`;
+	print"$configs";
 	exit 0;
