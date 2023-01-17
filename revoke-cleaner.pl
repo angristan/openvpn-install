@@ -46,8 +46,9 @@ print color('RESET');
 chomp (my $username = <STDIN>);
 	my $cleaner = `sed -i '/$username/d' $ENVPKI`;
 
-print color('YELLOW')
+print color('YELLOW');
 print"You clint configurations are...\n";
+print color('RESET');
 my $configs = `ls -all /etc/openvpn/client/`;
 	print"$configs";
 	exit 0;
