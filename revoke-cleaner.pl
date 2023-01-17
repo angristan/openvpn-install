@@ -28,7 +28,7 @@ print color('Yellow');
 print "This is your issued crt's\n";
 print color('RESET');
 
-my $issued = `cat /etc/openvpn/easy-rsa/pki/issued/`;
+my $issued = `ls -all /etc/openvpn/easy-rsa/pki/issued/`;
 print "$issued";
 
 ## Cleaning
