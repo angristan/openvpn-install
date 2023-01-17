@@ -1150,11 +1150,11 @@ function newClient() {
 			;;
 		esac
 		# $homeDir
-	} >>"/etc/openvpn/client/$CLIENT.ovpn"
+	} >>"$homeDir/$CLIENT.ovpn"
 
 	echo ""
 	# $homeDir
-	echo "The configuration file has been written to /etc/openvpn/client/$CLIENT.ovpn."
+	echo "The configuration file has been written to $homeDir/$CLIENT.ovpn."
 	echo "Download the .ovpn file and import it in your OpenVPN client."
 
 	exit 0
