@@ -1149,10 +1149,12 @@ function newClient() {
 			echo "</tls-auth>"
 			;;
 		esac
-	} >>"$homeDir/$CLIENT.ovpn"
+		# $homeDir
+	} >>"/etc/openvpn/client/$CLIENT.ovpn"
 
 	echo ""
-	echo "The configuration file has been written to $homeDir/$CLIENT.ovpn."
+	# $homeDir
+	echo "The configuration file has been written to /etc/openvpn/client/$CLIENT.ovpn."
 	echo "Download the .ovpn file and import it in your OpenVPN client."
 
 	exit 0
