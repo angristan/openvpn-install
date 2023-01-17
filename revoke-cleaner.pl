@@ -18,7 +18,7 @@ print "because these users are already";
 print color('RESET'); 
 
 print color('RED'); 
-print " revoked!\n\n\n";
+print " revoked!\n";
 print color('RESET');
 
 print color('GREEN');
