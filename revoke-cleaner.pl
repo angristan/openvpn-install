@@ -21,6 +21,10 @@ print color('RED');
 print " revoked!\n\n\n";
 print color('RESET');
 
+print color('GREEN');
+print "If you do not see lines with (R) in the beginning, you will have nothing to clean!"; 
+print color('RESET');
+
 my $ENV = `cat /etc/openvpn/easy-rsa/pki/index.txt | grep R`;
 print "$ENV";
 
