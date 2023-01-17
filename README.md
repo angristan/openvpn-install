@@ -39,8 +39,9 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
 
 ## Cleaning of revoked users:
-- - - ## NOTE: For your safety, please run every time when you want to clean an already revoked user!
-               This program is only for `REVOKED` users!
+- - - ## NOTE: 
+            For your safety, please run every time when you want to clean an already revoked user!
+            This program is only for `REVOKED` users!
 - Usage:
 ```perl
 perl revoke-cleaner.pl
