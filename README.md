@@ -313,7 +313,7 @@ The script provides the following choices:
 
 It defaults to `SHA256`.
 
-### `tls-auth` and `tls-crypt`
+### `tls-auth`, `tls-crypt` and `tls-crypt-v2`
 
 From the OpenVPN wiki, about `tls-auth`:
 
@@ -334,6 +334,7 @@ About `tls-crypt`:
 So both provide an additional layer of security and mitigate DoS attacks. They aren't used by default by OpenVPN.
 
 `tls-crypt` is an OpenVPN 2.4 feature that provides encryption in addition to authentication (unlike `tls-auth`). It is more privacy-friendly.
+The `tls-crypt-v2` is the same as `tls-crypt` with the difference that `tls-crypt-v2` uses a private key rather a static pre-shared key in `tls-crypt` which makes it more secure.
 
 The script supports both and uses `tls-crypt` by default.
 
