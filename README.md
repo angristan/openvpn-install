@@ -346,4 +346,4 @@ You can [say thanks](https://saythanks.io/to/angristan) if you want!
 
 Many thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors) and Nyr's original work.
 
-This project is under the [MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
+This project is under the [MIT Licence](https://raw.githubusercontent.com/alinhayati/openvpn-install/master/LICENSE)
