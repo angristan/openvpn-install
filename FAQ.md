@@ -152,7 +152,6 @@ route 10.0.0.0 255.0.0.0
 
 So for example - here it would route all traffic of `10.0.0.0/8` to the vpn. And the rest through the internet.
 
-
 ---
 
 **Q:** I have enabled IPv6 and my VPN client gets an IPv6 address. Why do I reach the websites or other dual-stacked destionations via IPv4 only?
