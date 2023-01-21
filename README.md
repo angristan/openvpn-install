@@ -192,6 +192,10 @@ Solutions that provision a ready to use OpenVPN server based on this script in o
 
 ## Contributing
 
+## Discuss changes
+
+Please open an issue before submitting a PR if you want to discuss a change, especially if it's a big one.
+
 ### Code formatting
 
 We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the configuration [here](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/push.yml).
