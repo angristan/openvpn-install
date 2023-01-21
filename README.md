@@ -118,17 +118,17 @@ The script supports these OS and architectures:
 
 |                 | i386 | amd64 | armhf | arm64 |
 | --------------- | ---- | ----- | ----- | ----- |
-| Amazon Linux 2  | ❔   | ✅    | ❔    | ❔    |
-| Arch Linux      | ❔   | ✅    | ❔    | ✅    |
-| CentOS 7        | ✅   | ✅    | ✅    | ✅    |
-| CentOS 8        | ❌   | ✅    | ❌    | ✅    |
-| Debian >= 9     | ✅   | ✅    | ✅    | ✅    |
-| Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
-| Ubuntu 16.04    | ✅   | ✅    | ❌    | ❌    |
-| Ubuntu >= 18.04 | ✅   | ✅    | ✅    | ✅    |
-| Oracle Linux 8  | ❌   | ✅    | ❌    | ❔    |
-| Rocky Linux 8   |  ❔  | ✅    |  ❔   | ❔    |
-| AlmaLinux 8     | ❌   | ✅    | ❌    | ❔    |
+| Amazon Linux 2  | ❔    | ✅     | ❔     | ❔     |
+| Arch Linux      | ❔    | ✅     | ❔     | ✅     |
+| CentOS 7        | ✅    | ✅     | ✅     | ✅     |
+| CentOS 8        | ❌    | ✅     | ❌     | ✅     |
+| Debian >= 9     | ✅    | ✅     | ✅     | ✅     |
+| Fedora >= 27    | ❔    | ✅     | ❔     | ❔     |
+| Ubuntu 16.04    | ✅    | ✅     | ❌     | ❌     |
+| Ubuntu >= 18.04 | ✅    | ✅     | ✅     | ✅     |
+| Oracle Linux 8  | ❌    | ✅     | ❌     | ❔     |
+| Rocky Linux 8   | ❔    | ✅     | ❔     | ❔     |
+| AlmaLinux 8     | ❌    | ✅     | ❌     | ❔     |
 
 To be noted:
 
