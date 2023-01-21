@@ -202,6 +202,9 @@ We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://
 
 ## Security and Encryption
 
+> **Warning**
+> This has not been updated for OpenVPN 2.5 and later.
+
 OpenVPN's default settings are pretty weak regarding encryption. This script aims to improve that.
 
 OpenVPN 2.4 was a great update regarding encryption. It added support for ECDSA, ECDH, AES GCM, NCP and tls-crypt.
