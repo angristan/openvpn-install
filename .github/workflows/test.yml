@@ -80,7 +80,7 @@ jobs:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
           key: ${{ secrets.SSH_KEY }}
-          script: set -x && git clone https://github.com/angristan/openvpn-install.git && cd openvpn-install && git checkout ${{ github.event.pull_request.head.sha }}
+          script: set -x && git clone https://github.com/angristan/openvpn-install.git && cd openvpn-install && git checkout ${{ github.sha }}
 
       - name: Run openvpn-install.sh in headless mode
         uses: appleboy/ssh-action@v0.1.6
