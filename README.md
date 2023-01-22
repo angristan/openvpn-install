@@ -2,7 +2,6 @@
 
 ![Test](https://github.com/angristan/openvpn-install/workflows/Test/badge.svg)
 ![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
-![visitors](https://visitor-badge.glitch.me/badge?page_id=angristan.openvpn-install)
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/angristan)
 
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
