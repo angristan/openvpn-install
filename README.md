@@ -33,7 +33,7 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 
 - Add a client
 - Remove a client
-- Uninstall OpenVPN
+- Uninstall OpenVPNx
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
 
