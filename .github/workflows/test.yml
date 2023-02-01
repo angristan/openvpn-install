@@ -24,7 +24,7 @@ jobs:
           - centos-stream-8-x64
           - centos-stream-9-x64
     steps:
-      - uses: actions/checkout@v3.2.0
+      - uses: actions/checkout@v3.3.0
 
       - name: Setup doctl
         uses: digitalocean/action-doctl@v2
