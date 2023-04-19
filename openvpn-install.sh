@@ -1302,6 +1302,35 @@ function removeOpenVPN() {
 	fi
 }
 
+function listCerts () {
+# Original Script from PiVPN: list clients script
+# Modified Script to add Certificate expiration Date -- psgoundar  
+INDEX="/etc/openvpn/easy-rsa/pki/index.txt"
+printf "\\n"
+if [ ! -f "${INDEX}" ]; then
+        echo "The file: $INDEX was not found!"
+        exit 1
+fi
+printf "\\e[1m::: Certificate Status List :::\\e[0m\\n"
+printf "\\n%6s\\t%14s\\t%22s\\n" "Status" "Name" "Expiration"
+printf '=%.0s' {1..50}
+printf '\n'
+while read -r line || [ -n "$line" ]; do
+    STATUS=$(echo "$line" | awk '{print $1}')
+    NAME=$(echo "$line" | cut -d '=' -f2)
+    EXPD=$(echo "$line" | awk '{if (length($3) == 13) print "20"$3; else print "20"$2}' | cut -b 1-8 | date +"%b %d %Y" -f -)
+        
+    if [ "${STATUS}" == "V" ]; then
+         printf "Valid  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
+    elif [ "${STATUS}" == "R" ]; then
+        printf "Revoked  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
+    else
+        printf "Unknown  \t  %s  \t  %s\\n" "$NAME" "$EXPD"
+    fi
+done <${INDEX} | column -t
+printf "\\n"
+}
+
 function manageMenu() {
 	echo "Welcome to OpenVPN-install!"
 	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
@@ -1311,10 +1340,11 @@ function manageMenu() {
 	echo "What do you want to do?"
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
-	echo "   3) Remove OpenVPN"
-	echo "   4) Exit"
-	until [[ $MENU_OPTION =~ ^[1-4]$ ]]; do
-		read -rp "Select an option [1-4]: " MENU_OPTION
+	echo "   3) List current issued certificates"
+	echo "   4) Remove OpenVPN"
+	echo "   5) Exit"
+	until [[ $MENU_OPTION =~ ^[1-5]$ ]]; do
+		read -rp "Select an option [1-5]: " MENU_OPTION
 	done
 
 	case $MENU_OPTION in
@@ -1325,9 +1355,12 @@ function manageMenu() {
 		revokeClient
 		;;
 	3)
-		removeOpenVPN
+		listCerts
 		;;
 	4)
+		removeOpenVPN
+		;;
+	5)
 		exit 0
 		;;
 	esac
