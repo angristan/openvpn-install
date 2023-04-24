@@ -310,7 +310,7 @@ function installQuestions() {
 		PROTOCOL="tcp"
 		;;
 	esac
-	
+	echo ""
 	echo "Do wou want to specify a custom LAN network an subnet?"
 	echo "   1) NO (will use 10.8.0.0 and 255.255.255.0)"
 	echo "   2) YES"
