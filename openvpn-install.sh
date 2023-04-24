@@ -310,6 +310,24 @@ function installQuestions() {
 		PROTOCOL="tcp"
 		;;
 	esac
+	until [[ $LAN_IP =~ "" ]]; do
+	
+	echo "Do wou want to specify a custom LAN network an subnet?"
+	echo "   1) NO (will use 10.8.0.0 and 255.255.255.0)"
+	echo "   2) YES"
+	until [[ $LAN_IP_CHOICE  =~ ^[1-2]$ ]]; do
+		read -rp "Choice [1-2]: " -e -i 1 LAN_IP_CHOICE
+	done
+	case $LAN_IP_CHOICE in
+	1)
+		$LAN_IP = "10.8.0.0"
+		$LAN_SUBNET_MASK = "255.255.255.0"
+		;;
+	2)
+		read -rp "IP NETWORK (e.g. 192.168.4.0): " -e -i 1 LAN_IP
+		read -rp "SUBNET (e.g. 255.255.255.0) : " -e -i 1 LAN_SUBNET_MASK
+		;;
+	esac
 	echo ""
 	until [[ $LAN_IP =~ "" ]]; do
 	echo "Do wou want to specify a custom LAN network an subnet?"
