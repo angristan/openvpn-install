@@ -800,7 +800,7 @@ persist-key
 persist-tun
 keepalive 10 120
 topology subnet
-server $LAN_IP $LAN_SUBNET_MASK
+server $(LAN_IP) $(LAN_SUBNET_MASK)
 ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 
 	# DNS resolvers
