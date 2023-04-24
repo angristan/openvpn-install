@@ -310,7 +310,6 @@ function installQuestions() {
 		PROTOCOL="tcp"
 		;;
 	esac
-	until [[ $LAN_IP =~ "" ]]; do
 	
 	echo "Do wou want to specify a custom LAN network an subnet?"
 	echo "   1) NO (will use 10.8.0.0 and 255.255.255.0)"
@@ -330,7 +329,6 @@ function installQuestions() {
 		echo "SUBNET SET TO $LAN_SUBNET_MASK"
 		;;
 	esac
-	done
 	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
