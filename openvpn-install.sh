@@ -325,9 +325,12 @@ function installQuestions() {
 		;;
 	2)
 		read -rp "IP NETWORK (e.g. 192.168.4.0): " -e -i 1 LAN_IP
+		echo "NETWORK SET TO $LAN_IP"
 		read -rp "SUBNET (e.g. 255.255.255.0) : " -e -i 1 LAN_SUBNET_MASK
+		echo "SUBNET SET TO $LAN_SUBNET_MASK"
 		;;
 	esac
+	done
 	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
