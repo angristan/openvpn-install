@@ -319,8 +319,8 @@ function installQuestions() {
 	done
 	case $LAN_IP_CHOICE in
 	1)
-		$LAN_IP = "10.8.0.0"
-		$LAN_SUBNET_MASK = "255.255.255.0"
+		LAN_IP="10.8.0.0"
+		LAN_SUBNET_MASK="255.255.255.0"
 		;;
 	2)
 		until [[ $LAN_IP  =~ "" ]]; do
