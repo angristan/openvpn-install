@@ -323,9 +323,13 @@ function installQuestions() {
 		$LAN_SUBNET_MASK = "255.255.255.0"
 		;;
 	2)
-		read -rp "IP NETWORK (e.g. 192.168.4.0): " -e -i 1 LAN_IP
+		until [[ $LAN_IP  =~ "" ]]; do
+			read -rp "IP NETWORK (e.g. 192.168.4.0): " -e -i 1 LAN_IP
+		done
 		echo "NETWORK SET TO $LAN_IP"
-		read -rp "SUBNET (e.g. 255.255.255.0) : " -e -i 1 LAN_SUBNET_MASK
+		until [[ $LAN_SUBNET_MASK  =~ "" ]]; do
+			read -rp "SUBNET (e.g. 255.255.255.0) : " -e -i 1 LAN_SUBNET_MASK
+                done
 		echo "SUBNET SET TO $LAN_SUBNET_MASK"
 		;;
 	esac
