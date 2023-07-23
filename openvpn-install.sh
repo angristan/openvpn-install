@@ -969,6 +969,8 @@ function installOpenVPN() {
 			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl
 		elif [[ $OS == 'fedora' ]]; then
 			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl policycoreutils-python-utils
+		elif [[ $OS == 'opensuse' ]]; then
+			run_cmd "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl
 		elif [[ $OS == 'arch' ]]; then
 			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl
 		fi
