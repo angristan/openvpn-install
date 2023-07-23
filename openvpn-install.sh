@@ -366,6 +366,8 @@ function installUnbound() {
 			run_cmd "Installing Unbound" yum install -y unbound
 		elif [[ $OS =~ (fedora|amzn2023) ]]; then
 			run_cmd "Installing Unbound" dnf install -y unbound
+		elif [[ $OS == "opensuse" ]]; then
+			run_cmd "Installing Unbound" zypper install -y unbound
 		elif [[ $OS == "arch" ]]; then
 			run_cmd "Installing Unbound" pacman -Syu --noconfirm unbound
 		fi
