@@ -189,10 +189,13 @@ function checkOS() {
 				fi
 			fi
 		fi
-	elif [[ -e /etc/system-release ]]; then
+	elif [[ -e /etc/os-release ]]; then
 		source /etc/os-release
 		if [[ $ID == "fedora" || $ID_LIKE == "fedora" ]]; then
 			OS="fedora"
+		fi
+		if [[ $ID == "opensuse-leap" || $ID == "opensuse-tumbleweed" ]]; then
+			OS="opensuse"
 		fi
 		if [[ $ID == "centos" || $ID == "rocky" || $ID == "almalinux" ]]; then
 			OS="centos"
@@ -216,7 +219,7 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		log_fatal "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2023, Oracle Linux, Arch Linux, Rocky Linux or AlmaLinux system."
+		log_fatal "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, openSUSE, CentOS, Amazon Linux 2023, Oracle Linux, Arch Linux, Rocky Linux or AlmaLinux system."
 	fi
 }
 
