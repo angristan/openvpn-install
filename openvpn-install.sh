@@ -1252,7 +1252,7 @@ verb 3" >>/etc/openvpn/server.conf
 
 	# Finally, restart and enable OpenVPN
 	log_info "Configuring OpenVPN service..."
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' || $OS == 'amzn2023' ]]; then
+	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'opensuse' || $OS == 'centos' || $OS == 'oracle' || $OS == 'amzn2023' ]]; then
 		# Don't modify package-provided service
 		run_cmd "Copying OpenVPN service file" cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
@@ -1774,6 +1774,8 @@ function removeUnbound() {
 			run_cmd "Removing Unbound" yum remove -y unbound
 		elif [[ $OS =~ (fedora|amzn2023) ]]; then
 			run_cmd "Removing Unbound" dnf remove -y unbound
+		elif [[ $OS == 'opensuse' ]]; then
+			run_cmd "Removing Unbound" zypper remove -y unbound
 		fi
 
 		run_cmd "Removing Unbound config" rm -rf /etc/unbound/
@@ -1794,7 +1796,7 @@ function removeOpenVPN() {
 
 		# Stop OpenVPN
 		log_info "Stopping OpenVPN service..."
-		if [[ $OS =~ (fedora|arch|centos|oracle) ]]; then
+		if [[ $OS =~ (fedora|opensuse|arch|centos|oracle|amzn2023) ]]; then
 			run_cmd "Disabling OpenVPN service" systemctl disable openvpn-server@server
 			run_cmd "Stopping OpenVPN service" systemctl stop openvpn-server@server
 			# Remove customised service
@@ -1852,6 +1854,8 @@ function removeOpenVPN() {
 			run_cmd "Removing OpenVPN" dnf remove -y openvpn
 			# Disable Copr repo
 			run_cmd "Disabling OpenVPN Copr repo" dnf copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
+		elif [[ $OS == 'opensuse' ]]; then
+			run_cmd "Removing OpenVPN" zypper remove -y openvpn
 		fi
 
 		# Cleanup
