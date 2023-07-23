@@ -4,7 +4,7 @@
 ![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/angristan)
 
-OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
+OpenVPN installer for Debian, Ubuntu, Fedora, openSUSE, CentOS, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
 
 This script will let you setup your own secure VPN server in just a few seconds.
 
@@ -115,18 +115,20 @@ export PASS="1"
 
 The script supports these Linux distributions:
 
-|                    | Support |
-| ------------------ | ------- |
-| AlmaLinux 8        | ✅       |
-| Amazon Linux 2     | ✅       |
-| Arch Linux         | ✅       |
-| CentOS 7           | ✅ 🤖     |
-| CentOS Stream >= 8 | ✅ 🤖     |
-| Debian >= 10       | ✅ 🤖     |
-| Fedora >= 35       | ✅ 🤖     |
-| Oracle Linux 8     | ✅       |
-| Rocky Linux 8      | ✅       |
-| Ubuntu >= 18.04    | ✅ 🤖     |
+|                     | Support |
+| ------------------- | ------- |
+| AlmaLinux 8         | ✅      |
+| Amazon Linux 2      | ✅      |
+| Arch Linux          | ✅      |
+| CentOS 7            | ✅ 🤖   |
+| CentOS Stream >= 8  | ✅ 🤖   |
+| Debian >= 10        | ✅ 🤖   |
+| Fedora >= 35        | ✅ 🤖   |
+| openSUSE Leap 15.4+ | ✅ 🤖   |
+| openSUSE Tumbleweed | ✅ 🤖   |
+| Oracle Linux 8      | ✅      |
+| Rocky Linux 8       | ✅      |
+| Ubuntu >= 18.04     | ✅ 🤖   |
 
 To be noted:
 
