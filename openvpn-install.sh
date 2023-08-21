@@ -238,7 +238,7 @@ function installQuestions() {
 	if [[ $APPROVE_IP =~ n ]]; then
 		read -rp "IP address: " -e -i "$IP" IP
 	fi
-	# If $IP is a private IP address, the server must be behind NAT
+	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
 		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
@@ -294,6 +294,7 @@ function installQuestions() {
 		echo "Random Port: $PORT"
 		;;
 	esac
+	
 	echo ""
 	echo "What protocol do you want OpenVPN to use?"
 	echo "UDP is faster. Unless it is not available, you shouldn't use TCP."
@@ -310,6 +311,20 @@ function installQuestions() {
 		PROTOCOL="tcp"
 		;;
 	esac
+	echo ""
+	echo "Do you want all the client's access to go through the tunnel routing after enabling VPN?"
+	until [[ $ALL_THROUGH_TUNNEL_ENABLED =~ (y|n) ]]; do
+		read -rp"Enable all access to go through the tunnel routing? [y/n]: " -e -i n ALL_THROUGH_TUNNEL_ENABLED
+	done
+	if [[ "$ALL_THROUGH_TUNNEL_ENABLED" == 'n' ]]; then
+		until [[ $SERVER_SUBNET =~ ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$ ]]; do
+			read -rp"Please enter the server subnet: " -e -i "192.168.0.0" SERVER_SUBNET
+		done
+		until [[ $SERVER_SUBNET_MASK =~ ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$ ]]; do
+			read -rp"Please enter the server subnet mask: " -e -i "255.255.255.0" SERVER_SUBNET_MASK
+		done
+	fi
+	
 	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
@@ -398,7 +413,7 @@ function installQuestions() {
 		DH_TYPE="1" # ECDH
 		DH_CURVE="prime256v1"
 		HMAC_ALG="SHA256"
-		TLS_SIG="1" # tls-crypt
+		TLS_SIG="2" # tls-auth
 	else
 		echo ""
 		echo "Choose which cipher you want to use for the data channel:"
@@ -526,7 +541,6 @@ function installQuestions() {
 		case $DH_TYPE in
 		1)
 			echo ""
-			echo "Choose which curve you want to use for the ECDH key:"
 			echo "   1) prime256v1 (recommended)"
 			echo "   2) secp384r1"
 			echo "   3) secp521r1"
@@ -595,12 +609,21 @@ function installQuestions() {
 		echo ""
 		echo "You can add an additional layer of security to the control channel with tls-auth and tls-crypt"
 		echo "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them."
-		echo "   1) tls-crypt (recommended)"
-		echo "   2) tls-auth"
+		echo "   1) tls-crypt"
+		echo "   2) tls-auth (recommended)"
 		until [[ $TLS_SIG =~ [1-2] ]]; do
-			read -rp "Control channel additional security mechanism [1-2]: " -e -i 1 TLS_SIG
+			read -rp "Control channel additional security mechanism [1-2]: " -e -i 2 TLS_SIG
 		done
 	fi
+
+	if [[ $OS == 'centos' ]]; then
+		echo ""
+		echo "You can enable two-factor authentication to further secure your client account."
+		until [[ $ENABLE_2FACTOR_AUTH =~ (y|n) ]]; do
+			read -rp "Do you want to enabled two-factor authentication? [y/n]: " -e -i "y" ENABLE_2FACTOR_AUTH
+		done
+	fi
+
 	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
 	echo "You will be able to generate a client at the end of the installation."
@@ -677,7 +700,12 @@ function installOpenVPN() {
 			apt-get install -y openvpn iptables openssl wget ca-certificates curl
 		elif [[ $OS == 'centos' ]]; then
 			yum install -y epel-release
-			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
+			if which openssl >/dev/null 2>&1; then
+				yum install -y openvpn iptables wget ca-certificates curl tar 'policycoreutils-python*'
+			else
+				yum install -y openvpn iptables wget openssl ca-certificates curl tar 'policycoreutils-python*'
+			fi
+			
 		elif [[ $OS == 'oracle' ]]; then
 			yum install -y oracle-epel-release-el8
 			yum-config-manager --enable ol8_developer_EPEL
@@ -706,11 +734,25 @@ function installOpenVPN() {
 
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
-		local version="3.1.2"
-		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
+		local version="3.1.5"
+		local taz_downloaded=false
+		local shell_dir
+		shell_dir="$(dirname "$(readlink -f "$0")")"
+		local taz_path="$shell_dir/easy-rsa.tgz"
+		if [[ ! -f "$taz_path" ]]; then
+			taz_downloaded=true
+			wget -O "$taz_path" "https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz"
+		fi
 		mkdir -p /etc/openvpn/easy-rsa
-		tar xzf ~/easy-rsa.tgz --strip-components=1 --no-same-owner --directory /etc/openvpn/easy-rsa
-		rm -f ~/easy-rsa.tgz
+		tar xzf "$taz_path" --strip-components=1 --no-same-owner --directory /etc/openvpn/easy-rsa
+		if [ $? -ne 0 ]; then
+			taz_downloaded=true
+			wget -O "$taz_path" "https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz"
+			tar xzf "$taz_path" --strip-components=1 --no-same-owner --directory /etc/openvpn/easy-rsa
+		fi
+		if $taz_downloaded; then
+			rm -f "$taz_path"
+		fi
 
 		cd /etc/openvpn/easy-rsa/ || return
 		case $CERT_TYPE in
@@ -735,7 +777,7 @@ function installOpenVPN() {
 
 		if [[ $DH_TYPE == "2" ]]; then
 			# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
-			openssl dhparam -out dh.pem $DH_KEY_SIZE
+			openssl dhparam -out dh.pem "$DH_KEY_SIZE"
 		fi
 
 		./easyrsa --batch build-server-full "$SERVER_NAME" nopass
@@ -856,8 +898,11 @@ ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 		fi
 		;;
 	esac
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server.conf
-
+	if [[ $ALL_THROUGH_TUNNEL_ENABLED == 'y' ]]; then
+		echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server.conf
+	else
+		echo "push \"route $SERVER_SUBNET $SERVER_SUBNET_MASK vpn_gateway\"" >>/etc/openvpn/server.conf
+	fi
 	# IPv6 network settings if needed
 	if [[ $IPV6_SUPPORT == 'y' ]]; then
 		echo 'server-ipv6 fd42:42:42:42::/112
@@ -898,6 +943,7 @@ tls-server
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
 client-config-dir /etc/openvpn/ccd
+reneg-sec 10800
 status /var/log/openvpn/status.log
 verb 3" >>/etc/openvpn/server.conf
 
@@ -1014,8 +1060,16 @@ WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 
 	# Enable service and apply rules
 	systemctl daemon-reload
-	systemctl enable iptables-openvpn
-	systemctl start iptables-openvpn
+	
+	if [[ $OS == 'centos' ]]; then
+	    /etc/iptables/add-openvpn-rules.sh
+		sed -i '/\/etc\/iptables\/add-openvpn-rules.sh/d' /etc/rc.d/rc.local
+		echo "/etc/iptables/add-openvpn-rules.sh" >> /etc/rc.d/rc.local
+		chmod +x /etc/rc.d/rc.local
+	else
+		systemctl enable iptables-openvpn
+		systemctl start iptables-openvpn
+	fi
 
 	# If the server is behind a NAT, use the correct IP address for the clients to connect to
 	if [[ $ENDPOINT != "" ]]; then
@@ -1050,6 +1104,40 @@ verb 3" >>/etc/openvpn/client-template.txt
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
 		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/client-template.txt
+	fi
+
+	if [[ $ENABLE_2FACTOR_AUTH == 'y' ]]; then
+		yum install -y pam-devel libtool git qrencode
+		if [[ ! -d /usr/src ]]; then
+			mkdir /usr/src
+		fi
+		cd /usr/src
+		git clone https://github.com/google/google-authenticator-libpam
+		cd google-authenticator-libpam
+		./bootstrap.sh
+		./configure
+		make && make install
+		# check if installation succeeded
+		if [ $? -eq 0 ]; then
+			cd /etc/openvpn
+			rm -rf /usr/src/google-authenticator-libpam
+			# if installation succeeded, continue configuration
+			echo "plugin /usr/lib64/openvpn/plugins/openvpn-plugin-auth-pam.so openvpn" >>/etc/openvpn/server.conf
+			if [[ -f /etc/pam.d/openvpn ]]; then
+				mv /etc/pam.d/openvpn /etc/pam.d/openvpn.bak
+			fi
+			echo "# google auth
+auth        required    /usr/local/lib/security/pam_google_authenticator.so secret=/etc/openvpn/clients/\$\{USER\}/.google_authenticator
+auth        required    pam_tally2.so onerr=fail deny=6 unlock_time=600
+account     required    pam_tally2.so
+account     required    pam_nologin.so
+account     include     system-auth
+password    include     system-auth
+session     include     system-auth" >/etc/pam.d/openvpn
+		else
+			# if google-authenticator-libpam installed failed, prompt
+			echo "google-authenticator-libpam installed failed"
+		fi
 	fi
 
 	# Generate the custom client.ovpn
@@ -1149,6 +1237,41 @@ function newClient() {
 		esac
 	} >>"$homeDir/$CLIENT.ovpn"
 
+	# Determine whether two-factor authentication is enabled by 
+	# checking if the configuration file of the OpenVPN server contains the specified configuration item.
+	if grep -Pqs '^\s*plugin /usr/lib64/openvpn/plugins/openvpn-plugin-auth-pam\.so\s+openvpn(?:\s*(?:;|#).*)?$' /etc/openvpn/server.conf; then
+		sed -i '/auth-nocache/ a\auth-user-pass' "$homeDir/$CLIENT.ovpn"
+		local reneg_sec
+		reneg_sec=$(sed -n '/^\s*reneg-sec\s*[0-9]\+/p' /etc/openvpn/server.conf)
+		if [[ -n "$reneg_sec" ]]; then
+			sed -i "/auth-user-pass/ a\\$reneg_sec" "$homeDir/$CLIENT.ovpn"
+		fi
+		local client_otp_path=/etc/openvpn/clients/${CLIENT}
+		mkdir -p "$client_otp_path"
+		# create a new local user
+		local client_pass
+		client_pass=$(head -n 4096 /dev/urandom | tr -dc a-zA-Z0-9 | cut -b 1-20)
+		useradd -m "${CLIENT}"
+		echo "$client_pass" | passwd --stdin "${CLIENT}"
+		echo "$client_pass" >"$client_otp_path/sshpass.txt"
+		local random_mark
+		random_mark=$(head -n 4096 /dev/urandom | tr -dc a-zA-Z0-9 | cut -b 1-20)
+		cp /etc/pam.d/su "/etc/pam.d/su.$random_mark.bak"
+		sed -i '/^\s*[^#]*pam_wheel\.so/s/^/#/g' /etc/pam.d/su
+		# run the google authenticator as the local user and save the code
+		su "${CLIENT}" -c "/usr/local/bin/google-authenticator -C -t -f -D -r 3 -Q UTF8 -R 30 -w3" >"$client_otp_path/authenticator_code.txt"
+		cp -f "/etc/pam.d/su.$random_mark.bak" /etc/pam.d/su
+		rm -f "/etc/pam.d/su.$random_mark.bak"
+		# ensure that openvpn has access to .google_authenticator file
+		cp "/home/${CLIENT}/.google_authenticator" "$client_otp_path/.google_authenticator"
+		# set owner and group of client otp folder to ensure pam_google_authenticator has permission to access .google_authenticator file when doing verification.
+		chown -R "${CLIENT}":"${CLIENT}" "$client_otp_path"
+		local otp
+		otp=$(grep -oP 'otpauth://.+$' "$client_otp_path/authenticator_code.txt" | sed 's/%3F/?/g; s/%3D/=/g; s/%26/\&/g')
+		# display QR code in terminal
+		echo "$otp" | qrencode -t UTF8
+	fi
+	
 	echo ""
 	echo "The configuration file has been written to $homeDir/$CLIENT.ovpn."
 	echo "Download the .ovpn file and import it in your OpenVPN client."
@@ -1185,6 +1308,30 @@ function revokeClient() {
 	rm -f "/root/$CLIENT.ovpn"
 	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
 	cp /etc/openvpn/easy-rsa/pki/index.txt{,.bk}
+	sed -i "/\/CN=$CLIENT$/d" /etc/openvpn/easy-rsa/pki/index.txt
+	local exists_google_authenticator
+	if [[ -f "/etc/openvpn/clients/$CLIENT/.google_authenticator" ]]; then
+		exists_google_authenticator=true
+	else
+		exists_google_authenticator=false
+	fi
+	local exists_system_user
+	if id -u "$CLIENT" >/dev/null 2>&1; then
+		exists_system_user=true
+	else
+		exists_system_user=false
+	fi
+	if ${exists_google_authenticator} && ${exists_system_user}; then
+		echo "It has been detected that this user has enabled two-factor authentication and is associated with a system user."
+		local del_user
+		until [[ $del_user =~ (y|n) ]]; do
+			read -rp "Do you want to delete system user? [y/n]: " -e del_user
+		done
+		if [[ $del_user == 'y' ]]; then
+			userdel -r "$CLIENT"
+		fi
+	fi
+	rm -rf "/etc/openvpn/clients/$CLIENT"
 
 	echo ""
 	echo "Certificate for client $CLIENT revoked."
@@ -1250,12 +1397,19 @@ function removeOpenVPN() {
 			rm /etc/systemd/system/openvpn\@.service
 		fi
 
-		# Remove the iptables rules related to the script
-		systemctl stop iptables-openvpn
-		# Cleanup
-		systemctl disable iptables-openvpn
+	
+		if [[ $OS == 'centos' ]]; then
+			/etc/iptables/rm-openvpn-rules.sh
+			sed -i '/\/etc\/iptables\/add-openvpn-rules.sh/d' /etc/rc.d/rc.local
+		else
+			# Remove the iptables rules related to the script
+			systemctl stop iptables-openvpn
+			# Cleanup
+			systemctl disable iptables-openvpn
+		fi
 		rm /etc/systemd/system/iptables-openvpn.service
 		systemctl daemon-reload
+		
 		rm /etc/iptables/add-openvpn-rules.sh
 		rm /etc/iptables/rm-openvpn-rules.sh
 
@@ -1289,6 +1443,7 @@ function removeOpenVPN() {
 		rm -rf /usr/share/doc/openvpn*
 		rm -f /etc/sysctl.d/99-openvpn.conf
 		rm -rf /var/log/openvpn
+		rm -f /etc/pam.d/openvpn
 
 		# Unbound
 		if [[ -e /etc/unbound/openvpn.conf ]]; then
