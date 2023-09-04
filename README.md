@@ -356,3 +356,11 @@ This project is under the [MIT Licence](https://raw.githubusercontent.com/Angris
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=angristan/openvpn-install&type=Date)](https://star-history.com/#angristan/openvpn-install&Date)
+
+## Enable Multiple connection per user
+
+Add this line in your /etc/openvpn/server.conf file :
+
+duplicate-cn
+
+It will let you have multiple sessions per user, as exemple if you have user_1, you connect a first time with its profile, you will be connected and get the IP 10.1.0.1 ( let's say that you have the 10.1.0.0/24 range for this exemple), then if you connect with this profile a second time, you will get the IP 10.1.0.2, or any available address that is not used at this moment, etc...
