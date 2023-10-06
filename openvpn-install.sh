@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC1091,SC2164,SC2034,SC1072,SC1073,SC1009
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, Rocky Linux and AlmaLinux.
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, ALT Linux, Rocky Linux and AlmaLinux.
 # https://github.com/angristan/openvpn-install
 
 function isRoot() {
@@ -84,6 +84,10 @@ function checkOS() {
 				exit 1
 			fi
 		fi
+		if [[ $ID == "altlinux" ]]; then
+			OS="altlinux"
+			echo $OS
+		fi
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
@@ -108,7 +112,7 @@ function installUnbound() {
 	# If Unbound isn't installed, install it
 	if [[ ! -e /etc/unbound/unbound.conf ]]; then
 
-		if [[ $OS =~ (debian|ubuntu) ]]; then
+		if [[ $OS =~ (debian|ubuntu|altlinux) ]]; then
 			apt-get install -y unbound
 
 			# Configuration
@@ -137,10 +141,17 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 			sed -i 's|# access-control: 127.0.0.0/8 allow|access-control: 10.8.0.1/24 allow|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-identity: no|hide-identity: yes|' /etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
-			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
+			sed -i 's|# use-caps-for-id: no|use-caps-for-id: yes|'
 
 		elif [[ $OS == "arch" ]]; then
 			pacman -Syu --noconfirm unbound
+			# Configuration
+			echo 'interface: 10.8.0.1
+access-control: 10.8.0.1/24 allow
+hide-identity: yes
+hide-version: yes
+use-caps-for-id: yes
+prefetch: yes' >>/etc/unbound/unbound.conf
 
 			# Get root servers list
 			curl -o /etc/unbound/root.hints https://www.internic.net/domain/named.cache
@@ -687,6 +698,8 @@ function installOpenVPN() {
 			yum install -y openvpn iptables openssl wget ca-certificates curl
 		elif [[ $OS == 'fedora' ]]; then
 			dnf install -y openvpn iptables openssl wget ca-certificates curl policycoreutils-python-utils
+		elif [[ $OS == 'altlinux' ]]; then
+			apt-get install -y openvpn wget easy-rsa openssl ca-certificates
 		elif [[ $OS == 'arch' ]]; then
 			# Install required dependencies and upgrade the system
 			pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
@@ -936,6 +949,18 @@ verb 3" >>/etc/openvpn/server.conf
 		systemctl daemon-reload
 		systemctl enable openvpn-server@server
 		systemctl restart openvpn-server@server
+
+		# For altlinux
+	elif [[ $OS == "altlinux" ]]; then
+		echo '#!/bin/bash
+   # Startup file for OpenVPN
+   openvpn /etc/openvpn/server.conf &
+   # Load tun module
+   /sbin/modprobe tun >/dev/null 2>&1
+   sleep 1s' >> /etc/openvpn/openvpn-startup
+		systemctl enable openvpn
+		systemctl start openvpn
+
 	elif [[ $OS == "ubuntu" ]] && [[ $VERSION_ID == "16.04" ]]; then
 		# On Ubuntu 16.04, we use the package from the OpenVPN repo
 		# This package uses a sysvinit service
@@ -1205,7 +1230,7 @@ function removeUnbound() {
 		# Stop Unbound
 		systemctl stop unbound
 
-		if [[ $OS =~ (debian|ubuntu) ]]; then
+		if [[ $OS =~ (debian|ubuntu|altlinux) ]]; then
 			apt-get remove --purge -y unbound
 		elif [[ $OS == 'arch' ]]; then
 			pacman --noconfirm -R unbound
@@ -1243,6 +1268,9 @@ function removeOpenVPN() {
 		elif [[ $OS == "ubuntu" ]] && [[ $VERSION_ID == "16.04" ]]; then
 			systemctl disable openvpn
 			systemctl stop openvpn
+		elif [[ $OS == "altlinux" ]]; then
+			systemctl disable openvpn
+			systemctl stop openvpn
 		else
 			systemctl disable openvpn@server
 			systemctl stop openvpn@server
@@ -1268,7 +1296,7 @@ function removeOpenVPN() {
 			fi
 		fi
 
-		if [[ $OS =~ (debian|ubuntu) ]]; then
+		if [[ $OS =~ (debian|ubuntu|altlinux) ]]; then
 			apt-get remove --purge -y openvpn
 			if [[ -e /etc/apt/sources.list.d/openvpn.list ]]; then
 				rm /etc/apt/sources.list.d/openvpn.list
