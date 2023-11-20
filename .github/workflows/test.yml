@@ -14,7 +14,6 @@ jobs:
         os-image:
           - debian-10-x64
           - debian-11-x64
-          - ubuntu-18-04-x64
           - ubuntu-20-04-x64
           - ubuntu-22-04-x64
           - fedora-35-x64
