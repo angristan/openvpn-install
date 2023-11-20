@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - master
+      - ci
 
 name: Test
 jobs:
@@ -13,16 +14,14 @@ jobs:
         os-image:
           - debian-10-x64
           - debian-11-x64
-          - ubuntu-18-04-x64
+          - debian-12-x64
           - ubuntu-20-04-x64
           - ubuntu-22-04-x64
-          - fedora-35-x64
-          # - fedora-36-x64
-          # - fedora-37-x64
-          # dnf is broken: https://ask.fedoraproject.org/t/dnf-operations-use-large-amount-of-ram-and-may-fail-in-low-memory-environments/26427
+          - fedora-37-x64
+          - fedora-38-x64
           - centos-7-x64
           - centos-stream-8-x64
-          - centos-stream-9-x64
+          # - centos-stream-9-x64 # yum oomkill
     steps:
       - uses: actions/checkout@v3.2.0
 
