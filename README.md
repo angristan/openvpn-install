@@ -117,21 +117,21 @@ The script supports these Linux distributions:
 
 |                    | Support |
 | ------------------ | ------- |
-| AlmaLinux 8        | ✅       |
-| Amazon Linux 2     | ✅       |
-| Arch Linux         | ✅       |
-| CentOS 7           | ✅ 🤖     |
-| CentOS Stream >= 8 | ✅ 🤖     |
-| Debian >= 10       | ✅ 🤖     |
-| Fedora >= 35       | ✅ 🤖     |
-| Oracle Linux 8     | ✅       |
-| Rocky Linux 8      | ✅       |
-| Ubuntu >= 18.04    | ✅ 🤖     |
+| AlmaLinux 8        | ✅      |
+| Amazon Linux 2     | ✅      |
+| Arch Linux         | ✅      |
+| CentOS 7           | ✅ 🤖   |
+| CentOS Stream >= 8 | ✅ 🤖   |
+| Debian >= 10       | ✅ 🤖   |
+| Fedora >= 35       | ✅ 🤖   |
+| Oracle Linux 8     | ✅      |
+| Rocky Linux 8      | ✅      |
+| Ubuntu >= 18.04    | ✅ 🤖   |
 
 To be noted:
 
 - The script is regularly tested against the distributions marked with a 🤖 only.
-  - It's only test on `amd64` architecture.
+  - It's only tested on `amd64` architecture.
 - It should work on older versions such as Debian 8+, Ubuntu 16.04+ and previous Fedora releases. But versions not in the table above are not officially supported.
   - It should also support versions between the LTS versions, but these are not tested.
 - The script requires `systemd`.
