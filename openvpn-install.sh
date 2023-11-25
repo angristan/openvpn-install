@@ -1156,6 +1156,41 @@ function newClient() {
 	exit 0
 }
 
+function removeClient() {
+	CLIENTCOUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | wc -l)
+
+	echo "Select the existing client to delete:"
+	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | cut -d '=' -f 2 | nl -s ') '
+
+	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $CLIENTCOUNT ]]; do
+			if [[ $CLIENTNUMBER == '1' ]]; then
+					read -rp "Select a client [1]: " CLIENTNUMBER
+			else
+					read -rp "Select a client [1-$CLIENTCOUNT]: " CLIENTNUMBER
+			fi
+	done
+
+	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	CLIENTID=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | awk '{print $(NF-2)}' | sed -n "$CLIENTNUMBER"p)
+
+	echo "Removing the client..."
+
+	# Remove $CLIENT and $CLIENTID related files
+	rm -f "/root/$CLIENT.ovpn"
+	find /etc/openvpn -name "$CLIENT*" -type f -delete
+	find /etc/openvpn -name "$CLIENTID*" -type f -delete
+
+	# Remove entries in ipp.txt
+	cp /etc/openvpn/ipp.txt{,.bk}
+	sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
+
+	# Remove entries in index.txt
+	cp /etc/openvpn/easy-rsa/pki/index.txt{,.bk}
+	sed -i "/.*$CLIENT$/d" /etc/openvpn/easy-rsa/pki/index.txt
+
+	echo "The client \"$CLIENT\" has been removed successfully."
+}
+
 function revokeClient() {
 	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
 	if [[ $NUMBEROFCLIENTS == '0' ]]; then
@@ -1311,10 +1346,11 @@ function manageMenu() {
 	echo "What do you want to do?"
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
-	echo "   3) Remove OpenVPN"
-	echo "   4) Exit"
-	until [[ $MENU_OPTION =~ ^[1-4]$ ]]; do
-		read -rp "Select an option [1-4]: " MENU_OPTION
+	echo "   3) Remove existing user"
+	echo "   4) Remove OpenVPN"
+	echo "   5) Exit"
+	until [[ $MENU_OPTION =~ ^[1-5]$ ]]; do
+		read -rp "Select an option [1-5]: " MENU_OPTION
 	done
 
 	case $MENU_OPTION in
@@ -1324,10 +1360,12 @@ function manageMenu() {
 	2)
 		revokeClient
 		;;
-	3)
-		removeOpenVPN
+	3)	removeClient
 		;;
 	4)
+		removeOpenVPN
+		;;
+	5)
 		exit 0
 		;;
 	esac
