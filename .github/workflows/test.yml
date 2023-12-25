@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - master
+      - ci
 
 name: Test
 jobs:
@@ -11,16 +12,18 @@ jobs:
     strategy:
       matrix:
         os-image:
-          - debian-9-x64
           - debian-10-x64
           - debian-11-x64
-          - ubuntu-18-04-x64
+          - debian-12-x64
           - ubuntu-20-04-x64
-          - fedora-35-x64
+          - ubuntu-22-04-x64
+          - fedora-37-x64
+          - fedora-38-x64
           - centos-7-x64
           - centos-stream-8-x64
+          # - centos-stream-9-x64 # yum oomkill
     steps:
-      - uses: actions/checkout@v3.0.2
+      - uses: actions/checkout@v3.2.0
 
       - name: Setup doctl
         uses: digitalocean/action-doctl@v2
@@ -50,7 +53,7 @@ jobs:
 
       - name: Setup remote server (Debian/Ubuntu)
         if: steps.server_os.outputs.value == 'debian' || steps.server_os.outputs.value == 'ubuntu'
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
@@ -59,7 +62,7 @@ jobs:
 
       - name: Setup remote server (Fedora)
         if: steps.server_os.outputs.value == 'fedora'
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
@@ -68,7 +71,7 @@ jobs:
 
       - name: Setup remote server (CentOS)
         if: steps.server_os.outputs.value == 'centos'
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
@@ -76,15 +79,15 @@ jobs:
           script: set -x && yum install -y git
 
       - name: Download repo and checkout current commit
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
           key: ${{ secrets.SSH_KEY }}
-          script: set -x && git clone https://github.com/angristan/openvpn-install.git && cd openvpn-install && git checkout ${{ github.event.pull_request.head.sha }}
+          script: set -x && git clone https://github.com/angristan/openvpn-install.git && cd openvpn-install && git checkout ${{ github.sha }}
 
       - name: Run openvpn-install.sh in headless mode
-        uses: appleboy/ssh-action@v0.1.4
+        uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
