@@ -10,6 +10,13 @@ This script will let you setup your own secure VPN server in just a few seconds.
 
 You can also check out [wireguard-install](https://github.com/angristan/wireguard-install), a simple installer for a simpler, safer, faster and more modern VPN protocol.
 
+
+##  One-Stop Solutions for the Public Cloud
+
+Solutions that provision a ready to use OpenVPN server based on `openvpn-install` in one go are available for
+ - AWS using Terraform at [`openvpn-terraform-install`](https://github.com/dumrauf/openvpn-terraform-install) and described in [Ready to Use OpenVPN Servers in AWS For Everyone](https://www.how-hard-can-it.be/openvpn-server-install-terraform-aws/)
+
+
 ## Usage
 
 First, get the script and make it executable:
@@ -90,6 +97,18 @@ The following Bash script adds a new user `foo` to an existing OpenVPN configura
 export MENU_OPTION="1"
 export CLIENT="foo"
 export PASS="1"
+./openvpn-install.sh
+```
+
+### Headless User Removal
+
+The removal of an existing user can also be fully automated. Again, the key is to provide the (string) value of the `MENU_OPTION` variable along with the remaining mandatory variables before invoking the script.
+
+The following Bash script removes the existing user `bar` from an OpenVPN configuration
+```bash
+#!/bin/bash
+export MENU_OPTION="2"
+export CLIENT="bar"
 ./openvpn-install.sh
 ```
 
