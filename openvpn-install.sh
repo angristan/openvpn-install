@@ -310,6 +310,18 @@ function installQuestions() {
 		PROTOCOL="tcp"
 		;;
 	esac
+	if command -v "firewall-cmd" &> /dev/null
+	then
+		SUGGESTION=y
+	    echo "Command \"firewall-cmd\" has been detected."
+		until [[ $ADDPORT =~ (y|n) ]]; do
+			read -rp "Would you like to open port ${PORT} on firewalld? [y/n]: " -e -i $SUGGESTION ADDPORT
+		done
+		if [[ $ADDPORT == "y" ]]; then
+			firewall-cmd --add-port "${PORT}"/"${PROTOCOL}"
+			firewall-cmd --permanent --add-port "${PORT}"/"${PROTOCOL}"
+		fi
+	fi
 	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
