@@ -57,7 +57,7 @@ function checkOS() {
 		fi
 		if [[ $ID == "centos" || $ID == "rocky" || $ID == "almalinux" ]]; then
 			OS="centos"
-			if [[ ! $VERSION_ID =~ (7|8) ]]; then
+			if [[ ${VERSION_ID%.*} -lt 7 ]]; then
 				echo "⚠️ Your version of CentOS is not supported."
 				echo ""
 				echo "The script only support CentOS 7 and CentOS 8."
@@ -706,7 +706,7 @@ function installOpenVPN() {
 
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
-		local version="3.0.7"
+		local version="3.1.2"
 		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
 		mkdir -p /etc/openvpn/easy-rsa
 		tar xzf ~/easy-rsa.tgz --strip-components=1 --no-same-owner --directory /etc/openvpn/easy-rsa
@@ -729,18 +729,16 @@ function installOpenVPN() {
 		SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 		echo "$SERVER_NAME" >SERVER_NAME_GENERATED
 
-		echo "set_var EASYRSA_REQ_CN $SERVER_CN" >>vars
-
 		# Create the PKI, set up the CA, the DH params and the server certificate
 		./easyrsa init-pki
-		./easyrsa --batch build-ca nopass
+		./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
 
 		if [[ $DH_TYPE == "2" ]]; then
 			# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
 			openssl dhparam -out dh.pem $DH_KEY_SIZE
 		fi
 
-		./easyrsa build-server-full "$SERVER_NAME" nopass
+		./easyrsa --batch build-server-full "$SERVER_NAME" nopass
 		EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 
 		case $TLS_SIG in
@@ -1087,11 +1085,11 @@ function newClient() {
 		cd /etc/openvpn/easy-rsa/ || return
 		case $PASS in
 		1)
-			./easyrsa build-client-full "$CLIENT" nopass
+			./easyrsa --batch build-client-full "$CLIENT" nopass
 			;;
 		2)
 			echo "⚠️ You will be asked for the client password below ⚠️"
-			./easyrsa build-client-full "$CLIENT"
+			./easyrsa --batch build-client-full "$CLIENT"
 			;;
 		esac
 		echo "Client $CLIENT added."
