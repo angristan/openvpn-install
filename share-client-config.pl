@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# nu11secur1ty 2024
 use strict;
 use warnings;
 use diagnostics;
