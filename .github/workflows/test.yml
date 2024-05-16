@@ -59,7 +59,7 @@ jobs:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
           key: ${{ secrets.SSH_KEY }}
-          script: set -x && apt-get -o DPkg::Lock::Timeout=120 update && apt-get install -y git
+          script: set -x && apt-get update && apt-get -o DPkg::Lock::Timeout=120 install -y git
 
       - name: Setup remote server (Fedora)
         if: steps.server_os.outputs.value == 'fedora'
