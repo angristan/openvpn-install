@@ -3,6 +3,7 @@ on:
     branches:
       - master
       - ci
+  workflow_dispatch:
 
 name: Test
 jobs:
