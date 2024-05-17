@@ -228,12 +228,17 @@ function installQuestions() {
 	echo "Unless your server is behind NAT, it should be your public IPv4 address."
 
 	# Detect public IPv4 address and pre-fill for the user
-	IP=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+	if [[ -z $PUBLIC_IP ]]; then
+		IP=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
 
-	if [[ -z $IP ]]; then
-		# Detect public IPv6 address
-		IP=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+		if [[ -z $IP ]]; then
+			# Detect public IPv6 address
+			IP=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+		fi
+	else
+		IP="$PUBLIC_IP"
 	fi
+
 	APPROVE_IP=${APPROVE_IP:-n}
 	if [[ $APPROVE_IP =~ n ]]; then
 		read -rp "IP address: " -e -i "$IP" IP
@@ -627,12 +632,12 @@ function installOpenVPN() {
 
 		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
 		if [[ $IPV6_SUPPORT == "y" ]]; then
-			if ! PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused https://ip.seeip.org); then
-				PUBLIC_IP=$(dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
+			if ! PUBLIC_IP=$(dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"'); then
+				PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused https://ip.seeip.org)
 			fi
 		else
-			if ! PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused -4 https://ip.seeip.org); then
-				PUBLIC_IP=$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
+			if ! PUBLIC_IP=$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"'); then
+				PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused -4 https://ip.seeip.org)
 			fi
 		fi
 		ENDPOINT=${ENDPOINT:-$PUBLIC_IP}
