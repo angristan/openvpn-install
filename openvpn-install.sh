@@ -1076,8 +1076,8 @@ function newClient() {
 		read -rp "Select an option [1-2]: " -e -i 1 PASS
 	done
 
-	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c -E "/CN=$CLIENT\$")
-	if [[ $CLIENTEXISTS == '1' ]]; then
+	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
+	if [[ $CLIENTEXISTS != '0' ]]; then
 		echo ""
 		echo "The specified client CN was already found in easy-rsa, please choose another name."
 		exit
@@ -1177,6 +1177,7 @@ function revokeClient() {
 	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 	cd /etc/openvpn/easy-rsa/ || return
 	./easyrsa --batch revoke "$CLIENT"
+	./easyrsa upgrade ca
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
 	rm -f /etc/openvpn/crl.pem
 	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
