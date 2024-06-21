@@ -322,6 +322,15 @@ function installQuestions() {
 			firewall-cmd --permanent --add-port "${PORT}"/"${PROTOCOL}"
 		fi
 	fi
+
+	echo ""
+	echo "Option client-to-client allows clients to \"see\" eachother."
+	echo "Would you like to enable this option?"
+	SUGGESTION=y
+	until [[ $CLIENT_TO_CLIENT_OPTION =~ (y|n) ]]; do
+		read -rp "Enable client-to-client? [y/n]: " -e -i $SUGGESTION CLIENT_TO_CLIENT_OPTION
+	done
+
 	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
@@ -785,6 +794,10 @@ function installOpenVPN() {
 		echo "proto $PROTOCOL" >>/etc/openvpn/server.conf
 	elif [[ $IPV6_SUPPORT == 'y' ]]; then
 		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server.conf
+	fi
+
+	if [[ $CLIENT_TO_CLIENT_OPTION == "y" ]]; then
+		echo "client-to-client" >>/etc/openvpn/server.conf
 	fi
 
 	echo "dev tun
