@@ -3,6 +3,7 @@ on:
     branches:
       - master
       - ci
+  workflow_dispatch:
 
 name: Test
 jobs:
@@ -17,13 +18,13 @@ jobs:
           - debian-12-x64
           - ubuntu-20-04-x64
           - ubuntu-22-04-x64
-          - fedora-37-x64
-          - fedora-38-x64
+          - ubuntu-24-04-x64
+          - fedora-39-x64
           - centos-7-x64
           - centos-stream-8-x64
           # - centos-stream-9-x64 # yum oomkill
     steps:
-      - uses: actions/checkout@v3.2.0
+      - uses: actions/checkout@v4
 
       - name: Setup doctl
         uses: digitalocean/action-doctl@v2
@@ -58,7 +59,7 @@ jobs:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
           key: ${{ secrets.SSH_KEY }}
-          script: set -x && apt-get update && apt-get install -y git
+          script: set -x && apt-get update && apt-get -o DPkg::Lock::Timeout=120 install -y git
 
       - name: Setup remote server (Fedora)
         if: steps.server_os.outputs.value == 'fedora'

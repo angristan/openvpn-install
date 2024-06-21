@@ -1,4 +1,4 @@
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 name: Lint
 
@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3.2.0
+        uses: actions/checkout@v4
       - name: Lint Code Base
         uses: github/super-linter@v4.1.0
         env:
