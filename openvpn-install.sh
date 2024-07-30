@@ -79,11 +79,16 @@ function checkOS() {
 			if [[ $VERSION_ID != "2" ]]; then
 				echo "⚠️ Your version of Amazon Linux is not supported."
 				echo ""
-				echo "The script only support Amazon Linux 2."
+				echo "However, if you're using Amazon Linux >= 2023 or beta, then you can continue, at your own risk."
 				echo ""
-				exit 1
+				until [[ $CONTINUE =~ (y|n) ]]; do
+					read -rp "Continue? [y/n]: " -e CONTINUE
+				done
+				if [[ $CONTINUE == "n" ]]; then
+					exit 1
 			fi
 		fi
+	fi
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
@@ -683,8 +688,25 @@ function installOpenVPN() {
 			yum-config-manager --enable ol8_developer_EPEL
 			yum install -y openvpn iptables openssl wget ca-certificates curl tar policycoreutils-python-utils
 		elif [[ $OS == 'amzn' ]]; then
-			amazon-linux-extras install -y epel
-			yum install -y openvpn iptables openssl wget ca-certificates curl
+			if [[ $VERSION_ID == "2023" ]]; then
+				# Add Fedora 36 repository because Amazon Linux 2023 is based on Fedora 34, 35, 36
+				sudo tee /etc/yum.repos.d/fedora.repo <<EOF
+[fedora]
+name=Fedora 36 - $basearch
+baseurl=https://archives.fedoraproject.org/pub/archive/fedora/linux/releases/36/Everything/\$basearch/os/
+enabled=1
+metadata_expire=7d
+gpgcheck=1
+gpgkey=https://getfedora.org/static/fedora.gpg
+       https://src.fedoraproject.org/rpms/fedora-repos/raw/f36/f/RPM-GPG-KEY-fedora-36-primary
+skip_if_unavailable=False
+EOF
+        yum install -y iptables openssl wget ca-certificates			
+    	yum install -y openvpn pkcs11-helper --enablerepo=fedora 
+			else
+				amazon-linux-extras install -y epel
+				yum install -y openvpn iptables openssl wget ca-certificates curl
+			fi
 		elif [[ $OS == 'fedora' ]]; then
 			dnf install -y openvpn iptables openssl wget ca-certificates curl policycoreutils-python-utils
 		elif [[ $OS == 'arch' ]]; then
@@ -696,6 +718,23 @@ function installOpenVPN() {
 			rm -rf /etc/openvpn/easy-rsa/
 		fi
 	fi
+
+	# For Amazon Linux 2023, create /etc/systemd/system/openvpn@.service.
+	if [[ $OS == 'amzn'&& $VERSION_ID == "2023" ]]; then
+		echo "[Unit]
+Description=OpenVPN Robust And Highly Flexible Tunneling Application On %I
+After=network.target
+
+[Service]
+Type=notify
+PrivateTmp=true
+ExecStart=/usr/sbin/openvpn --cd /etc/openvpn/ --config %i.conf
+
+[Install]
+WantedBy=multi-user.target" >/usr/lib/systemd/system/openvpn@.service
+
+sudo systemctl daemon-reload
+fi
 
 	# Find out if the machine uses nogroup or nobody for the permissionless group
 	if grep -qs "^nogroup:" /etc/group; then
