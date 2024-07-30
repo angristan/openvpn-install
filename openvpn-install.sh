@@ -1095,21 +1095,27 @@ function newClient() {
 		echo "Client $CLIENT added."
 	fi
 
-	# Home directory of the user, where the client configuration will be written
-	if [ -e "/home/${CLIENT}" ]; then
-		# if $1 is a user name
-		homeDir="/home/${CLIENT}"
-	elif [ "${SUDO_USER}" ]; then
-		# if not, use SUDO_USER
-		if [ "${SUDO_USER}" == "root" ]; then
-			# If running sudo as root
-			homeDir="/root"
+	if [[ -z "$CLIENT_FILEPATH" ]]; then
+		# Home directory of the user, where the client configuration will be written
+		if [ -e "/home/${CLIENT}" ]; then
+			# if $1 is a user name
+			homeDir="/home/${CLIENT}"
+			CLIENT_OWNER="$CLIENT"
+		elif [ "${SUDO_USER}" ]; then
+			# if not, use SUDO_USER
+			if [ "${SUDO_USER}" == "root" ]; then
+				# If running sudo as root
+				homeDir="/root"
+			else
+				homeDir="/home/${SUDO_USER}"
+			fi
+			CLIENT_OWNER="$SUDO_USER"
 		else
-			homeDir="/home/${SUDO_USER}"
+			# if not SUDO_USER, use /root
+			homeDir="/root"
 		fi
-	else
-		# if not SUDO_USER, use /root
-		homeDir="/root"
+
+		CLIENT_FILEPATH="$homeDir/$CLIENT.ovpn"
 	fi
 
 	# Determine if we use tls-auth or tls-crypt
@@ -1120,7 +1126,7 @@ function newClient() {
 	fi
 
 	# Generates the custom client.ovpn
-	cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
+	cp /etc/openvpn/client-template.txt "$CLIENT_FILEPATH"
 	{
 		echo "<ca>"
 		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
@@ -1147,10 +1153,18 @@ function newClient() {
 			echo "</tls-auth>"
 			;;
 		esac
-	} >>"$homeDir/$CLIENT.ovpn"
+	} >>"$CLIENT_FILEPATH"
+
+	if [[ -n "$CLIENT_OWNER" ]]; then
+		echo "Setting owner permission for $CLIENT_FILEPATH"
+		CLIENT_OWNER_GROUP=$(id -gn "$CLIENT_OWNER")
+
+		chmod go-rw "$CLIENT_FILEPATH"
+		chown "$CLIENT_OWNER:$CLIENT_OWNER_GROUP" "$CLIENT_FILEPATH"
+	fi
 
 	echo ""
-	echo "The configuration file has been written to $homeDir/$CLIENT.ovpn."
+	echo "The configuration file has been written to $CLIENT_FILEPATH."
 	echo "Download the .ovpn file and import it in your OpenVPN client."
 
 	exit 0
