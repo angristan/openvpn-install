@@ -1103,13 +1103,13 @@ function newClient() {
 		# if not, use SUDO_USER
 		if [ "${SUDO_USER}" == "root" ]; then
 			# If running sudo as root
-			homeDir="/root"
+			homeDir="/etc/openvpn/client/"
 		else
 			homeDir="/home/${SUDO_USER}"
 		fi
 	else
 		# if not SUDO_USER, use /root
-		homeDir="/root"
+		homeDir="/etc/openvpn/client"
 	fi
 
 	# Determine if we use tls-auth or tls-crypt
@@ -1147,9 +1147,11 @@ function newClient() {
 			echo "</tls-auth>"
 			;;
 		esac
+		# $homeDir
 	} >>"$homeDir/$CLIENT.ovpn"
 
 	echo ""
+	# $homeDir
 	echo "The configuration file has been written to $homeDir/$CLIENT.ovpn."
 	echo "Download the .ovpn file and import it in your OpenVPN client."
 
