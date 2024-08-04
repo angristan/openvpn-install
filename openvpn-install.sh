@@ -311,6 +311,29 @@ function installQuestions() {
 		;;
 	esac
 	echo ""
+	echo "Do wou want to specify a custom LAN network an subnet?"
+	echo "   1) NO (will use 10.8.0.0 and 255.255.255.0)"
+	echo "   2) YES"
+	until [[ $LAN_IP_CHOICE  =~ ^[1-2]$ ]]; do
+		read -rp "Choice [1-2]: " -e -i 1 LAN_IP_CHOICE
+	done
+	case $LAN_IP_CHOICE in
+	1)
+		LAN_IP="10.8.0.0"
+		LAN_SUBNET_MASK="255.255.255.0"
+		;;
+	2)
+		until [[ $LAN_IP  =~ "" ]]; do
+			read -rp "IP NETWORK (e.g. 192.168.4.0): " -e -i 1 LAN_IP
+		done
+		echo "NETWORK SET TO $LAN_IP"
+		until [[ $LAN_SUBNET_MASK  =~ "" ]]; do
+			read -rp "SUBNET (e.g. 255.255.255.0) : " -e -i 1 LAN_SUBNET_MASK
+                done
+		echo "SUBNET SET TO $LAN_SUBNET_MASK"
+		;;
+	esac
+	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
 	echo "   2) Self-hosted DNS Resolver (Unbound)"
@@ -618,6 +641,7 @@ function installOpenVPN() {
 		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
+		LAN_IP_CHOICE=${LAN_IP_CHOICE:-1}
 		DNS=${DNS:-1}
 		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
@@ -782,7 +806,7 @@ persist-key
 persist-tun
 keepalive 10 120
 topology subnet
-server 10.8.0.0 255.255.255.0
+server $LAN_IP $LAN_SUBNET_MASK
 ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 
 	# DNS resolvers
