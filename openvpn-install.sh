@@ -283,9 +283,12 @@ function installQuestions() {
 		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
 		echo "We need it for the clients to connect to the server."
 
+		if [[ -z $ENDPOINT ]]; then
+			DEFAULT_ENDPOINT=$(resolvePublicIP)
+		fi
+
 		until [[ $ENDPOINT != "" ]]; do
-			PUBLIC_IP=$(resolvePublicIP)
-			read -rp "Public IPv4 address or hostname: " -e -i "$PUBLIC_IP" ENDPOINT
+			read -rp "Public IPv4 address or hostname: " -e -i "$DEFAULT_ENDPOINT" ENDPOINT
 		done
 	fi
 
@@ -664,9 +667,9 @@ function installOpenVPN() {
 		PASS=${PASS:-1}
 		CONTINUE=${CONTINUE:-y}
 
-		until [[ $ENDPOINT != "" ]]; do
+		if [[ -z $ENDPOINT ]]; then
 			ENDPOINT=$(resolvePublicIP)
-		done
+		fi
 	fi
 
 	# Run setup questions first, and set other variables if auto-install
