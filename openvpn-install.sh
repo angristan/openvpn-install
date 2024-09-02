@@ -784,7 +784,7 @@ function installOpenVPN() {
 	fi
 
  	if [[ $MULTI_CLIENT == "y" ]]; then
-    	echo "-cn" >>/etc/openvpn/server.conf
+    	echo "duplicate-cn" >>/etc/openvpn/server.conf
 	fi
 
 	echo "dev tun
