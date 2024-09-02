@@ -356,20 +356,13 @@ function installQuestions() {
 		fi
 	done
 	echo ""
-	echo "Do you want the same client ovpn to connect for multiple clients?"
-	echo "   1) Yes"
-	echo "   2) No"
-	until [[ $MULTI_CLIENT_CHOICE =~ ^[1-2]$ ]]; do
-		read -rp "Choice [1-2]: " -e -i 2 MULTI_CLIENT_CHOICE
-	done
-	case $MULTI_CLIENT_CHOICE in
-	1)
-		MULTI_CLIENT="yes"
-		;;
-	2)
-		MULTI_CLIENT="no"
-		;;
-	esac
+	echo "Do you want the same client .ovpn file to connect multiple clients? (This will add 'duplicate-cn' in the server.conf) [y/n]: "
+
+ 	if [[ $MULTI_CLIENT_CHOICE =~ ^[Yy]$ ]]; then
+    	MULTI_CLIENT="y"
+	else
+    	MULTI_CLIENT="n"
+	fi
 	echo ""
 	echo "Do you want to use compression? It is not recommended since the VORACLE attack makes use of it."
 	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
@@ -790,8 +783,8 @@ function installOpenVPN() {
 		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server.conf
 	fi
 
- 	if [[ $MULTI_CLIENT == "yes" ]]; then
-    	echo "duplicate-cn" >>/etc/openvpn/server.conf
+ 	if [[ $MULTI_CLIENT == "y" ]]; then
+    	echo "-cn" >>/etc/openvpn/server.conf
 	fi
 
 	echo "dev tun
