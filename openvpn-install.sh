@@ -356,9 +356,9 @@ function installQuestions() {
 		fi
 	done
 	echo ""
-	echo "Do you want the same client .ovpn file to connect multiple clients? (This will add 'duplicate-cn' in the server.conf) [y/n]: "
+	read -rp "Do you want the same client .ovpn file to connect multiple clients? (This will add 'duplicate-cn' in the server.conf) [y/n]: " -e -i n MULTI_CLIENT_CHOICE
 
- 	if [[ $MULTI_CLIENT_CHOICE =~ ^[Yy]$ ]]; then
+	if [[ $MULTI_CLIENT_CHOICE =~ ^[Yy]$ ]]; then
     	MULTI_CLIENT="y"
 	else
     	MULTI_CLIENT="n"
