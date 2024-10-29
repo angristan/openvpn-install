@@ -917,6 +917,8 @@ tls-version-min 1.2
 tls-cipher $CC_CIPHER
 client-config-dir /etc/openvpn/ccd
 status /var/log/openvpn/status.log
+#silence repeating messages
+mute 20
 verb 3" >>/etc/openvpn/server.conf
 
 	# Create client-config-dir dir
@@ -1030,6 +1032,10 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 
+    # resolve slow UDP traffic
+    sysctl -w net.core.rmem_max=${SRV_BUFF_SIZE_MAX:-8388608} # 8Mb
+    sysctl -w net.core.rmem_default=${SRV_BUFF_SIZE_DEFAULT:-262144} #256k
+
 	# Enable service and apply rules
 	systemctl daemon-reload
 	systemctl enable iptables-openvpn
@@ -1064,6 +1070,9 @@ tls-version-min 1.2
 tls-cipher $CC_CIPHER
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
+mute 20 #silence repeating messages
+sndbuf ${CLIENT_BUFF_SIZE:-262144} #Set the TCP/UDP socket send buffer size. Defaults to operating system default.
+rcvbuf ${CLIENT_BUFF_SIZE:-262144} #Set the TCP/UDP socket receive buffer size. Defaults to operating system default.
 verb 3" >>/etc/openvpn/client-template.txt
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
