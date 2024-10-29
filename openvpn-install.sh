@@ -601,11 +601,13 @@ function installQuestions() {
 			;;
 		esac
 		echo ""
-		echo "You can add an additional layer of security to the control channel with tls-auth and tls-crypt"
+		echo "You can add an additional layer of security to the control channel with tls-auth, tls-crypt or tls-crypt-v2"
 		echo "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them."
+		echo "The tls-crypt-v2 is like tls-crypt but uses private keys which makes it the most secure."
 		echo "   1) tls-crypt (recommended)"
 		echo "   2) tls-auth"
-		until [[ $TLS_SIG =~ [1-2] ]]; do
+		echo "   3) tls-crypt-v2"
+		until [[ $TLS_SIG =~ [1-3] ]]; do
 			read -rp "Control channel additional security mechanism [1-2]: " -e -i 1 TLS_SIG
 		done
 	fi
@@ -758,6 +760,11 @@ function installOpenVPN() {
 			# Generate tls-auth key
 			openvpn --genkey --secret /etc/openvpn/tls-auth.key
 			;;
+		3)
+			# Generate tls-crypt-v2 key
+			openvpn --genkey tls-crypt-v2-server /etc/openvpn/tls-crypt-v2.key
+			mkdir -p /etc/openvpn/keys-v2
+			;;
 		esac
 	else
 		# If easy-rsa is already installed, grab the generated SERVER_NAME
@@ -892,6 +899,9 @@ push "redirect-gateway ipv6"' >>/etc/openvpn/server.conf
 		;;
 	2)
 		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server.conf
+		;;
+	3)
+		echo "tls-crypt-v2 tls-crypt-v2.key" >>/etc/openvpn/server.conf
 		;;
 	esac
 
@@ -1121,7 +1131,9 @@ function newClient() {
 	fi
 
 	# Determine if we use tls-auth or tls-crypt
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
+	if grep -qs "^tls-crypt-v2" /etc/openvpn/server.conf; then
+		TLS_SIG="3"
+	elif grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
 		TLS_SIG="1"
 	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
 		TLS_SIG="2"
@@ -1153,6 +1165,12 @@ function newClient() {
 			echo "<tls-auth>"
 			cat /etc/openvpn/tls-auth.key
 			echo "</tls-auth>"
+			;;
+		3)
+			openvpn --tls-crypt-v2 /etc/openvpn/tls-crypt-v2.key --genkey tls-crypt-v2-client "/etc/openvpn/keys-v2/$CLIENT.key"
+            echo "<tls-crypt-v2>"
+			cat "/etc/openvpn/keys-v2/$CLIENT.key"
+			echo "</tls-crypt-v2>"
 			;;
 		esac
 	} >>"$homeDir/$CLIENT.ovpn"
