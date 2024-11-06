@@ -77,12 +77,12 @@ function checkOS() {
 		if [[ $ID == "amzn" ]]; then
 			if [[ $VERSION_ID == "2" ]]; then
 				OS="amzn"
-			elif [[ $VERSION_ID == "2023" ]]; then
+			elif [  "$(echo $PRETTY_NAME | cut -c 1-19)" == "Amazon Linux 2023.6" ]; then
 				OS="amzn2023"
 			else
 				echo "⚠️ Your version of Amazon Linux is not supported."
 				echo ""
-				echo "The script only support Amazon Linux 2."
+				echo "The script only support Amazon Linux 2 or Amazon Linux 2023.6"
 				echo ""
 				exit 1
 			fi
