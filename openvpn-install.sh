@@ -75,8 +75,11 @@ function checkOS() {
 			fi
 		fi
 		if [[ $ID == "amzn" ]]; then
-			OS="amzn"
-			if [[ $VERSION_ID != "2" ]]; then
+			if [[ $VERSION_ID == "2" ]]; then
+				OS="amzn"
+			elif [[ $VERSION_ID == "2023" ]]; then
+				OS="amzn2023"
+			else
 				echo "⚠️ Your version of Amazon Linux is not supported."
 				echo ""
 				echo "The script only support Amazon Linux 2."
@@ -719,6 +722,8 @@ function installOpenVPN() {
 		elif [[ $OS == 'amzn' ]]; then
 			amazon-linux-extras install -y epel
 			yum install -y openvpn iptables openssl wget ca-certificates curl
+		elif [[ $OS == 'amzn2023' ]]; then
+			dnf install -y openvpn iptables openssl wget ca-certificates
 		elif [[ $OS == 'fedora' ]]; then
 			dnf install -y openvpn iptables openssl wget ca-certificates curl policycoreutils-python-utils
 		elif [[ $OS == 'arch' ]]; then
@@ -958,7 +963,7 @@ verb 3" >>/etc/openvpn/server.conf
 	fi
 
 	# Finally, restart and enable OpenVPN
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' ]]; then
+	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' || $OS == 'amzn2023' ]]; then
 		# Don't modify package-provided service
 		cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
@@ -1376,3 +1381,4 @@ if [[ -e /etc/openvpn/server.conf && $AUTO_INSTALL != "y" ]]; then
 else
 	installOpenVPN
 fi
+
