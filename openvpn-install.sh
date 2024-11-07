@@ -229,17 +229,17 @@ function resolvePublicIP() {
 
 	# If there is no public ip yet, we'll try to solve it using: https://api.seeip.org
 	if [[ -z $PUBLIC_IP ]]; then
-		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused $CURL_IP_VERSION_FLAG https://api.seeip.org 2>/dev/null)
+		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused "$CURL_IP_VERSION_FLAG" https://api.seeip.org 2>/dev/null)
 	fi
 
 	# If there is no public ip yet, we'll try to solve it using: https://ifconfig.me
 	if [[ -z $PUBLIC_IP ]]; then
-		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused $CURL_IP_VERSION_FLAG https://ifconfig.me 2>/dev/null)
+		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused "$CURL_IP_VERSION_FLAG" https://ifconfig.me 2>/dev/null)
 	fi
 
 	# If there is no public ip yet, we'll try to solve it using: https://api.ipify.org
 	if [[ -z $PUBLIC_IP ]]; then
-		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused $CURL_IP_VERSION_FLAG https://api.ipify.org 2>/dev/null)
+		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused "$CURL_IP_VERSION_FLAG" https://api.ipify.org 2>/dev/null)
 	fi
 
 	# If there is no public ip yet, we'll try to solve it using: ns1.google.com
