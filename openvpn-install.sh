@@ -75,11 +75,14 @@ function checkOS() {
 			fi
 		fi
 		if [[ $ID == "amzn" ]]; then
-			OS="amzn"
-			if [[ $VERSION_ID != "2" ]]; then
+			if [[ $VERSION_ID == "2" ]]; then
+				OS="amzn"
+			elif [[ "$(echo $PRETTY_NAME | cut -c 1-19)" == "Amazon Linux 2023.6" ]]; then
+				OS="amzn2023"
+			else
 				echo "⚠️ Your version of Amazon Linux is not supported."
 				echo ""
-				echo "The script only support Amazon Linux 2."
+				echo "The script only support Amazon Linux 2 or Amazon Linux 2023.6"
 				echo ""
 				exit 1
 			fi
@@ -627,11 +630,11 @@ function installOpenVPN() {
 
 		# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
 		if [[ $IPV6_SUPPORT == "y" ]]; then
-			if ! PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused https://ip.seeip.org); then
+			if ! PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused https://api.seeip.org); then
 				PUBLIC_IP=$(dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
 			fi
 		else
-			if ! PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused -4 https://ip.seeip.org); then
+			if ! PUBLIC_IP=$(curl -f --retry 5 --retry-connrefused -4 https://api.seeip.org); then
 				PUBLIC_IP=$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
 			fi
 		fi
@@ -685,6 +688,8 @@ function installOpenVPN() {
 		elif [[ $OS == 'amzn' ]]; then
 			amazon-linux-extras install -y epel
 			yum install -y openvpn iptables openssl wget ca-certificates curl
+		elif [[ $OS == 'amzn2023' ]]; then
+			dnf install -y openvpn iptables openssl wget ca-certificates
 		elif [[ $OS == 'fedora' ]]; then
 			dnf install -y openvpn iptables openssl wget ca-certificates curl policycoreutils-python-utils
 		elif [[ $OS == 'arch' ]]; then
@@ -924,7 +929,7 @@ verb 3" >>/etc/openvpn/server.conf
 	fi
 
 	# Finally, restart and enable OpenVPN
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' ]]; then
+	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' || $OS == 'amzn2023' ]]; then
 		# Don't modify package-provided service
 		cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
