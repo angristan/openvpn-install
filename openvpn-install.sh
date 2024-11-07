@@ -248,7 +248,7 @@ function resolvePublicIP() {
 	fi
 
 	if [[ -z $PUBLIC_IP ]]; then
-		>&2 echo "Couldn't solve the public IP"
+		echo >&2 echo "Couldn't solve the public IP"
 		exit 1
 	fi
 
