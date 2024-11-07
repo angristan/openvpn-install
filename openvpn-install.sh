@@ -227,9 +227,9 @@ function resolvePublicIP() {
 		DIG_IP_VERSION_FLAG="-6"
 	fi
 
-	# If there is no public ip yet, we'll try to solve it using: https://ip.seeip.org
+	# If there is no public ip yet, we'll try to solve it using: https://api.seeip.org
 	if [[ -z $PUBLIC_IP ]]; then
-		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused $CURL_IP_VERSION_FLAG https://ip.seeip.org 2>/dev/null)
+		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused $CURL_IP_VERSION_FLAG https://api.seeip.org 2>/dev/null)
 	fi
 
 	# If there is no public ip yet, we'll try to solve it using: https://ifconfig.me
