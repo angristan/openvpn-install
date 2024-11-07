@@ -13,13 +13,12 @@ jobs:
     strategy:
       matrix:
         os-image:
-          - debian-10-x64
           - debian-11-x64
           - debian-12-x64
-          - ubuntu-20-04-x64
           - ubuntu-22-04-x64
           - ubuntu-24-04-x64
           - fedora-39-x64
+          - fedora-40-x64
           - centos-7-x64
           # - centos-stream-9-x64 # yum oomkill
     steps:
