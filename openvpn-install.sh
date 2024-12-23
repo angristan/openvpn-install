@@ -1087,8 +1087,10 @@ verb 3" >>/etc/openvpn/client-template.txt
 	fi
 
 	# Generate the custom client.ovpn
-	newClient
-	echo "If you want to add more clients, you simply need to run this script another time!"
+	if [[ -n "${CLIENT}" ]]; then
+		newClient
+		echo "If you want to add more clients, you simply need to run this script another time!"
+	fi
 }
 
 function newClient() {
@@ -1114,7 +1116,7 @@ function newClient() {
 	if [[ $CLIENTEXISTS == '1' ]]; then
 		echo ""
 		echo "The specified client CN was already found in easy-rsa, please choose another name."
-		exit
+		exit 1
 	else
 		cd /etc/openvpn/easy-rsa/ || return
 		case $PASS in
@@ -1200,7 +1202,15 @@ function revokeClient() {
 
 	echo ""
 	echo "Select the existing client certificate you want to revoke"
-	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+	pki_clientnumbers="$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') ')"
+
+	echo "${pki_clientnumbers}"
+
+	if [[ -n "${CLIENT}" ]]; then
+		# Get PKI client number
+		CLIENTNUMBER=$(echo "${pki_clientnumbers}" | grep "${CLIENT}" | cut -d')' -f1 | xargs)
+	fi
+
 	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
 		if [[ $CLIENTNUMBER == '1' ]]; then
 			read -rp "Select one client [1]: " CLIENTNUMBER
