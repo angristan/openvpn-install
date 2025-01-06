@@ -433,14 +433,22 @@ function installQuestions() {
 	done
 	if [[ $CUSTOMIZE_ENC == "n" ]]; then
 		# Use default, sane and fast parameters
-		CIPHER="AES-128-GCM"
-		CERT_TYPE="1" # ECDSA
-		CERT_CURVE="prime256v1"
-		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
-		DH_TYPE="1" # ECDH
-		DH_CURVE="prime256v1"
-		HMAC_ALG="SHA256"
-		TLS_SIG="1" # tls-crypt
+		CIPHER="${CIPHER:-AES-128-GCM}"
+		CERT_TYPE="${CERT_TYPE:-1}" # ECDSA
+		CERT_CURVE="${CERT_CURVE:-prime256v1}"
+		CC_CIPHER="${CC_CIPHER:-TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256}"
+		DH_TYPE="${DH_TYPE:-1}" # ECDH
+		DH_CURVE="${DH_CURVE:-prime256v1}"
+		HMAC_ALG="${HMAC_ALG:-SHA256}"
+		TLS_SIG="${TLS_SIG:-1}" # tls-crypt
+		echo "Using CIPHER=$CIPHER"
+		echo "Using CERT_TYPE=$CERT_TYPE"
+		echo "Using CERT_CURVE=$CERT_CURVE"
+		echo "Using CC_CIPHER=$CC_CIPHER"
+		echo "Using DH_TYPE=$DH_TYPE"
+		echo "Using DH_CURVE=$DH_CURVE"
+		echo "Using HMAC_ALG=$HMAC_ALG"
+		echo "Using TLS_SIG=$TLS_SIG"
 	else
 		echo ""
 		echo "Choose which cipher you want to use for the data channel:"
@@ -635,11 +643,13 @@ function installQuestions() {
 			;;
 		esac
 		echo ""
-		echo "You can add an additional layer of security to the control channel with tls-auth and tls-crypt"
+		echo "You can add an additional layer of security to the control channel with tls-auth, tls-crypt or tls-crypt-v2"
 		echo "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them."
+		echo "The tls-crypt-v2 is like tls-crypt but uses private keys which makes it the most secure."
 		echo "   1) tls-crypt (recommended)"
 		echo "   2) tls-auth"
-		until [[ $TLS_SIG =~ [1-2] ]]; do
+		echo "   3) tls-crypt-v2"
+		until [[ $TLS_SIG =~ [1-3] ]]; do
 			read -rp "Control channel additional security mechanism [1-2]: " -e -i 1 TLS_SIG
 		done
 	fi
@@ -784,6 +794,11 @@ function installOpenVPN() {
 			# Generate tls-auth key
 			openvpn --genkey --secret /etc/openvpn/tls-auth.key
 			;;
+		3)
+			# Generate tls-crypt-v2 key
+			openvpn --genkey tls-crypt-v2-server /etc/openvpn/tls-crypt-v2.key
+			mkdir -p /etc/openvpn/keys-v2
+			;;
 		esac
 	else
 		# If easy-rsa is already installed, grab the generated SERVER_NAME
@@ -919,6 +934,9 @@ push "redirect-gateway ipv6"' >>/etc/openvpn/server.conf
 	2)
 		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server.conf
 		;;
+	3)
+		echo "tls-crypt-v2 tls-crypt-v2.key" >>/etc/openvpn/server.conf
+		;;
 	esac
 
 	echo "crl-verify crl.pem
@@ -933,6 +951,8 @@ tls-version-min 1.2
 tls-cipher $CC_CIPHER
 client-config-dir /etc/openvpn/ccd
 status /var/log/openvpn/status.log
+#silence repeating messages
+mute 20
 verb 3" >>/etc/openvpn/server.conf
 
 	# Create client-config-dir dir
@@ -1046,6 +1066,10 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 
+    # resolve slow UDP traffic
+    sysctl -w net.core.rmem_max=${SRV_BUFF_SIZE_MAX:-8388608} # 8Mb
+    sysctl -w net.core.rmem_default=${SRV_BUFF_SIZE_DEFAULT:-262144} #256k
+
 	# Enable service and apply rules
 	systemctl daemon-reload
 	systemctl enable iptables-openvpn
@@ -1080,6 +1104,9 @@ tls-version-min 1.2
 tls-cipher $CC_CIPHER
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
+mute 20 #silence repeating messages
+sndbuf ${CLIENT_BUFF_SIZE:-262144} #Set the TCP/UDP socket send buffer size. Defaults to operating system default.
+rcvbuf ${CLIENT_BUFF_SIZE:-262144} #Set the TCP/UDP socket receive buffer size. Defaults to operating system default.
 verb 3" >>/etc/openvpn/client-template.txt
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
@@ -1147,7 +1174,9 @@ function newClient() {
 	fi
 
 	# Determine if we use tls-auth or tls-crypt
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
+	if grep -qs "^tls-crypt-v2" /etc/openvpn/server.conf; then
+		TLS_SIG="3"
+	elif grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
 		TLS_SIG="1"
 	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
 		TLS_SIG="2"
@@ -1179,6 +1208,12 @@ function newClient() {
 			echo "<tls-auth>"
 			cat /etc/openvpn/tls-auth.key
 			echo "</tls-auth>"
+			;;
+		3)
+			openvpn --tls-crypt-v2 /etc/openvpn/tls-crypt-v2.key --genkey tls-crypt-v2-client "/etc/openvpn/keys-v2/$CLIENT.key"
+            echo "<tls-crypt-v2>"
+			cat "/etc/openvpn/keys-v2/$CLIENT.key"
+			echo "</tls-crypt-v2>"
 			;;
 		esac
 	} >>"$homeDir/$CLIENT.ovpn"
