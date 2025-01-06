@@ -1101,6 +1101,10 @@ function newClient() {
 	done
 
 	echo ""
+	echo "How many days should the client be valid for?"
+	read -rp "Enter the number of days (default is 3650, which is about 10 years): " -e -i 3650 DAYS_VALID
+
+	echo ""
 	echo "Do you want to protect the configuration file with a password?"
 	echo "(e.g. encrypt the private key with a password)"
 	echo "   1) Add a passwordless client"
@@ -1119,14 +1123,14 @@ function newClient() {
 		cd /etc/openvpn/easy-rsa/ || return
 		case $PASS in
 		1)
-			EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-client-full "$CLIENT" nopass
+			EASYRSA_CERT_EXPIRE=$DAYS_VALID ./easyrsa --batch build-client-full "$CLIENT" nopass
 			;;
 		2)
 			echo "⚠️ You will be asked for the client password below ⚠️"
-			EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-client-full "$CLIENT"
+			EASYRSA_CERT_EXPIRE=$DAYS_VALID ./easyrsa --batch build-client-full "$CLIENT"
 			;;
 		esac
-		echo "Client $CLIENT added."
+		echo "Client $CLIENT added and is valid for $DAYS_VALID days."
 	fi
 
 	# Home directory of the user, where the client configuration will be written
