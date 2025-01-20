@@ -10,6 +10,25 @@ This script will let you setup your own secure VPN server in just a few seconds.
 
 You can also check out [wireguard-install](https://github.com/angristan/wireguard-install), a simple installer for a simpler, safer, faster and more modern VPN protocol.
 
+## What is this?
+
+This script is meant to be run on your own server, whether it's a VPS or a dedicated server, or even a computer at home.
+
+Once set up, you will be able to generate client configuration files for every device you want to connect.
+
+Each client will be able to route its internet traffic through the server, fully encrypted.
+
+```mermaid
+graph LR
+  A[Phone] --> VPN
+  B[Laptop] --> VPN
+  C[Computer] --> VPN
+
+  VPN[OpenVPN Server]
+
+  VPN -->|Encrypted Traffic| I[Internet]
+```
+
 ## Usage
 
 First, get the script and make it executable:
@@ -37,9 +56,7 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
 
-If you have any question, head to the [FAQ](#faq) first. Please read everything before opening an issue.
-
-**PLEASE do not send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you. My time is not available for free just for you, you're not special.
+If you have any question, head to the [FAQ](#faq) first. And if you need help, you can open a [discussion](https://github.com/angristan/openvpn-install/discussions). Please search existing issues and dicussions first.
 
 ### Headless install
 
@@ -117,16 +134,16 @@ The script supports these Linux distributions:
 
 |                    | Support |
 | ------------------ | ------- |
-| AlmaLinux 8        | ✅      |
-| Amazon Linux 2     | ✅      |
-| Arch Linux         | ✅      |
-| CentOS 7           | ✅ 🤖   |
-| CentOS Stream >= 8 | ✅ 🤖   |
-| Debian >= 10       | ✅ 🤖   |
-| Fedora >= 35       | ✅ 🤖   |
-| Oracle Linux 8     | ✅      |
-| Rocky Linux 8      | ✅      |
-| Ubuntu >= 18.04    | ✅ 🤖   |
+| AlmaLinux 8        | ✅       |
+| Amazon Linux 2     | ✅       |
+| Arch Linux         | ✅       |
+| CentOS 7           | ✅       |
+| CentOS Stream >= 8 | ✅ 🤖     |
+| Debian >= 10       | ✅ 🤖     |
+| Fedora >= 35       | ✅ 🤖     |
+| Oracle Linux 8     | ✅       |
+| Rocky Linux 8      | ✅       |
+| Ubuntu >= 18.04    | ✅ 🤖     |
 
 To be noted:
 
