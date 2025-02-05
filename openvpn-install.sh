@@ -644,8 +644,12 @@ function installQuestions() {
 		done
 	fi
 	echo ""
+	# Ask the user if they would like to add a new client after installation.
+	until [[ $NEW_CLIENT =~ (y|n) ]]; do
+		read -rp "Would you like to add a new client after installation? [y/n]: " -e -i y NEW_CLIENT
+	done
+	echo ""
 	echo "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
-	echo "You will be able to generate a client at the end of the installation."
 	APPROVE_INSTALL=${APPROVE_INSTALL:-n}
 	if [[ $APPROVE_INSTALL =~ n ]]; then
 		read -n1 -r -p "Press any key to continue..."
@@ -666,6 +670,7 @@ function installOpenVPN() {
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
 		CONTINUE=${CONTINUE:-y}
+		NEW_CLIENT=${NEW_CLIENT:-y}
 
 		if [[ -z $ENDPOINT ]]; then
 			ENDPOINT=$(resolvePublicIP)
@@ -1087,8 +1092,12 @@ verb 3" >>/etc/openvpn/client-template.txt
 	fi
 
 	# Generate the custom client.ovpn
-	newClient
-	echo "If you want to add more clients, you simply need to run this script another time!"
+	if [[ $NEW_CLIENT == "n" ]]; then
+		echo "No clients added. To add clients, simply run the script again."
+	else
+		newClient
+		echo "If you want to add more clients, you simply need to run this script another time!"
+	fi
 }
 
 function newClient() {
