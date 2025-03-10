@@ -280,7 +280,7 @@ function installQuestions() {
 	if [[ $APPROVE_IP =~ n ]]; then
 		read -rp "IP address: " -e -i "$IP" IP
 	fi
-	# If $IP is a private IP address, the server must be behind NAT
+	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		echo ""
 		echo "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
@@ -401,6 +401,13 @@ function installQuestions() {
 		fi
 	done
 	echo ""
+	read -rp "Do you want the same client .ovpn file to connect multiple clients? (This will add 'duplicate-cn' in the server.conf) [y/n]: " -e -i n MULTI_CLIENT_CHOICE
+	if [[ $MULTI_CLIENT_CHOICE =~ ^[Yy]$ ]]; then
+		MULTI_CLIENT="y"
+	else
+		MULTI_CLIENT="n"
+	fi
+	echo ""
 	echo "Do you want to use compression? It is not recommended since the VORACLE attack makes use of it."
 	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
 		read -rp"Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
@@ -411,7 +418,7 @@ function installQuestions() {
 		echo "   2) LZ4"
 		echo "   3) LZ0"
 		until [[ $COMPRESSION_CHOICE =~ ^[1-3]$ ]]; do
-			read -rp"Compression algorithm [1-3]: " -e -i 1 COMPRESSION_CHOICE
+  			read -rp"Compression algorithm [1-3]: " -e -i 1 COMPRESSION_CHOICE
 		done
 		case $COMPRESSION_CHOICE in
 		1)
@@ -812,6 +819,10 @@ function installOpenVPN() {
 		echo "proto $PROTOCOL" >>/etc/openvpn/server.conf
 	elif [[ $IPV6_SUPPORT == 'y' ]]; then
 		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server.conf
+	fi
+
+	if [[ $MULTI_CLIENT == "y" ]]; then
+		echo "duplicate-cn" >>/etc/openvpn/server.conf
 	fi
 
 	echo "dev tun
