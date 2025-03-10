@@ -132,18 +132,19 @@ export PASS="1"
 
 The script supports these Linux distributions:
 
-|                    | Support |
-| ------------------ | ------- |
-| AlmaLinux 8        | ✅       |
-| Amazon Linux 2     | ✅       |
-| Arch Linux         | ✅       |
-| CentOS 7           | ✅       |
-| CentOS Stream >= 8 | ✅ 🤖     |
-| Debian >= 10       | ✅ 🤖     |
-| Fedora >= 35       | ✅ 🤖     |
-| Oracle Linux 8     | ✅       |
-| Rocky Linux 8      | ✅       |
-| Ubuntu >= 18.04    | ✅ 🤖     |
+|                        | Support |
+| ---------------------- | ------- |
+| AlmaLinux 8            | ✅      |
+| Amazon Linux 2         | ✅      |
+| Amazon Linux >= 2023.6 | ✅      |
+| Arch Linux             | ✅      |
+| CentOS 7               | ✅      |
+| CentOS Stream >= 8     | ✅ 🤖   |
+| Debian >= 10           | ✅ 🤖   |
+| Fedora >= 35           | ✅ 🤖   |
+| Oracle Linux 8         | ✅      |
+| Rocky Linux 8          | ✅      |
+| Ubuntu >= 18.04        | ✅ 🤖   |
 
 To be noted:
 
