@@ -20,13 +20,13 @@ Each client will be able to route its internet traffic through the server, fully
 
 ```mermaid
 graph LR
-  A[Phone] --> VPN
-  B[Laptop] --> VPN
-  C[Computer] --> VPN
+  A[Phone] -->|Encrypted| VPN
+  B[Laptop] -->|Encrypted| VPN
+  C[Computer] -->|Encrypted| VPN
 
   VPN[OpenVPN Server]
 
-  VPN -->|Encrypted Traffic| I[Internet]
+  VPN --> I[Internet]
 ```
 
 ## Usage
