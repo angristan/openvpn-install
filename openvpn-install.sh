@@ -65,6 +65,16 @@ function checkOS() {
 				exit 1
 			fi
 		fi
+		if [[ $ID == "tencentos" ]]; then
+			OS="centos"
+			if [[ ${VERSION_ID%.*} -lt 3 ]]; then
+				echo "⚠️ Your version of CentOS is not supported."
+				echo ""
+				echo "The script only support CentOS 7 and CentOS 8."
+				echo ""
+				exit 1
+			fi
+		fi
 		if [[ $ID == "ol" ]]; then
 			OS="oracle"
 			if [[ ! $VERSION_ID =~ (8) ]]; then
