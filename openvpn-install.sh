@@ -355,6 +355,27 @@ function installQuestions() {
 		PROTOCOL="tcp"
 		;;
 	esac
+	if command -v "firewall-cmd" &> /dev/null
+	then
+		SUGGESTION=y
+	    echo "Command \"firewall-cmd\" has been detected."
+		until [[ $ADDPORT =~ (y|n) ]]; do
+			read -rp "Would you like to open port ${PORT} on firewalld? [y/n]: " -e -i $SUGGESTION ADDPORT
+		done
+		if [[ $ADDPORT == "y" ]]; then
+			firewall-cmd --add-port "${PORT}"/"${PROTOCOL}"
+			firewall-cmd --permanent --add-port "${PORT}"/"${PROTOCOL}"
+		fi
+	fi
+
+	echo ""
+	echo "Option client-to-client allows clients to \"see\" eachother."
+	echo "Would you like to enable this option?"
+	SUGGESTION=y
+	until [[ $CLIENT_TO_CLIENT_OPTION =~ (y|n) ]]; do
+		read -rp "Enable client-to-client? [y/n]: " -e -i $SUGGESTION CLIENT_TO_CLIENT_OPTION
+	done
+
 	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
@@ -669,6 +690,8 @@ function installOpenVPN() {
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
 		CONTINUE=${CONTINUE:-y}
+		CLIENT_TO_CLIENT_OPTION="y"
+		ADDPORT="y"
 
 		if [[ -z $ENDPOINT ]]; then
 			ENDPOINT=$(resolvePublicIP)
@@ -812,6 +835,10 @@ function installOpenVPN() {
 		echo "proto $PROTOCOL" >>/etc/openvpn/server.conf
 	elif [[ $IPV6_SUPPORT == 'y' ]]; then
 		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server.conf
+	fi
+
+	if [[ $CLIENT_TO_CLIENT_OPTION == "y" ]]; then
+		echo "client-to-client" >>/etc/openvpn/server.conf
 	fi
 
 	echo "dev tun
