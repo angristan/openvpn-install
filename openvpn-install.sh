@@ -65,6 +65,16 @@ function checkOS() {
 				exit 1
 			fi
 		fi
+		if [[ $ID == "alinux" ]]; then
+			OS="centos"
+			if [[ $VERSION_ID -lt 3 ]]; then
+				echo "⚠️ Your version of Aliyun is not supported."
+				echo ""
+				echo "The script only support Aliyun 3 and above."
+				echo ""
+				exit 1
+			fi
+		fi
 		if [[ $ID == "ol" ]]; then
 			OS="oracle"
 			if [[ ! $VERSION_ID =~ (8) ]]; then
