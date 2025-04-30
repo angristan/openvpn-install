@@ -720,6 +720,13 @@ function installOpenVPN() {
 			yum-config-manager --enable ol8_developer_EPEL
 			yum install -y openvpn iptables openssl wget ca-certificates curl tar policycoreutils-python-utils
 		elif [[ $OS == 'amzn' ]]; then
+			# Install and configure Fedora COPR repository for OpenVPN
+			# This ensures we get the latest stable OpenVPN 2.6 releases
+			# 1. Install the COPR plugin for yum package manager
+			# 2. Enable the specific repository maintained by dsommers for OpenVPN 2.6
+			# Reference: https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos#UsingFedoraCopr
+			yum install -y yum-plugin-copr
+			yum copr enable -y dsommers/openvpn-release-2.6
 			amazon-linux-extras install -y epel
 			yum install -y openvpn iptables openssl wget ca-certificates curl
 		elif [[ $OS == 'amzn2023' ]]; then
