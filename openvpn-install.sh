@@ -25,7 +25,7 @@ function checkOS() {
 			if [[ $VERSION_ID -lt 9 ]]; then
 				echo "⚠️ Your version of Debian is not supported."
 				echo ""
-				echo "However, if you're using Debian >= 9 or unstable/testing then you can continue, at your own risk."
+				echo "However, if you're using Debian >= 9 or unstable/testing, you can continue at your own risk."
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Continue? [y/n]: " -e CONTINUE
@@ -40,7 +40,7 @@ function checkOS() {
 			if [[ $MAJOR_UBUNTU_VERSION -lt 16 ]]; then
 				echo "⚠️ Your version of Ubuntu is not supported."
 				echo ""
-				echo "However, if you're using Ubuntu >= 16.04 or beta, then you can continue, at your own risk."
+				echo "However, if you're using Ubuntu >= 16.04 or beta, you can continue at your own risk."
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Continue? [y/n]: " -e CONTINUE
@@ -60,7 +60,7 @@ function checkOS() {
 			if [[ ${VERSION_ID%.*} -lt 7 ]]; then
 				echo "⚠️ Your version of CentOS is not supported."
 				echo ""
-				echo "The script only support CentOS 7 and CentOS 8."
+				echo "The script only supports CentOS 7 and CentOS 8."
 				echo ""
 				exit 1
 			fi
@@ -70,7 +70,7 @@ function checkOS() {
 			if [[ ! $VERSION_ID =~ (8) ]]; then
 				echo "Your version of Oracle Linux is not supported."
 				echo ""
-				echo "The script only support Oracle Linux 8."
+				echo "The script only supports Oracle Linux 8."
 				exit 1
 			fi
 		fi
@@ -82,7 +82,7 @@ function checkOS() {
 			else
 				echo "⚠️ Your version of Amazon Linux is not supported."
 				echo ""
-				echo "The script only support Amazon Linux 2 or Amazon Linux 2023.6+"
+				echo "The script only supports Amazon Linux 2 or Amazon Linux 2023.6+"
 				echo ""
 				exit 1
 			fi
@@ -90,18 +90,18 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "Looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux 8 or Arch Linux system"
+		echo "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux 8 or Arch Linux system."
 		exit 1
 	fi
 }
 
 function initialCheck() {
 	if ! isRoot; then
-		echo "Sorry, you need to run this as root"
+		echo "Sorry, you need to run this script as root."
 		exit 1
 	fi
 	if ! tunAvailable; then
-		echo "TUN is not available"
+		echo "TUN is not available."
 		exit 1
 	fi
 	checkOS
@@ -264,7 +264,7 @@ function installQuestions() {
 	echo ""
 
 	echo "I need to ask you a few questions before starting the setup."
-	echo "You can leave the default options and just press enter if you are ok with them."
+	echo "You can leave the default options and just press enter if you are okay with them."
 	echo ""
 	echo "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
 	echo "Unless your server is behind NAT, it should be your public IPv4 address."
@@ -428,7 +428,7 @@ function installQuestions() {
 	echo ""
 	echo "Do you want to customize encryption settings?"
 	echo "Unless you know what you're doing, you should stick with the default parameters provided by the script."
-	echo "Note that whatever you choose, all the choices presented in the script are safe. (Unlike OpenVPN's defaults)"
+	echo "Note that whatever you choose, all the choices presented in the script are safe (unlike OpenVPN's defaults)."
 	echo "See https://github.com/angristan/openvpn-install#security-and-encryption to learn more."
 	echo ""
 	until [[ $CUSTOMIZE_ENC =~ (y|n) ]]; do
@@ -687,7 +687,7 @@ function installOpenVPN() {
 	# $NIC can not be empty for script rm-openvpn-rules.sh
 	if [[ -z $NIC ]]; then
 		echo
-		echo "Can not detect public interface."
+		echo "Could not detect public interface."
 		echo "This needs for setup MASQUERADE."
 		until [[ $CONTINUE =~ (y|n) ]]; do
 			read -rp "Continue? [y/n]: " -e CONTINUE
