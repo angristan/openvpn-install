@@ -1119,7 +1119,7 @@ function newClient() {
 	if [[ $CLIENTEXISTS == '1' ]]; then
 		echo ""
 		echo "The specified client CN was already found in easy-rsa, please choose another name."
-		exit
+		exit 1
 	else
 		cd /etc/openvpn/easy-rsa/ || return
 		case $PASS in
