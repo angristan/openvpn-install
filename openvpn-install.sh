@@ -356,6 +356,22 @@ function installQuestions() {
 		;;
 	esac
 	echo ""
+	echo "Do you want to set a custom MTU for the VPN interface?"
+	echo "   1) No, keep default"
+	echo "   2) Yes, specify a custom MTU"
+	until [[ $MTU_CHOICE =~ ^[1-2]$ ]]; do
+		read -rp "Selection [1-2]: " -e -i 1 MTU_CHOICE
+	done
+	if [[ $MTU_CHOICE == "2" ]]; then
+		until [[ $MTU =~ ^[0-9]+$ ]] && [ "$MTU" -ge 576 ] && [ "$MTU" -le 1500 ]; do
+			read -rp "Desired MTU (576–1500): " MTU
+		done
+		CUSTOM_MTU="y"
+	else
+		CUSTOM_MTU="n"
+	fi
+
+	echo ""
 	echo "What DNS resolvers do you want to use with the VPN?"
 	echo "   1) Current system resolvers (from /etc/resolv.conf)"
 	echo "   2) Self-hosted DNS Resolver (Unbound)"
@@ -823,6 +839,11 @@ keepalive 10 120
 topology subnet
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
+	# Only set custom MTU if requested by user
+	if [[ $CUSTOM_MTU == "y" ]]; then
+		echo "tun-mtu $MTU" >>/etc/openvpn/server.conf
+		echo "mssfix $((MTU - 40))" >>/etc/openvpn/server.conf
+	fi
 
 	# DNS resolvers
 	case $DNS in
@@ -1086,6 +1107,11 @@ tls-cipher $CC_CIPHER
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
 verb 3" >>/etc/openvpn/client-template.txt
+	# Only set custom MTU if requested by user
+	if [[ $CUSTOM_MTU == "y" ]]; then
+		echo "tun-mtu $MTU" >>/etc/openvpn/client-template.txt
+		echo "mssfix $((MTU - 40))" >>/etc/openvpn/client-template.txt
+	fi
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
 		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/client-template.txt
