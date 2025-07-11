@@ -2,7 +2,6 @@
 
 ![Test](https://github.com/angristan/openvpn-install/workflows/Test/badge.svg)
 ![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
-![visitors](https://visitor-badge.glitch.me/badge?page_id=angristan.openvpn-install)
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/angristan)
 
 OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
@@ -10,6 +9,25 @@ OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Arch Linux, Oracle Linux, 
 This script will let you setup your own secure VPN server in just a few seconds.
 
 You can also check out [wireguard-install](https://github.com/angristan/wireguard-install), a simple installer for a simpler, safer, faster and more modern VPN protocol.
+
+## What is this?
+
+This script is meant to be run on your own server, whether it's a VPS or a dedicated server, or even a computer at home.
+
+Once set up, you will be able to generate client configuration files for every device you want to connect.
+
+Each client will be able to route its internet traffic through the server, fully encrypted.
+
+```mermaid
+graph LR
+  A[Phone] -->|Encrypted| VPN
+  B[Laptop] -->|Encrypted| VPN
+  C[Computer] -->|Encrypted| VPN
+
+  VPN[OpenVPN Server]
+
+  VPN --> I[Internet]
+```
 
 ## Usage
 
@@ -38,9 +56,7 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
 
-If you have any question, head to the [FAQ](#faq) first. Please read everything before opening an issue.
-
-**PLEASE do not send me emails or private messages asking for help.** The only place to get help is the issues. Other people may be able to help and in the future, other users may also run into the same issue as you. My time is not available for free just for you, you're not special.
+If you have any question, head to the [FAQ](#faq) first. And if you need help, you can open a [discussion](https://github.com/angristan/openvpn-install/discussions). Please search existing issues and dicussions first.
 
 ### Headless install
 
@@ -114,27 +130,29 @@ export PASS="1"
 
 ## Compatibility
 
-The script supports these OS and architectures:
+The script supports these Linux distributions:
 
-|                 | i386 | amd64 | armhf | arm64 |
-| --------------- | ---- | ----- | ----- | ----- |
-| Amazon Linux 2  | ❔   | ✅    | ❔    | ❔    |
-| Arch Linux      | ❔   | ✅    | ❔    | ✅    |
-| CentOS 7        | ✅   | ✅    | ✅    | ✅    |
-| CentOS 8        | ❌   | ✅    | ❌    | ✅    |
-| Debian >= 9     | ✅   | ✅    | ✅    | ✅    |
-| Fedora >= 27    | ❔   | ✅    | ❔    | ❔    |
-| Ubuntu 16.04    | ✅   | ✅    | ❌    | ❌    |
-| Ubuntu >= 18.04 | ✅   | ✅    | ✅    | ✅    |
-| Oracle Linux 8  | ❌   | ✅    | ❌    | ❔    |
-| Rocky Linux 8   |  ❔  | ✅    |  ❔   | ❔    |
-| AlmaLinux 8     | ❌   | ✅    | ❌    | ❔    |
+|                        | Support |
+| ---------------------- | ------- |
+| AlmaLinux 8            | ✅      |
+| Amazon Linux 2         | ✅      |
+| Amazon Linux >= 2023.6 | ✅      |
+| Arch Linux             | ✅      |
+| CentOS 7               | ✅      |
+| CentOS Stream >= 8     | ✅ 🤖   |
+| Debian >= 10           | ✅ 🤖   |
+| Fedora >= 35           | ✅ 🤖   |
+| Oracle Linux 8         | ✅      |
+| Rocky Linux 8          | ✅      |
+| Ubuntu >= 18.04        | ✅ 🤖   |
 
 To be noted:
 
-- It should work on Debian 8+ and Ubuntu 16.04+. But versions not in the table above are not officially supported.
+- The script is regularly tested against the distributions marked with a 🤖 only.
+  - It's only tested on `amd64` architecture.
+- It should work on older versions such as Debian 8+, Ubuntu 16.04+ and previous Fedora releases. But versions not in the table above are not officially supported.
+  - It should also support versions between the LTS versions, but these are not tested.
 - The script requires `systemd`.
-- The script is regularly tested against `amd64` only.
 
 ## Fork
 
@@ -150,10 +168,9 @@ More Q&A in [FAQ.md](FAQ.md).
 
 **A:** I recommend these:
 
-- [Vultr](https://www.vultr.com/?ref=8537055-6G): Worldwide locations, IPv6 support, starting at \$3.50/month
-- [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Germany, IPv6, 20 TB of traffic, starting at €3/month
-- [Digital Ocean](https://goo.gl/qXrNLK): Worldwide locations, IPv6 support, starting at \$5/month
-- [PulseHeberg](https://goo.gl/76yqW5): France, unlimited bandwidth, starting at €3/month
+- [Vultr](https://www.vultr.com/?ref=8948982-8H): Worldwide locations, IPv6 support, starting at \$5/month
+- [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Germany, Finland and USA. IPv6, 20 TB of traffic, starting at 4.5€/month
+- [Digital Ocean](https://m.do.co/c/ed0ba143fe53): Worldwide locations, IPv6 support, starting at \$4/month
 
 ---
 
@@ -192,11 +209,18 @@ Solutions that provision a ready to use OpenVPN server based on this script in o
 
 ## Contributing
 
+## Discuss changes
+
+Please open an issue before submitting a PR if you want to discuss a change, especially if it's a big one.
+
 ### Code formatting
 
 We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the configuration [here](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/push.yml).
 
 ## Security and Encryption
+
+> **Warning**
+> This has not been updated for OpenVPN 2.5 and later.
 
 OpenVPN's default settings are pretty weak regarding encryption. This script aims to improve that.
 
@@ -346,3 +370,7 @@ You can [say thanks](https://saythanks.io/to/angristan) if you want!
 Many thanks to the [contributors](https://github.com/Angristan/OpenVPN-install/graphs/contributors) and Nyr's original work.
 
 This project is under the [MIT Licence](https://raw.githubusercontent.com/Angristan/openvpn-install/master/LICENSE)
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=angristan/openvpn-install&type=Date)](https://star-history.com/#angristan/openvpn-install&Date)

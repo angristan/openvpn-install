@@ -151,3 +151,25 @@ route 10.0.0.0 255.0.0.0
 ```
 
 So for example - here it would route all traffic of `10.0.0.0/8` to the vpn. And the rest through the internet.
+
+---
+
+**Q:** I have enabled IPv6 and my VPN client gets an IPv6 address. Why do I reach the websites or other dual-stacked destionations via IPv4 only?
+
+**A:** This is because inside the tunnel you don't get a publicly routable IPv6 address, instead you get an ULA (Unlique Local Lan) address. Operating systems don't prefer this all the time. You can fix this in your operating system policies as it's unrelated to the VPN itself:
+
+Windows (commands needs to run cmd.exe as Administrator):
+
+```
+netsh interface ipv6 add prefixpolicy fd00::/8 3 1
+```
+
+Linux:
+
+edit `/etc/gai.conf` and uncomment the following line and also change its value to `1`:
+
+```
+label fc00::/7      1
+```
+
+This will not work properly unless you add you your VPN server `server.conf` one or two lines to push at least 1 (one) IPv6 DNS server. Most providers have IPv6 servers as well, add two more lines of `push "dhcp-option DNS <IPv6>"`
