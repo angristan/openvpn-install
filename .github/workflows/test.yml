@@ -33,10 +33,10 @@ jobs:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       - name: Create server
-        run: doctl compute droplet create openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }} --size s-1vcpu-1gb --image ${{ matrix.os-image }} --region lon1 --enable-ipv6 --ssh-keys be:66:76:61:a8:71:93:aa:e3:19:ba:d8:0d:d2:2d:d4 --wait
+        run: doctl compute droplet create "openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}" --size s-1vcpu-1gb --image "${{ matrix.os-image }}" --region lon1 --enable-ipv6 --ssh-keys be:66:76:61:a8:71:93:aa:e3:19:ba:d8:0d:d2:2d:d4 --wait
 
       - name: Get server ID
-        run: echo "value=$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }}'").id')" >> $GITHUB_OUTPUT
+        run: echo "value=$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'"openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}"'").id')" >> "$GITHUB_OUTPUT"
         id: server_id
 
       - name: Move server to dedicated project
@@ -46,11 +46,11 @@ jobs:
         run: sleep 90
 
       - name: Get server IP
-        run: echo "value=$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }}'").networks.v4 | .[] | select(.type == "'public'").ip_address')" >> $GITHUB_OUTPUT
+        run: echo "value=$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'"openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}"'").networks.v4 | .[] | select(.type == "'"public"'").ip_address')" >> "$GITHUB_OUTPUT"
         id: server_ip
 
       - name: Get server OS
-        run: echo "value=$(echo ${{ matrix.os-image }} | cut -d '-' -f1)" >> $GITHUB_OUTPUT
+        run: echo "value=$(echo "${{ matrix.os-image }}" | cut -d '-' -f1)" >> "$GITHUB_OUTPUT"
         id: server_os
 
       - name: Setup remote server (Debian/Ubuntu)
@@ -97,5 +97,5 @@ jobs:
           script: 'set -x && AUTO_INSTALL=y bash -x ~/openvpn-install/openvpn-install.sh && ps aux | grep openvpn | grep -v grep > /dev/null 2>&1 && echo "Success: OpenVPN is running" && exit 0 || echo "Failure: OpenVPN is not running" && exit 1'
 
       - name: Delete server
-        run: doctl compute droplet delete -f openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }}
+        run: doctl compute droplet delete -f "openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}"
         if: always()
