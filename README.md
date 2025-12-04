@@ -219,8 +219,8 @@ We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://
 
 ## Security and Encryption
 
-> **Warning**
-> This has not been updated for OpenVPN 2.5 and later.
+> **Note**
+> This section covers security features for OpenVPN 2.4+. OpenVPN 2.5+ introduced additional features like TLS 1.3 support, but this script maintains TLS 1.2 as the minimum for broader client compatibility.
 
 OpenVPN's default settings are pretty weak regarding encryption. This script aims to improve that.
 
