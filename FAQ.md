@@ -83,7 +83,7 @@ If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/s
 
 **A:** Iptables rules are saved at `/etc/iptables/add-openvpn-rules.sh` and `/etc/iptables/rm-openvpn-rules.sh`. They are managed by the service `/etc/systemd/system/iptables-openvpn.service`
 
-Sysctl options are at `/etc/sysctl.d/20-openvpn.conf`
+Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
 
 ---
 
