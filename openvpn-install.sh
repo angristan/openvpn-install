@@ -1,5 +1,7 @@
 #!/bin/bash
-# shellcheck disable=SC1091,SC2164,SC2034,SC1072,SC1073,SC1009
+# shellcheck disable=SC1091,SC2034
+# SC1091: Not following /etc/os-release (sourced dynamically)
+# SC2034: Variables used indirectly or exported for subprocesses
 
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, Rocky Linux and AlmaLinux.
 # https://github.com/angristan/openvpn-install
@@ -754,8 +756,7 @@ function installOpenVPN() {
 		local version="3.1.2"
 		local easy_rsa_sha256="d63cf129490ffd6d8792ede7344806c506c82c32428b5bb609ad97ca6a6e4499"
 		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
-		echo "${easy_rsa_sha256}  ~/easy-rsa.tgz" | sha256sum -c
-		if [[ $? -ne 0 ]]; then
+		if ! echo "${easy_rsa_sha256}  ~/easy-rsa.tgz" | sha256sum -c; then
 			echo "SHA256 checksum verification failed for easy-rsa download!"
 			rm -f ~/easy-rsa.tgz
 			exit 1
@@ -787,7 +788,7 @@ function installOpenVPN() {
 
 		if [[ $DH_TYPE == "2" ]]; then
 			# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
-			openssl dhparam -out dh.pem $DH_KEY_SIZE
+			openssl dhparam -out dh.pem "$DH_KEY_SIZE"
 		fi
 
 		EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
