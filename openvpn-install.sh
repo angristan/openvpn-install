@@ -6,6 +6,12 @@
 # Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, Rocky Linux and AlmaLinux.
 # https://github.com/angristan/openvpn-install
 
+# Configuration constants
+readonly CERT_VALIDITY_DAYS=3650    # 10 years
+readonly CRL_VALIDITY_DAYS=3650     # 10 years
+readonly EASYRSA_VERSION="3.1.2"
+readonly EASYRSA_SHA256="d63cf129490ffd6d8792ede7344806c506c82c32428b5bb609ad97ca6a6e4499"
+
 function isRoot() {
 	if [ "$EUID" -ne 0 ]; then
 		return 1
@@ -753,10 +759,8 @@ function installOpenVPN() {
 
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
-		local version="3.1.2"
-		local easy_rsa_sha256="d63cf129490ffd6d8792ede7344806c506c82c32428b5bb609ad97ca6a6e4499"
-		wget -O ~/easy-rsa.tgz https://github.com/OpenVPN/easy-rsa/releases/download/v${version}/EasyRSA-${version}.tgz
-		if ! echo "${easy_rsa_sha256}  ~/easy-rsa.tgz" | sha256sum -c; then
+		wget -O ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
+		if ! echo "${EASYRSA_SHA256}  ~/easy-rsa.tgz" | sha256sum -c; then
 			echo "SHA256 checksum verification failed for easy-rsa download!"
 			rm -f ~/easy-rsa.tgz
 			exit 1
@@ -784,15 +788,15 @@ function installOpenVPN() {
 
 		# Create the PKI, set up the CA, the DH params and the server certificate
 		./easyrsa init-pki
-		EASYRSA_CA_EXPIRE=3650 ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
+		EASYRSA_CA_EXPIRE=$CERT_VALIDITY_DAYS ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
 
 		if [[ $DH_TYPE == "2" ]]; then
 			# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
 			openssl dhparam -out dh.pem "$DH_KEY_SIZE"
 		fi
 
-		EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
-		EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
+		EASYRSA_CERT_EXPIRE=$CERT_VALIDITY_DAYS ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
+		EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS ./easyrsa gen-crl
 
 		case $TLS_SIG in
 		1)
@@ -1138,11 +1142,11 @@ function newClient() {
 		cd /etc/openvpn/easy-rsa/ || return
 		case $PASS in
 		1)
-			EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-client-full "$CLIENT" nopass
+			EASYRSA_CERT_EXPIRE=$CERT_VALIDITY_DAYS ./easyrsa --batch build-client-full "$CLIENT" nopass
 			;;
 		2)
 			echo "⚠️ You will be asked for the client password below ⚠️"
-			EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-client-full "$CLIENT"
+			EASYRSA_CERT_EXPIRE=$CERT_VALIDITY_DAYS ./easyrsa --batch build-client-full "$CLIENT"
 			;;
 		esac
 		echo "Client $CLIENT added."
@@ -1230,7 +1234,7 @@ function revokeClient() {
 	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 	cd /etc/openvpn/easy-rsa/ || return
 	./easyrsa --batch revoke "$CLIENT"
-	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl
+	EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS ./easyrsa gen-crl
 	rm -f /etc/openvpn/crl.pem
 	cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
 	chmod 644 /etc/openvpn/crl.pem
