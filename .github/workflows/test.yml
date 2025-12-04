@@ -21,8 +21,8 @@ jobs:
           - debian-13-x64
           - ubuntu-22-04-x64
           - ubuntu-24-04-x64
-          - fedora-40-x64
-          - fedora-41-x64
+          - fedora-42-x64
+          - fedora-43-x64
           # - centos-stream-9-x64 # yum oomkill
     steps:
       - uses: actions/checkout@v4
