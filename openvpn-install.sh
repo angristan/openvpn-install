@@ -760,7 +760,7 @@ function installOpenVPN() {
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
 		wget -O ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
-		if ! echo "${EASYRSA_SHA256}  ~/easy-rsa.tgz" | sha256sum -c; then
+		if ! echo "${EASYRSA_SHA256}  $HOME/easy-rsa.tgz" | sha256sum -c; then
 			echo "SHA256 checksum verification failed for easy-rsa download!"
 			rm -f ~/easy-rsa.tgz
 			exit 1
