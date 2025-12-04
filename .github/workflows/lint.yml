@@ -2,6 +2,9 @@ on: [push, pull_request, workflow_dispatch]
 
 name: Lint
 
+permissions:
+  contents: read
+
 jobs:
   super-linter:
     runs-on: ubuntu-latest
