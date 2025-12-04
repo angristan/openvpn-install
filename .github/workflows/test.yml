@@ -6,6 +6,10 @@ on:
   workflow_dispatch:
 
 name: Test
+
+permissions:
+  contents: read
+
 jobs:
   install:
     runs-on: ubuntu-latest
