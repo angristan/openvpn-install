@@ -32,7 +32,7 @@ jobs:
         run: doctl compute droplet create openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }} --size s-1vcpu-1gb --image ${{ matrix.os-image }} --region lon1 --enable-ipv6 --ssh-keys be:66:76:61:a8:71:93:aa:e3:19:ba:d8:0d:d2:2d:d4 --wait
 
       - name: Get server ID
-        run: echo ::set-output name=value::$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }}'").id')
+        run: echo "value=$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }}'").id')" >> $GITHUB_OUTPUT
         id: server_id
 
       - name: Move server to dedicated project
@@ -42,11 +42,11 @@ jobs:
         run: sleep 90
 
       - name: Get server IP
-        run: echo ::set-output name=value::$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }}'").networks.v4 | .[] | select(.type == "'public'").ip_address')
+        run: echo "value=$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'openvpn-action-$GITHUB_RUN_ID-$GITHUB_RUN_NUMBER-${{ matrix.os-image }}'").networks.v4 | .[] | select(.type == "'public'").ip_address')" >> $GITHUB_OUTPUT
         id: server_ip
 
       - name: Get server OS
-        run: echo ::set-output name=value::$(echo ${{ matrix.os-image }} | cut -d '-' -f1)
+        run: echo "value=$(echo ${{ matrix.os-image }} | cut -d '-' -f1)" >> $GITHUB_OUTPUT
         id: server_os
 
       - name: Setup remote server (Debian/Ubuntu)
