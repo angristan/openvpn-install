@@ -154,7 +154,7 @@ So for example - here it would route all traffic of `10.0.0.0/8` to the vpn. And
 
 ---
 
-**Q:** I have enabled IPv6 and my VPN client gets an IPv6 address. Why do I reach the sites or other dual-stacked destionations via IPv4 only?
+**Q:** I have enabled IPv6 and my VPN client gets an IPv6 address. Why do I reach the sites or other dual-stacked destinations via IPv4 only?
 
 **A:** This is because inside the tunnel you don't get a publicly routable IPv6 address, instead you get an ULA (Unlique Local Lan) address. Operating systems don't prefer this all the time. You can fix this in your operating system policies as it's unrelated to the VPN itself:
 
