@@ -147,6 +147,12 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 
 			# Get root servers list
 			curl -o /etc/unbound/root.hints https://www.internic.net/domain/named.cache
+			# Verify download was successful and file contains expected content
+			if [[ ! -s /etc/unbound/root.hints ]] || ! grep -q "ROOT-SERVERS" /etc/unbound/root.hints; then
+				echo "Failed to download root.hints or file is invalid!"
+				rm -f /etc/unbound/root.hints
+				exit 1
+			fi
 
 			if [[ ! -f /etc/unbound/unbound.conf.old ]]; then
 				mv /etc/unbound/unbound.conf /etc/unbound/unbound.conf.old
