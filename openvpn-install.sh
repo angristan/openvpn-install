@@ -7,8 +7,8 @@
 # https://github.com/angristan/openvpn-install
 
 # Configuration constants
-readonly CERT_VALIDITY_DAYS=3650    # 10 years
-readonly CRL_VALIDITY_DAYS=3650     # 10 years
+readonly CERT_VALIDITY_DAYS=3650 # 10 years
+readonly CRL_VALIDITY_DAYS=3650  # 10 years
 readonly EASYRSA_VERSION="3.1.2"
 readonly EASYRSA_SHA256="d63cf129490ffd6d8792ede7344806c506c82c32428b5bb609ad97ca6a6e4499"
 
