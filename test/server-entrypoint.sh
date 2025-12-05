@@ -40,7 +40,7 @@ echo "Running OpenVPN install script..."
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
 
-if [ $INSTALL_EXIT_CODE -ne 0 ]; then
+if [ "$INSTALL_EXIT_CODE" -ne 0 ]; then
 	echo "ERROR: Install script failed with exit code $INSTALL_EXIT_CODE"
 	exit 1
 fi
