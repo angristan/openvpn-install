@@ -3,7 +3,7 @@
 # SC1091: Not following /etc/os-release (sourced dynamically)
 # SC2034: Variables used indirectly or exported for subprocesses
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux 8, Arch Linux, Rocky Linux and AlmaLinux.
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux, Arch Linux, Rocky Linux and AlmaLinux.
 # https://github.com/angristan/openvpn-install
 
 # Configuration constants
@@ -75,10 +75,10 @@ function checkOS() {
 		fi
 		if [[ $ID == "ol" ]]; then
 			OS="oracle"
-			if [[ ! $VERSION_ID =~ (8) ]]; then
+			if [[ ! $VERSION_ID =~ (8|9) ]]; then
 				echo "Your version of Oracle Linux is not supported."
 				echo ""
-				echo "The script only supports Oracle Linux 8."
+				echo "The script only supports Oracle Linux 8 and 9."
 				exit 1
 			fi
 		fi
@@ -98,7 +98,7 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux 8 or Arch Linux system."
+		echo "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux or Arch Linux system."
 		exit 1
 	fi
 }

@@ -142,7 +142,7 @@ The script supports these Linux distributions:
 | CentOS Stream >= 8     | ✅ 🤖   |
 | Debian >= 10           | ✅ 🤖   |
 | Fedora >= 35           | ✅ 🤖   |
-| Oracle Linux 8         | ✅      |
+| Oracle Linux >= 8      | ✅      |
 | Rocky Linux 8          | ✅      |
 | Ubuntu >= 18.04        | ✅ 🤖   |
 
