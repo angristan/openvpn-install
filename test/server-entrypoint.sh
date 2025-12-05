@@ -87,9 +87,16 @@ if [ -f /etc/iptables/add-openvpn-rules.sh ]; then
 	bash /etc/iptables/add-openvpn-rules.sh || echo "Warning: iptables rules failed (may be fine in container)"
 fi
 
-# Show iptables rules for debugging
-echo "Current NAT rules:"
-iptables -t nat -L POSTROUTING -n -v
+# Verify iptables NAT rules exist
+echo "Verifying iptables NAT rules..."
+if iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
+	echo "PASS: NAT POSTROUTING rule for 10.8.0.0/24 exists"
+else
+	echo "FAIL: NAT POSTROUTING rule for 10.8.0.0/24 not found"
+	echo "Current NAT rules:"
+	iptables -t nat -L POSTROUTING -n -v
+	exit 1
+fi
 
 # Enable IP forwarding (may already be set via docker-compose sysctls)
 echo 1 >/proc/sys/net/ipv4/ip_forward 2>/dev/null || echo "IP forwarding already enabled via sysctls"
