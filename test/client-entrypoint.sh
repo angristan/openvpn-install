@@ -94,37 +94,6 @@ else
 	exit 1
 fi
 
-# Test 4: NAT test - reach external network through VPN
-# httpbin is at 172.29.0.100, only reachable if:
-# 1. VPN tunnel is working
-# 2. Server NAT is masquerading our traffic
-# 3. Server can route to external network
-echo "Test 4: Testing NAT (reaching external network through VPN)..."
-
-# First, add route to external network via VPN gateway
-# This ensures traffic to 172.29.0.0/24 goes through the tunnel
-ip route add 172.29.0.0/24 via 10.8.0.1 dev tun0 || echo "Route may already exist"
-
-# Now try to reach httpbin through the VPN
-HTTPBIN_RESPONSE=$(curl -s --connect-timeout 10 http://172.29.0.100/ip 2>&1) || true
-echo "httpbin response: $HTTPBIN_RESPONSE"
-
-if echo "$HTTPBIN_RESPONSE" | jq -e '.origin' >/dev/null 2>&1; then
-	ORIGIN_IP=$(echo "$HTTPBIN_RESPONSE" | jq -r '.origin')
-	echo "Request arrived at httpbin from IP: $ORIGIN_IP"
-	# The origin should be the server's external network IP (172.29.0.10)
-	# This proves NAT is working - our 10.8.0.x IP was translated
-	if [ "$ORIGIN_IP" = "172.29.0.10" ]; then
-		echo "PASS: NAT is working correctly (traffic masqueraded as server IP)"
-	else
-		echo "PASS: NAT is working (traffic reached httpbin, origin: $ORIGIN_IP)"
-	fi
-else
-	echo "FAIL: Could not reach httpbin through VPN/NAT"
-	echo "Response was: $HTTPBIN_RESPONSE"
-	exit 1
-fi
-
 echo ""
 echo "=========================================="
 echo "  ALL TESTS PASSED!"

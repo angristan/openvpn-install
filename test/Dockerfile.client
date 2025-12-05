@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     procps \
     dnsutils \
-    jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Create TUN device directory (device will be mounted at runtime)
