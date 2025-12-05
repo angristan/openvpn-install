@@ -5,9 +5,9 @@ echo "=== OpenVPN Client Container ==="
 
 # Create TUN device if it doesn't exist
 if [ ! -c /dev/net/tun ]; then
-    mkdir -p /dev/net
-    mknod /dev/net/tun c 10 200
-    chmod 600 /dev/net/tun
+	mkdir -p /dev/net
+	mknod /dev/net/tun c 10 200
+	chmod 600 /dev/net/tun
 fi
 
 echo "TUN device ready"
@@ -17,14 +17,14 @@ echo "Waiting for client config..."
 MAX_WAIT=120
 WAITED=0
 while [ ! -f /shared/client.ovpn ] && [ $WAITED -lt $MAX_WAIT ]; do
-    sleep 2
-    WAITED=$((WAITED + 2))
-    echo "Waiting... ($WAITED/$MAX_WAIT seconds)"
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting... ($WAITED/$MAX_WAIT seconds)"
 done
 
 if [ ! -f /shared/client.ovpn ]; then
-    echo "ERROR: Client config not found after ${MAX_WAIT}s"
-    exit 1
+	echo "ERROR: Client config not found after ${MAX_WAIT}s"
+	exit 1
 fi
 
 echo "Client config found!"
@@ -43,21 +43,21 @@ echo "Waiting for VPN connection..."
 MAX_WAIT=60
 WAITED=0
 while ! ip addr show tun0 2>/dev/null | grep -q "inet " && [ $WAITED -lt $MAX_WAIT ]; do
-    sleep 2
-    WAITED=$((WAITED + 2))
-    echo "Waiting for tun0... ($WAITED/$MAX_WAIT seconds)"
-    
-    # Check for errors
-    if [ -f /var/log/openvpn.log ]; then
-        tail -5 /var/log/openvpn.log
-    fi
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for tun0... ($WAITED/$MAX_WAIT seconds)"
+
+	# Check for errors
+	if [ -f /var/log/openvpn.log ]; then
+		tail -5 /var/log/openvpn.log
+	fi
 done
 
 if ! ip addr show tun0 2>/dev/null | grep -q "inet "; then
-    echo "ERROR: VPN connection failed"
-    echo "=== OpenVPN log ==="
-    cat /var/log/openvpn.log || true
-    exit 1
+	echo "ERROR: VPN connection failed"
+	echo "=== OpenVPN log ==="
+	cat /var/log/openvpn.log || true
+	exit 1
 fi
 
 echo "=== VPN Connected! ==="
@@ -70,19 +70,19 @@ echo "=== Running connectivity tests ==="
 # Test 1: Check tun0 interface
 echo "Test 1: Checking tun0 interface..."
 if ip addr show tun0 | grep -q "10.8.0"; then
-    echo "PASS: tun0 interface has correct IP range (10.8.0.x)"
+	echo "PASS: tun0 interface has correct IP range (10.8.0.x)"
 else
-    echo "FAIL: tun0 interface doesn't have expected IP"
-    exit 1
+	echo "FAIL: tun0 interface doesn't have expected IP"
+	exit 1
 fi
 
 # Test 2: Ping VPN gateway
 echo "Test 2: Pinging VPN gateway (10.8.0.1)..."
 if ping -c 3 10.8.0.1; then
-    echo "PASS: Can ping VPN gateway"
+	echo "PASS: Can ping VPN gateway"
 else
-    echo "FAIL: Cannot ping VPN gateway"
-    exit 1
+	echo "FAIL: Cannot ping VPN gateway"
+	exit 1
 fi
 
 echo ""
