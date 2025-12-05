@@ -1,16 +1,27 @@
-FROM ubuntu:22.04
+ARG BASE_IMAGE=ubuntu:22.04
+FROM ${BASE_IMAGE}
 
+ARG BASE_IMAGE
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install basic dependencies
-RUN apt-get update && apt-get install -y \
-    iproute2 \
-    iptables \
-    curl \
-    procps \
-    systemd \
-    systemd-sysv \
-    && rm -rf /var/lib/apt/lists/*
+# Install basic dependencies based on the OS
+RUN if command -v apt-get >/dev/null; then \
+        apt-get update && apt-get install -y \
+            iproute2 iptables curl procps systemd systemd-sysv \
+        && rm -rf /var/lib/apt/lists/*; \
+    elif command -v dnf >/dev/null; then \
+        dnf install -y --allowerasing \
+            iproute iptables curl procps-ng systemd tar gzip \
+        && dnf clean all; \
+    elif command -v yum >/dev/null; then \
+        yum install -y \
+            iproute iptables curl procps-ng systemd tar gzip \
+        && yum clean all; \
+    elif command -v pacman >/dev/null; then \
+        pacman -Sy --noconfirm \
+            iproute2 iptables curl procps-ng systemd \
+        && pacman -Scc --noconfirm; \
+    fi
 
 # Create TUN device (will be mounted at runtime)
 RUN mkdir -p /dev/net

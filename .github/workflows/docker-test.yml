@@ -12,7 +12,42 @@ jobs:
   docker-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: ubuntu-22.04
+            image: ubuntu:22.04
+          - name: ubuntu-24.04
+            image: ubuntu:24.04
+          - name: debian-11
+            image: debian:11
+          - name: debian-12
+            image: debian:12
+          - name: fedora-40
+            image: fedora:40
+          - name: fedora-41
+            image: fedora:41
+          - name: rocky-8
+            image: rockylinux:8
+          - name: rocky-9
+            image: rockylinux:9
+          - name: almalinux-8
+            image: almalinux:8
+          - name: almalinux-9
+            image: almalinux:9
+          - name: archlinux
+            image: archlinux:latest
+          - name: oraclelinux-8
+            image: oraclelinux:8
+          - name: oraclelinux-9
+            image: oraclelinux:9
+          - name: amazonlinux-2
+            image: amazonlinux:2
+          - name: amazonlinux-2023
+            image: amazonlinux:2023
 
+    name: ${{ matrix.os.name }}
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +55,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build server image
-        run: docker build -t openvpn-server -f test/Dockerfile.server .
+        run: |
+          docker build \
+            --build-arg BASE_IMAGE=${{ matrix.os.image }} \
+            -t openvpn-server \
+            -f test/Dockerfile.server .
 
       - name: Build client image
         run: docker build -t openvpn-client -f test/Dockerfile.client .
