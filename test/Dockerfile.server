@@ -18,8 +18,8 @@ RUN if command -v apt-get >/dev/null; then \
             iproute iptables curl procps-ng systemd tar gzip \
         && yum clean all; \
     elif command -v pacman >/dev/null; then \
-        pacman -Sy --noconfirm \
-            iproute2 iptables curl procps-ng systemd \
+        pacman -Syu --noconfirm \
+            iproute2 iptables curl procps-ng \
         && pacman -Scc --noconfirm; \
     fi
 
