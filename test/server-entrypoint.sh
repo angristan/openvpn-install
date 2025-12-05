@@ -27,30 +27,46 @@ export PASS=1
 export ENDPOINT=openvpn-server
 
 echo "Running OpenVPN install script..."
-# Note: The script exits with 0 after generating client config, so we ignore the exit code
-bash -x /opt/openvpn-install.sh || true
+# Run in subshell because the script calls 'exit 0' after generating client config
+(bash -x /opt/openvpn-install.sh)
+INSTALL_EXIT_CODE=$?
 
-echo "=== Installation complete ==="
+echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
 
-# Check if OpenVPN config was created
-if [ ! -f /etc/openvpn/server.conf ]; then
-    echo "ERROR: server.conf not created"
+# Verify all expected files were created
+echo "Verifying installation..."
+MISSING_FILES=0
+for f in \
+    /etc/openvpn/server.conf \
+    /etc/openvpn/ca.crt \
+    /etc/openvpn/ca.key \
+    /etc/openvpn/tls-crypt.key \
+    /etc/openvpn/crl.pem \
+    /etc/openvpn/easy-rsa/pki/ca.crt \
+    /etc/iptables/add-openvpn-rules.sh \
+    /root/testclient.ovpn
+do
+    if [ ! -f "$f" ]; then
+        echo "ERROR: Missing file: $f"
+        MISSING_FILES=$((MISSING_FILES + 1))
+    fi
+done
+
+if [ $MISSING_FILES -gt 0 ]; then
+    echo "ERROR: $MISSING_FILES required files are missing"
     exit 1
 fi
 
-echo "Server config created successfully"
+echo "All required files present"
+echo ""
+echo "Server config:"
 cat /etc/openvpn/server.conf
 
 # Copy client config to shared volume
-if [ -f /root/testclient.ovpn ]; then
-    cp /root/testclient.ovpn /shared/client.ovpn
-    # Modify remote address to use container hostname
-    sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
-    echo "Client config copied to /shared/client.ovpn"
-else
-    echo "ERROR: Client config not found"
-    exit 1
-fi
+cp /root/testclient.ovpn /shared/client.ovpn
+# Modify remote address to use container hostname
+sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
+echo "Client config copied to /shared/client.ovpn"
 
 # Start OpenVPN server manually (systemd doesn't work in containers)
 echo "Starting OpenVPN server..."
