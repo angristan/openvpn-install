@@ -1,0 +1,28 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install basic dependencies
+RUN apt-get update && apt-get install -y \
+    iproute2 \
+    iptables \
+    curl \
+    procps \
+    systemd \
+    systemd-sysv \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create TUN device (will be mounted at runtime)
+RUN mkdir -p /dev/net
+
+# Copy the install script
+COPY openvpn-install.sh /opt/openvpn-install.sh
+RUN chmod +x /opt/openvpn-install.sh
+
+# Copy test scripts
+COPY test/server-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /opt
+
+ENTRYPOINT ["/entrypoint.sh"]

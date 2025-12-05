@@ -1,0 +1,23 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install OpenVPN client and testing tools
+RUN apt-get update && apt-get install -y \
+    openvpn \
+    iproute2 \
+    iputils-ping \
+    curl \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create TUN device directory (device will be mounted at runtime)
+RUN mkdir -p /dev/net
+
+# Copy test scripts
+COPY test/client-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /etc/openvpn
+
+ENTRYPOINT ["/entrypoint.sh"]
