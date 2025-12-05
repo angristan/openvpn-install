@@ -1,3 +1,4 @@
+---
 on:
   push:
   pull_request:
@@ -106,8 +107,10 @@ jobs:
 
       - name: Verify client config was generated
         run: |
-          docker run --rm -v shared-config:/shared alpine ls -la /shared/
-          docker run --rm -v shared-config:/shared alpine cat /shared/client.ovpn
+          docker run --rm -v shared-config:/shared alpine \
+            ls -la /shared/
+          docker run --rm -v shared-config:/shared alpine \
+            cat /shared/client.ovpn
 
       - name: Start OpenVPN client and run tests
         run: |
@@ -121,11 +124,10 @@ jobs:
             -v shared-config:/shared:ro \
             openvpn-client &
 
-          CLIENT_PID=$!
-
           # Wait for tests to complete (look for success message)
           for i in {1..60}; do
-            if docker logs openvpn-client 2>&1 | grep -q "ALL TESTS PASSED"; then
+            if docker logs openvpn-client 2>&1 | grep -q "ALL TESTS PASSED"
+            then
               echo "Tests passed!"
               exit 0
             fi
