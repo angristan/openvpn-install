@@ -87,6 +87,15 @@ if [ -f /etc/iptables/add-openvpn-rules.sh ]; then
 	bash /etc/iptables/add-openvpn-rules.sh || echo "Warning: iptables rules failed (may be fine in container)"
 fi
 
+# Add NAT rule for external test network (172.29.0.0/24)
+# This allows VPN clients to reach the external network through NAT
+echo "Adding NAT rule for external test network..."
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth1 -j MASQUERADE || echo "Warning: external NAT rule failed"
+
+# Show iptables rules for debugging
+echo "Current NAT rules:"
+iptables -t nat -L POSTROUTING -n -v
+
 # Enable IP forwarding (may already be set via docker-compose sysctls)
 echo 1 >/proc/sys/net/ipv4/ip_forward 2>/dev/null || echo "IP forwarding already enabled via sysctls"
 
