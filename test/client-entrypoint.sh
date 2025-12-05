@@ -87,7 +87,7 @@ fi
 
 # Test 3: DNS resolution
 echo "Test 3: Testing DNS resolution..."
-if host google.com > /dev/null 2>&1; then
+if host google.com >/dev/null 2>&1; then
 	echo "PASS: DNS resolution working"
 else
 	echo "FAIL: DNS resolution failed"
@@ -109,7 +109,7 @@ ip route add 172.29.0.0/24 via 10.8.0.1 dev tun0 || echo "Route may already exis
 HTTPBIN_RESPONSE=$(curl -s --connect-timeout 10 http://172.29.0.100/ip 2>&1) || true
 echo "httpbin response: $HTTPBIN_RESPONSE"
 
-if echo "$HTTPBIN_RESPONSE" | jq -e '.origin' > /dev/null 2>&1; then
+if echo "$HTTPBIN_RESPONSE" | jq -e '.origin' >/dev/null 2>&1; then
 	ORIGIN_IP=$(echo "$HTTPBIN_RESPONSE" | jq -r '.origin')
 	echo "Request arrived at httpbin from IP: $ORIGIN_IP"
 	# The origin should be the server's external network IP (172.29.0.10)
