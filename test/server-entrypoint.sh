@@ -26,12 +26,23 @@ export CLIENT=testclient
 export PASS=1
 export ENDPOINT=openvpn-server
 
+# Prepare script for container environment:
+# - Replace systemctl calls with no-ops (systemd doesn't work in containers)
+# This ensures the script won't fail silently on systemctl commands
+sed 's/systemctl /echo "[SKIPPED] systemctl /g' /opt/openvpn-install.sh > /tmp/openvpn-install.sh
+chmod +x /tmp/openvpn-install.sh
+
 echo "Running OpenVPN install script..."
 # Run in subshell because the script calls 'exit 0' after generating client config
-(bash -x /opt/openvpn-install.sh)
+(bash -x /tmp/openvpn-install.sh)
 INSTALL_EXIT_CODE=$?
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
+
+if [ $INSTALL_EXIT_CODE -ne 0 ]; then
+    echo "ERROR: Install script failed with exit code $INSTALL_EXIT_CODE"
+    exit 1
+fi
 
 # Verify all expected files were created
 echo "Verifying installation..."
