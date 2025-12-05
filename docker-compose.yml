@@ -17,6 +17,8 @@ services:
     networks:
       vpn-test:
         ipv4_address: 172.28.0.10
+      external-test:
+        ipv4_address: 172.29.0.10
     healthcheck:
       test: ["CMD", "pgrep", "openvpn"]
       interval: 5s
@@ -43,6 +45,21 @@ services:
       openvpn-server:
         condition: service_healthy
 
+  # External service only reachable via VPN server's NAT
+  httpbin:
+    image: kennethreitz/httpbin
+    container_name: httpbin
+    hostname: httpbin
+    networks:
+      external-test:
+        ipv4_address: 172.29.0.100
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/ip"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
 volumes:
   shared-config:
 
@@ -52,3 +69,8 @@ networks:
     ipam:
       config:
         - subnet: 172.28.0.0/24
+  external-test:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/24

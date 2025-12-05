@@ -66,10 +66,33 @@ jobs:
         run: docker build -t openvpn-client -f test/Dockerfile.client .
 
       - name: Create Docker network
-        run: docker network create --subnet=172.28.0.0/24 vpn-test
+        run: |
+          docker network create --subnet=172.28.0.0/24 vpn-test
+          docker network create --subnet=172.29.0.0/24 external-test
 
       - name: Create shared volume
         run: docker volume create shared-config
+
+      - name: Start httpbin (external service)
+        run: |
+          docker run -d \
+            --name httpbin \
+            --hostname httpbin \
+            --network external-test \
+            --ip 172.29.0.100 \
+            kennethreitz/httpbin
+
+      - name: Wait for httpbin to be ready
+        run: |
+          echo "Waiting for httpbin to be ready..."
+          for i in {1..30}; do
+            if docker exec httpbin curl -sf http://localhost/ip > /dev/null 2>&1; then
+              echo "httpbin is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
 
       - name: Start OpenVPN server
         run: |
@@ -83,6 +106,8 @@ jobs:
             --ip 172.28.0.10 \
             -v shared-config:/shared \
             openvpn-server
+          # Connect server to external network too (for NAT test)
+          docker network connect --ip 172.29.0.10 external-test openvpn-server
 
       - name: Wait for server installation and startup
         run: |
@@ -155,7 +180,7 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker stop openvpn-server openvpn-client 2>/dev/null || true
-          docker rm openvpn-server openvpn-client 2>/dev/null || true
-          docker network rm vpn-test 2>/dev/null || true
+          docker stop openvpn-server openvpn-client httpbin 2>/dev/null || true
+          docker rm openvpn-server openvpn-client httpbin 2>/dev/null || true
+          docker network rm vpn-test external-test 2>/dev/null || true
           docker volume rm shared-config 2>/dev/null || true
