@@ -82,10 +82,9 @@ echo "Client config copied to /shared/client.ovpn"
 # Start OpenVPN server manually (systemd doesn't work in containers)
 echo "Starting OpenVPN server..."
 
-# Apply iptables rules manually
-if [ -f /etc/iptables/add-openvpn-rules.sh ]; then
-	bash /etc/iptables/add-openvpn-rules.sh || echo "Warning: iptables rules failed (may be fine in container)"
-fi
+# Apply iptables rules manually (systemd not available in containers)
+echo "Applying iptables rules..."
+bash /etc/iptables/add-openvpn-rules.sh
 
 # Verify iptables NAT rules exist
 echo "Verifying iptables NAT rules..."
