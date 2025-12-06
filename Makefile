@@ -60,11 +60,26 @@ test-shell-client:
 	docker exec -it openvpn-client /bin/bash
 
 # Test specific distributions
+test-ubuntu-18.04:
+	$(MAKE) test BASE_IMAGE=ubuntu:18.04
+
+test-ubuntu-20.04:
+	$(MAKE) test BASE_IMAGE=ubuntu:20.04
+
 test-ubuntu-22.04:
 	$(MAKE) test BASE_IMAGE=ubuntu:22.04
 
 test-ubuntu-24.04:
 	$(MAKE) test BASE_IMAGE=ubuntu:24.04
+
+test-debian-8:
+	$(MAKE) test BASE_IMAGE=debian:8
+
+test-debian-9:
+	$(MAKE) test BASE_IMAGE=debian:9
+
+test-debian-10:
+	$(MAKE) test BASE_IMAGE=debian:10
 
 test-debian-11:
 	$(MAKE) test BASE_IMAGE=debian:11
@@ -105,10 +120,21 @@ test-amazon-2023:
 test-arch:
 	$(MAKE) test BASE_IMAGE=archlinux:latest
 
+test-centos-7:
+	$(MAKE) test BASE_IMAGE=centos:7
+
+test-centos-stream-9:
+	$(MAKE) test BASE_IMAGE=quay.io/centos/centos:stream9
+
 # Test all distributions (runs sequentially)
 test-all:
+	$(MAKE) test-ubuntu-18.04
+	$(MAKE) test-ubuntu-20.04
 	$(MAKE) test-ubuntu-22.04
 	$(MAKE) test-ubuntu-24.04
+	$(MAKE) test-debian-8
+	$(MAKE) test-debian-9
+	$(MAKE) test-debian-10
 	$(MAKE) test-debian-11
 	$(MAKE) test-debian-12
 	$(MAKE) test-fedora-40
@@ -122,3 +148,5 @@ test-all:
 	$(MAKE) test-amazon-2
 	$(MAKE) test-amazon-2023
 	$(MAKE) test-arch
+	$(MAKE) test-centos-7
+	$(MAKE) test-centos-stream-9

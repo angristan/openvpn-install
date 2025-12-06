@@ -1,8 +1,4 @@
 on:
-  push:
-    branches:
-      - master
-      - ci
   workflow_dispatch:
 
 name: Test
