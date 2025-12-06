@@ -25,18 +25,10 @@ jobs:
             image: ubuntu:22.04
           - name: ubuntu-24.04
             image: ubuntu:24.04
-          - name: debian-8
-            image: debian:8
-          - name: debian-9
-            image: debian:9
-          - name: debian-10
-            image: debian:10
           - name: debian-11
             image: debian:11
           - name: debian-12
             image: debian:12
-          - name: centos-7
-            image: centos:7
           - name: centos-stream-9
             image: quay.io/centos/centos:stream9
           - name: fedora-40

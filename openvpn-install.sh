@@ -30,10 +30,10 @@ function checkOS() {
 		source /etc/os-release
 
 		if [[ $ID == "debian" || $ID == "raspbian" ]]; then
-			if [[ $VERSION_ID -lt 9 ]]; then
+			if [[ $VERSION_ID -lt 11 ]]; then
 				echo "⚠️ Your version of Debian is not supported."
 				echo ""
-				echo "However, if you're using Debian >= 9 or unstable/testing, you can continue at your own risk."
+				echo "However, if you're using Debian >= 11 or unstable/testing, you can continue at your own risk."
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Continue? [y/n]: " -e CONTINUE
@@ -45,10 +45,10 @@ function checkOS() {
 		elif [[ $ID == "ubuntu" ]]; then
 			OS="ubuntu"
 			MAJOR_UBUNTU_VERSION=$(echo "$VERSION_ID" | cut -d '.' -f1)
-			if [[ $MAJOR_UBUNTU_VERSION -lt 16 ]]; then
+			if [[ $MAJOR_UBUNTU_VERSION -lt 18 ]]; then
 				echo "⚠️ Your version of Ubuntu is not supported."
 				echo ""
-				echo "However, if you're using Ubuntu >= 16.04 or beta, you can continue at your own risk."
+				echo "However, if you're using Ubuntu >= 18.04 or beta, you can continue at your own risk."
 				echo ""
 				until [[ $CONTINUE =~ (y|n) ]]; do
 					read -rp "Continue? [y/n]: " -e CONTINUE
@@ -65,10 +65,10 @@ function checkOS() {
 		fi
 		if [[ $ID == "centos" || $ID == "rocky" || $ID == "almalinux" ]]; then
 			OS="centos"
-			if [[ ${VERSION_ID%.*} -lt 7 ]]; then
+			if [[ ${VERSION_ID%.*} -lt 8 ]]; then
 				echo "⚠️ Your version of CentOS is not supported."
 				echo ""
-				echo "The script only supports CentOS 7 and CentOS 8."
+				echo "The script only supports CentOS Stream 8+ / Rocky Linux 8+ / AlmaLinux 8+."
 				echo ""
 				exit 1
 			fi
@@ -718,13 +718,7 @@ function installOpenVPN() {
 		if [[ $OS =~ (debian|ubuntu) ]]; then
 			apt-get update
 			apt-get -y install ca-certificates gnupg
-			# We add the OpenVPN repo to get the latest version.
-			if [[ $VERSION_ID == "16.04" ]]; then
-				echo "deb http://build.openvpn.net/debian/openvpn/stable xenial main" >/etc/apt/sources.list.d/openvpn.list
-				wget -O - https://swupdate.openvpn.net/repos/repo-public.gpg | apt-key add -
-				apt-get update
-			fi
-			# Ubuntu > 16.04 and Debian > 8 have OpenVPN >= 2.4 without the need of a third party repository.
+			# Ubuntu >= 18.04 and Debian >= 11 have OpenVPN >= 2.4 without the need of a third party repository.
 			apt-get install -y openvpn iptables openssl wget ca-certificates curl
 		elif [[ $OS == 'centos' ]]; then
 			yum install -y epel-release
@@ -998,11 +992,6 @@ verb 3" >>/etc/openvpn/server.conf
 		systemctl daemon-reload
 		systemctl enable openvpn-server@server
 		systemctl restart openvpn-server@server
-	elif [[ $OS == "ubuntu" ]] && [[ $VERSION_ID == "16.04" ]]; then
-		# On Ubuntu 16.04, we use the package from the OpenVPN repo
-		# This package uses a sysvinit service
-		systemctl enable openvpn
-		systemctl start openvpn
 	else
 		# Don't modify package-provided service
 		cp /lib/systemd/system/openvpn\@.service /etc/systemd/system/openvpn\@.service
@@ -1302,9 +1291,6 @@ function removeOpenVPN() {
 			systemctl stop openvpn-server@server
 			# Remove customised service
 			rm /etc/systemd/system/openvpn-server@.service
-		elif [[ $OS == "ubuntu" ]] && [[ $VERSION_ID == "16.04" ]]; then
-			systemctl disable openvpn
-			systemctl stop openvpn
 		else
 			systemctl disable openvpn@server
 			systemctl stop openvpn@server

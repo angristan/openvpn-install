@@ -138,9 +138,8 @@ The script supports these Linux distributions:
 | Amazon Linux 2         | ✅ 🤖   |
 | Amazon Linux 2023      | ✅ 🤖   |
 | Arch Linux             | ✅ 🤖   |
-| CentOS 7               | ✅ 🤖   |
 | CentOS Stream >= 8     | ✅ 🤖   |
-| Debian >= 8            | ✅ 🤖   |
+| Debian >= 11           | ✅ 🤖   |
 | Fedora >= 40           | ✅ 🤖   |
 | Oracle Linux >= 8      | ✅ 🤖   |
 | Rocky Linux >= 8       | ✅ 🤖   |
