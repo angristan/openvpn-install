@@ -24,7 +24,7 @@ test: test-build test-up
 
 # Build test containers
 test-build:
-	docker compose build
+	BASE_IMAGE=$(BASE_IMAGE) docker compose build
 
 # Start test containers
 test-up:
@@ -42,7 +42,7 @@ test-logs:
 test-logs-server:
 	docker logs -f openvpn-server
 
-# View client logs only  
+# View client logs only
 test-logs-client:
 	docker logs -f openvpn-client
 
@@ -58,3 +58,67 @@ test-shell-server:
 # Interactive shell into client container
 test-shell-client:
 	docker exec -it openvpn-client /bin/bash
+
+# Test specific distributions
+test-ubuntu-22.04:
+	$(MAKE) test BASE_IMAGE=ubuntu:22.04
+
+test-ubuntu-24.04:
+	$(MAKE) test BASE_IMAGE=ubuntu:24.04
+
+test-debian-11:
+	$(MAKE) test BASE_IMAGE=debian:11
+
+test-debian-12:
+	$(MAKE) test BASE_IMAGE=debian:12
+
+test-fedora-40:
+	$(MAKE) test BASE_IMAGE=fedora:40
+
+test-fedora-41:
+	$(MAKE) test BASE_IMAGE=fedora:41
+
+test-rocky-8:
+	$(MAKE) test BASE_IMAGE=rockylinux:8
+
+test-rocky-9:
+	$(MAKE) test BASE_IMAGE=rockylinux:9
+
+test-almalinux-8:
+	$(MAKE) test BASE_IMAGE=almalinux:8
+
+test-almalinux-9:
+	$(MAKE) test BASE_IMAGE=almalinux:9
+
+test-oracle-8:
+	$(MAKE) test BASE_IMAGE=oraclelinux:8
+
+test-oracle-9:
+	$(MAKE) test BASE_IMAGE=oraclelinux:9
+
+test-amazon-2:
+	$(MAKE) test BASE_IMAGE=amazonlinux:2
+
+test-amazon-2023:
+	$(MAKE) test BASE_IMAGE=amazonlinux:2023
+
+test-arch:
+	$(MAKE) test BASE_IMAGE=archlinux:latest
+
+# Test all distributions (runs sequentially)
+test-all:
+	$(MAKE) test-ubuntu-22.04
+	$(MAKE) test-ubuntu-24.04
+	$(MAKE) test-debian-11
+	$(MAKE) test-debian-12
+	$(MAKE) test-fedora-40
+	$(MAKE) test-fedora-41
+	$(MAKE) test-rocky-8
+	$(MAKE) test-rocky-9
+	$(MAKE) test-almalinux-8
+	$(MAKE) test-almalinux-9
+	$(MAKE) test-oracle-8
+	$(MAKE) test-oracle-9
+	$(MAKE) test-amazon-2
+	$(MAKE) test-amazon-2023
+	$(MAKE) test-arch

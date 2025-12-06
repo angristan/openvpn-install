@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: test/Dockerfile.server
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-}
     container_name: openvpn-server
     hostname: openvpn-server
     cap_add:

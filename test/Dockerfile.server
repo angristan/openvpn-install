@@ -1,7 +1,7 @@
 # checkov:skip=CKV_DOCKER_2:Test container doesn't need healthcheck
 # checkov:skip=CKV_DOCKER_3:OpenVPN server requires root for NET_ADMIN
 # checkov:skip=CKV_DOCKER_7:Base image is parameterized, some use latest tag
-ARG BASE_IMAGE=ubuntu:22.04
+ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
 ARG BASE_IMAGE
