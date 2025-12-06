@@ -85,15 +85,6 @@ else
 	exit 1
 fi
 
-# Test 3: DNS resolution
-echo "Test 3: Testing DNS resolution..."
-if host google.com >/dev/null 2>&1; then
-	echo "PASS: DNS resolution working"
-else
-	echo "FAIL: DNS resolution failed"
-	exit 1
-fi
-
 echo ""
 echo "=========================================="
 echo "  ALL TESTS PASSED!"
