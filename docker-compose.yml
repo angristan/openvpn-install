@@ -23,7 +23,7 @@ services:
       test: ["CMD", "pgrep", "openvpn"]
       interval: 5s
       timeout: 3s
-      retries: 30
+      retries: 60
 
   openvpn-client:
     build:
