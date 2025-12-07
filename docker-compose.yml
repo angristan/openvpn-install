@@ -23,9 +23,7 @@ services:
       test: ["CMD", "pgrep", "openvpn"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      # Allow time for the full installation script to complete before healthchecks begin
-      start_period: 60s
+      retries: 30
 
   openvpn-client:
     build:
