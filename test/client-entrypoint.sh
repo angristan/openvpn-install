@@ -87,4 +87,4 @@ echo "  ALL TESTS PASSED!"
 echo "=========================================="
 
 # Keep container running for debugging if needed
-sleep infinity
+exec tail -f /var/log/openvpn.log
