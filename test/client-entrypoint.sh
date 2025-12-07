@@ -30,10 +30,6 @@ fi
 echo "Client config found!"
 cat /shared/client.ovpn
 
-# Wait a bit more for server to be fully ready
-echo "Waiting for server to be ready..."
-sleep 10
-
 # Connect to VPN
 echo "Connecting to OpenVPN server..."
 openvpn --config /shared/client.ovpn --daemon --log /var/log/openvpn.log
