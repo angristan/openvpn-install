@@ -97,7 +97,12 @@ else
 fi
 
 # Enable IP forwarding (may already be set via docker-compose sysctls)
-echo 1 >/proc/sys/net/ipv4/ip_forward 2>/dev/null || echo "IP forwarding already enabled via sysctls"
+if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "1" ]; then
+	echo 1 >/proc/sys/net/ipv4/ip_forward || {
+		echo "ERROR: Failed to enable IP forwarding"
+		exit 1
+	}
+fi
 
 # Start OpenVPN in foreground (run from /etc/openvpn so relative paths work)
 cd /etc/openvpn
