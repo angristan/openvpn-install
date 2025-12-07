@@ -413,7 +413,7 @@ function installQuestions() {
 	fi
 	# If $IP is a private IP address, the server must be behind NAT
 	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
-	log_menu ""
+		log_menu ""
 		log_prompt "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
 		log_prompt "We need it for the clients to connect to the server."
 
@@ -455,19 +455,19 @@ function installQuestions() {
 		read -rp "Port choice [1-3]: " -e -i 1 PORT_CHOICE
 	done
 	case $PORT_CHOICE in
-	1)
-		PORT="1194"
-		;;
-	2)
-		until [[ $PORT =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; do
-			read -rp "Custom port [1-65535]: " -e -i 1194 PORT
-		done
-		;;
-	3)
-		# Generate random number within private ports range
-		PORT=$(shuf -i49152-65535 -n1)
-		log_info "Random Port: $PORT"
-		;;
+		1)
+			PORT="1194"
+			;;
+		2)
+			until [[ $PORT =~ ^[0-9]+$ ]] && [ "$PORT" -ge 1 ] && [ "$PORT" -le 65535 ]; do
+				read -rp "Custom port [1-65535]: " -e -i 1194 PORT
+			done
+			;;
+		3)
+			# Generate random number within private ports range
+			PORT=$(shuf -i49152-65535 -n1)
+			log_info "Random Port: $PORT"
+			;;
 	esac
 	log_menu ""
 	log_prompt "What protocol do you want OpenVPN to use?"
@@ -478,12 +478,12 @@ function installQuestions() {
 		read -rp "Protocol [1-2]: " -e -i 1 PROTOCOL_CHOICE
 	done
 	case $PROTOCOL_CHOICE in
-	1)
-		PROTOCOL="udp"
-		;;
-	2)
-		PROTOCOL="tcp"
-		;;
+		1)
+			PROTOCOL="udp"
+			;;
+		2)
+			PROTOCOL="tcp"
+			;;
 	esac
 	log_menu ""
 	log_prompt "What DNS resolvers do you want to use with the VPN?"
@@ -503,12 +503,12 @@ function installQuestions() {
 	until [[ $DNS =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 13 ]; do
 		read -rp "DNS [1-13]: " -e -i 11 DNS
 		if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
-	log_menu ""
+			log_menu ""
 			log_prompt "Unbound is already installed."
 			log_prompt "You can allow the script to configure it in order to use it from your OpenVPN clients"
 			log_prompt "We will simply add a second server to /etc/unbound/unbound.conf for the OpenVPN subnet."
 			log_prompt "No changes are made to the current configuration."
-	log_menu ""
+			log_menu ""
 
 			until [[ $CONTINUE =~ (y|n) ]]; do
 				read -rp "Apply configuration changes to Unbound? [y/n]: " -e CONTINUE
@@ -537,22 +537,22 @@ function installQuestions() {
 	done
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
 		log_prompt "Choose which compression algorithm you want to use: (they are ordered by efficiency)"
-	log_menu "   1) LZ4-v2"
-	log_menu "   2) LZ4"
-	log_menu "   3) LZ0"
+		log_menu "   1) LZ4-v2"
+		log_menu "   2) LZ4"
+		log_menu "   3) LZ0"
 		until [[ $COMPRESSION_CHOICE =~ ^[1-3]$ ]]; do
 			read -rp"Compression algorithm [1-3]: " -e -i 1 COMPRESSION_CHOICE
 		done
 		case $COMPRESSION_CHOICE in
-		1)
-			COMPRESSION_ALG="lz4-v2"
-			;;
-		2)
-			COMPRESSION_ALG="lz4"
-			;;
-		3)
-			COMPRESSION_ALG="lzo"
-			;;
+			1)
+				COMPRESSION_ALG="lz4-v2"
+				;;
+			2)
+				COMPRESSION_ALG="lz4"
+				;;
+			3)
+				COMPRESSION_ALG="lzo"
+				;;
 		esac
 	fi
 	log_menu ""
@@ -575,174 +575,174 @@ function installQuestions() {
 		HMAC_ALG="SHA256"
 		TLS_SIG="1" # tls-crypt
 	else
-	log_menu ""
+		log_menu ""
 		log_prompt "Choose which cipher you want to use for the data channel:"
-	log_menu "   1) AES-128-GCM (recommended)"
-	log_menu "   2) AES-192-GCM"
-	log_menu "   3) AES-256-GCM"
-	log_menu "   4) AES-128-CBC"
-	log_menu "   5) AES-192-CBC"
-	log_menu "   6) AES-256-CBC"
+		log_menu "   1) AES-128-GCM (recommended)"
+		log_menu "   2) AES-192-GCM"
+		log_menu "   3) AES-256-GCM"
+		log_menu "   4) AES-128-CBC"
+		log_menu "   5) AES-192-CBC"
+		log_menu "   6) AES-256-CBC"
 		until [[ $CIPHER_CHOICE =~ ^[1-6]$ ]]; do
 			read -rp "Cipher [1-6]: " -e -i 1 CIPHER_CHOICE
 		done
 		case $CIPHER_CHOICE in
-		1)
-			CIPHER="AES-128-GCM"
-			;;
-		2)
-			CIPHER="AES-192-GCM"
-			;;
-		3)
-			CIPHER="AES-256-GCM"
-			;;
-		4)
-			CIPHER="AES-128-CBC"
-			;;
-		5)
-			CIPHER="AES-192-CBC"
-			;;
-		6)
-			CIPHER="AES-256-CBC"
-			;;
+			1)
+				CIPHER="AES-128-GCM"
+				;;
+			2)
+				CIPHER="AES-192-GCM"
+				;;
+			3)
+				CIPHER="AES-256-GCM"
+				;;
+			4)
+				CIPHER="AES-128-CBC"
+				;;
+			5)
+				CIPHER="AES-192-CBC"
+				;;
+			6)
+				CIPHER="AES-256-CBC"
+				;;
 		esac
-	log_menu ""
+		log_menu ""
 		log_prompt "Choose what kind of certificate you want to use:"
-	log_menu "   1) ECDSA (recommended)"
-	log_menu "   2) RSA"
+		log_menu "   1) ECDSA (recommended)"
+		log_menu "   2) RSA"
 		until [[ $CERT_TYPE =~ ^[1-2]$ ]]; do
 			read -rp"Certificate key type [1-2]: " -e -i 1 CERT_TYPE
 		done
 		case $CERT_TYPE in
-		1)
-	log_menu ""
-			log_prompt "Choose which curve you want to use for the certificate's key:"
-	log_menu "   1) prime256v1 (recommended)"
-	log_menu "   2) secp384r1"
-	log_menu "   3) secp521r1"
-			until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp"Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
-			done
-			case $CERT_CURVE_CHOICE in
 			1)
-				CERT_CURVE="prime256v1"
+				log_menu ""
+				log_prompt "Choose which curve you want to use for the certificate's key:"
+				log_menu "   1) prime256v1 (recommended)"
+				log_menu "   2) secp384r1"
+				log_menu "   3) secp521r1"
+				until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
+					read -rp"Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
+				done
+				case $CERT_CURVE_CHOICE in
+					1)
+						CERT_CURVE="prime256v1"
+						;;
+					2)
+						CERT_CURVE="secp384r1"
+						;;
+					3)
+						CERT_CURVE="secp521r1"
+						;;
+				esac
 				;;
 			2)
-				CERT_CURVE="secp384r1"
+				log_menu ""
+				log_prompt "Choose which size you want to use for the certificate's RSA key:"
+				log_menu "   1) 2048 bits (recommended)"
+				log_menu "   2) 3072 bits"
+				log_menu "   3) 4096 bits"
+				until [[ $RSA_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
+					read -rp "RSA key size [1-3]: " -e -i 1 RSA_KEY_SIZE_CHOICE
+				done
+				case $RSA_KEY_SIZE_CHOICE in
+					1)
+						RSA_KEY_SIZE="2048"
+						;;
+					2)
+						RSA_KEY_SIZE="3072"
+						;;
+					3)
+						RSA_KEY_SIZE="4096"
+						;;
+				esac
 				;;
-			3)
-				CERT_CURVE="secp521r1"
-				;;
-			esac
-			;;
-		2)
-	log_menu ""
-			log_prompt "Choose which size you want to use for the certificate's RSA key:"
-	log_menu "   1) 2048 bits (recommended)"
-	log_menu "   2) 3072 bits"
-	log_menu "   3) 4096 bits"
-			until [[ $RSA_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "RSA key size [1-3]: " -e -i 1 RSA_KEY_SIZE_CHOICE
-			done
-			case $RSA_KEY_SIZE_CHOICE in
-			1)
-				RSA_KEY_SIZE="2048"
-				;;
-			2)
-				RSA_KEY_SIZE="3072"
-				;;
-			3)
-				RSA_KEY_SIZE="4096"
-				;;
-			esac
-			;;
 		esac
-	log_menu ""
+		log_menu ""
 		log_prompt "Choose which cipher you want to use for the control channel:"
 		case $CERT_TYPE in
-		1)
-	log_menu "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
-	log_menu "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
-			until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-				read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
-			done
-			case $CC_CIPHER_CHOICE in
 			1)
-				CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
+				log_menu "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
+				log_menu "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
+				until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
+					read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+				done
+				case $CC_CIPHER_CHOICE in
+					1)
+						CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
+						;;
+					2)
+						CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"
+						;;
+				esac
 				;;
 			2)
-				CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"
+				log_menu "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
+				log_menu "   2) ECDHE-RSA-AES-256-GCM-SHA384"
+				until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
+					read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+				done
+				case $CC_CIPHER_CHOICE in
+					1)
+						CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256"
+						;;
+					2)
+						CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384"
+						;;
+				esac
 				;;
-			esac
-			;;
-		2)
-	log_menu "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
-	log_menu "   2) ECDHE-RSA-AES-256-GCM-SHA384"
-			until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-				read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
-			done
-			case $CC_CIPHER_CHOICE in
-			1)
-				CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256"
-				;;
-			2)
-				CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384"
-				;;
-			esac
-			;;
 		esac
-	log_menu ""
+		log_menu ""
 		log_prompt "Choose what kind of Diffie-Hellman key you want to use:"
-	log_menu "   1) ECDH (recommended)"
-	log_menu "   2) DH"
+		log_menu "   1) ECDH (recommended)"
+		log_menu "   2) DH"
 		until [[ $DH_TYPE =~ [1-2] ]]; do
 			read -rp"DH key type [1-2]: " -e -i 1 DH_TYPE
 		done
 		case $DH_TYPE in
-		1)
-	log_menu ""
-			log_prompt "Choose which curve you want to use for the ECDH key:"
-	log_menu "   1) prime256v1 (recommended)"
-	log_menu "   2) secp384r1"
-	log_menu "   3) secp521r1"
-			while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
-				read -rp"Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
-			done
-			case $DH_CURVE_CHOICE in
 			1)
-				DH_CURVE="prime256v1"
+				log_menu ""
+				log_prompt "Choose which curve you want to use for the ECDH key:"
+				log_menu "   1) prime256v1 (recommended)"
+				log_menu "   2) secp384r1"
+				log_menu "   3) secp521r1"
+				while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
+					read -rp"Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
+				done
+				case $DH_CURVE_CHOICE in
+					1)
+						DH_CURVE="prime256v1"
+						;;
+					2)
+						DH_CURVE="secp384r1"
+						;;
+					3)
+						DH_CURVE="secp521r1"
+						;;
+				esac
 				;;
 			2)
-				DH_CURVE="secp384r1"
+				log_menu ""
+				log_prompt "Choose what size of Diffie-Hellman key you want to use:"
+				log_menu "   1) 2048 bits (recommended)"
+				log_menu "   2) 3072 bits"
+				log_menu "   3) 4096 bits"
+				until [[ $DH_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
+					read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
+				done
+				case $DH_KEY_SIZE_CHOICE in
+					1)
+						DH_KEY_SIZE="2048"
+						;;
+					2)
+						DH_KEY_SIZE="3072"
+						;;
+					3)
+						DH_KEY_SIZE="4096"
+						;;
+				esac
 				;;
-			3)
-				DH_CURVE="secp521r1"
-				;;
-			esac
-			;;
-		2)
-	log_menu ""
-			log_prompt "Choose what size of Diffie-Hellman key you want to use:"
-	log_menu "   1) 2048 bits (recommended)"
-	log_menu "   2) 3072 bits"
-	log_menu "   3) 4096 bits"
-			until [[ $DH_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
-			done
-			case $DH_KEY_SIZE_CHOICE in
-			1)
-				DH_KEY_SIZE="2048"
-				;;
-			2)
-				DH_KEY_SIZE="3072"
-				;;
-			3)
-				DH_KEY_SIZE="4096"
-				;;
-			esac
-			;;
 		esac
-	log_menu ""
+		log_menu ""
 		# The "auth" options behaves differently with AEAD ciphers
 		if [[ $CIPHER =~ CBC$ ]]; then
 			log_prompt "The digest algorithm authenticates data channel packets and tls-auth packets from the control channel."
@@ -750,28 +750,28 @@ function installQuestions() {
 			log_prompt "The digest algorithm authenticates tls-auth packets from the control channel."
 		fi
 		log_prompt "Which digest algorithm do you want to use for HMAC?"
-	log_menu "   1) SHA-256 (recommended)"
-	log_menu "   2) SHA-384"
-	log_menu "   3) SHA-512"
+		log_menu "   1) SHA-256 (recommended)"
+		log_menu "   2) SHA-384"
+		log_menu "   3) SHA-512"
 		until [[ $HMAC_ALG_CHOICE =~ ^[1-3]$ ]]; do
 			read -rp "Digest algorithm [1-3]: " -e -i 1 HMAC_ALG_CHOICE
 		done
 		case $HMAC_ALG_CHOICE in
-		1)
-			HMAC_ALG="SHA256"
-			;;
-		2)
-			HMAC_ALG="SHA384"
-			;;
-		3)
-			HMAC_ALG="SHA512"
-			;;
+			1)
+				HMAC_ALG="SHA256"
+				;;
+			2)
+				HMAC_ALG="SHA384"
+				;;
+			3)
+				HMAC_ALG="SHA512"
+				;;
 		esac
-	log_menu ""
+		log_menu ""
 		log_prompt "You can add an additional layer of security to the control channel with tls-auth and tls-crypt"
 		log_prompt "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them."
-	log_menu "   1) tls-crypt (recommended)"
-	log_menu "   2) tls-auth"
+		log_menu "   1) tls-crypt (recommended)"
+		log_menu "   2) tls-auth"
 		until [[ $TLS_SIG =~ [1-2] ]]; do
 			read -rp "Control channel additional security mechanism [1-2]: " -e -i 1 TLS_SIG
 		done
@@ -910,13 +910,13 @@ function installOpenVPN() {
 
 		cd /etc/openvpn/easy-rsa/ || return
 		case $CERT_TYPE in
-		1)
-			echo "set_var EASYRSA_ALGO ec" >vars
-			echo "set_var EASYRSA_CURVE $CERT_CURVE" >>vars
-			;;
-		2)
-			echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" >vars
-			;;
+			1)
+				echo "set_var EASYRSA_ALGO ec" >vars
+				echo "set_var EASYRSA_CURVE $CERT_CURVE" >>vars
+				;;
+			2)
+				echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" >vars
+				;;
 		esac
 
 		# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
@@ -945,14 +945,14 @@ function installOpenVPN() {
 
 		log_info "Generating TLS key..."
 		case $TLS_SIG in
-		1)
-			# Generate tls-crypt key
-			run_cmd "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/tls-crypt.key
-			;;
-		2)
-			# Generate tls-auth key
-			run_cmd "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/tls-auth.key
-			;;
+			1)
+				# Generate tls-crypt key
+				run_cmd "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/tls-crypt.key
+				;;
+			2)
+				# Generate tls-auth key
+				run_cmd "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/tls-auth.key
+				;;
 		esac
 	else
 		# If easy-rsa is already installed, grab the generated SERVER_NAME
@@ -992,74 +992,74 @@ ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
 
 	# DNS resolvers
 	case $DNS in
-	1) # Current system resolvers
-		# Locate the proper resolv.conf
-		# Needed for systems running systemd-resolved
-		if grep -q "127.0.0.53" "/etc/resolv.conf"; then
-			RESOLVCONF='/run/systemd/resolve/resolv.conf'
-		else
-			RESOLVCONF='/etc/resolv.conf'
-		fi
-		# Obtain the resolvers from resolv.conf and use them for OpenVPN
-		sed -ne 's/^nameserver[[:space:]]\+\([^[:space:]]\+\).*$/\1/p' $RESOLVCONF | while read -r line; do
-			# Copy, if it's a IPv4 |or| if IPv6 is enabled, IPv4/IPv6 does not matter
-			if [[ $line =~ ^[0-9.]*$ ]] || [[ $IPV6_SUPPORT == 'y' ]]; then
-				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server.conf
+		1) # Current system resolvers
+			# Locate the proper resolv.conf
+			# Needed for systems running systemd-resolved
+			if grep -q "127.0.0.53" "/etc/resolv.conf"; then
+				RESOLVCONF='/run/systemd/resolve/resolv.conf'
+			else
+				RESOLVCONF='/etc/resolv.conf'
 			fi
-		done
-		;;
-	2) # Self-hosted DNS resolver (Unbound)
-		echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server.conf
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server.conf
-		fi
-		;;
-	3) # Cloudflare
-		echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server.conf
-		;;
-	4) # Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server.conf
-		;;
-	5) # Quad9 uncensored
-		echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server.conf
-		;;
-	6) # FDN
-		echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server.conf
-		;;
-	7) # DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server.conf
-		;;
-	8) # OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server.conf
-		;;
-	9) # Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server.conf
-		;;
-	10) # Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server.conf
-		;;
-	11) # AdGuard DNS
-		echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server.conf
-		;;
-	12) # NextDNS
-		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server.conf
-		;;
-	13) # Custom DNS
-		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server.conf
-		if [[ $DNS2 != "" ]]; then
-			echo "push \"dhcp-option DNS $DNS2\"" >>/etc/openvpn/server.conf
-		fi
-		;;
+			# Obtain the resolvers from resolv.conf and use them for OpenVPN
+			sed -ne 's/^nameserver[[:space:]]\+\([^[:space:]]\+\).*$/\1/p' $RESOLVCONF | while read -r line; do
+				# Copy, if it's a IPv4 |or| if IPv6 is enabled, IPv4/IPv6 does not matter
+				if [[ $line =~ ^[0-9.]*$ ]] || [[ $IPV6_SUPPORT == 'y' ]]; then
+					echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server.conf
+				fi
+			done
+			;;
+		2) # Self-hosted DNS resolver (Unbound)
+			echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server.conf
+			if [[ $IPV6_SUPPORT == 'y' ]]; then
+				echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server.conf
+			fi
+			;;
+		3) # Cloudflare
+			echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server.conf
+			;;
+		4) # Quad9
+			echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server.conf
+			;;
+		5) # Quad9 uncensored
+			echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server.conf
+			;;
+		6) # FDN
+			echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server.conf
+			;;
+		7) # DNS.WATCH
+			echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server.conf
+			;;
+		8) # OpenDNS
+			echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server.conf
+			;;
+		9) # Google
+			echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server.conf
+			;;
+		10) # Yandex Basic
+			echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server.conf
+			;;
+		11) # AdGuard DNS
+			echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server.conf
+			;;
+		12) # NextDNS
+			echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server.conf
+			;;
+		13) # Custom DNS
+			echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server.conf
+			if [[ $DNS2 != "" ]]; then
+				echo "push \"dhcp-option DNS $DNS2\"" >>/etc/openvpn/server.conf
+			fi
+			;;
 	esac
 	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server.conf
 
@@ -1084,12 +1084,12 @@ push "redirect-gateway ipv6"' >>/etc/openvpn/server.conf
 	fi
 
 	case $TLS_SIG in
-	1)
-		echo "tls-crypt tls-crypt.key" >>/etc/openvpn/server.conf
-		;;
-	2)
-		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server.conf
-		;;
+		1)
+			echo "tls-crypt tls-crypt.key" >>/etc/openvpn/server.conf
+			;;
+		2)
+			echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server.conf
+			;;
 	esac
 
 	echo "crl-verify crl.pem
@@ -1291,13 +1291,13 @@ function newClient() {
 		log_info "Generating client certificate..."
 		export EASYRSA_CERT_EXPIRE=$CERT_VALIDITY_DAYS
 		case $PASS in
-		1)
-			run_cmd "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
-			;;
-		2)
-			log_warn "You will be asked for the client password below"
-			./easyrsa --batch build-client-full "$CLIENT"
-			;;
+			1)
+				run_cmd "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
+				;;
+			2)
+				log_warn "You will be asked for the client password below"
+				./easyrsa --batch build-client-full "$CLIENT"
+				;;
 		esac
 		log_success "Client $CLIENT added."
 	fi
@@ -1342,17 +1342,17 @@ function newClient() {
 		echo "</key>"
 
 		case $TLS_SIG in
-		1)
-			echo "<tls-crypt>"
-			cat /etc/openvpn/tls-crypt.key
-			echo "</tls-crypt>"
-			;;
-		2)
-			echo "key-direction 1"
-			echo "<tls-auth>"
-			cat /etc/openvpn/tls-auth.key
-			echo "</tls-auth>"
-			;;
+			1)
+				echo "<tls-crypt>"
+				cat /etc/openvpn/tls-crypt.key
+				echo "</tls-crypt>"
+				;;
+			2)
+				echo "key-direction 1"
+				echo "<tls-auth>"
+				cat /etc/openvpn/tls-auth.key
+				echo "</tls-auth>"
+				;;
 		esac
 	} >>"$homeDir/$CLIENT.ovpn"
 
@@ -1519,18 +1519,18 @@ function manageMenu() {
 	done
 
 	case $MENU_OPTION in
-	1)
-		newClient
-		;;
-	2)
-		revokeClient
-		;;
-	3)
-		removeOpenVPN
-		;;
-	4)
-		exit 0
-		;;
+		1)
+			newClient
+			;;
+		2)
+			revokeClient
+			;;
+		3)
+			removeOpenVPN
+			;;
+		4)
+			exit 0
+			;;
 	esac
 }
 
