@@ -35,7 +35,8 @@ RUN chmod +x /opt/openvpn-install.sh
 
 # Copy test scripts
 COPY test/server-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY test/validate-output.sh /opt/test/validate-output.sh
+RUN chmod +x /entrypoint.sh /opt/test/validate-output.sh
 
 WORKDIR /opt
 
