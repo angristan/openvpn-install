@@ -29,8 +29,7 @@ export ENDPOINT=openvpn-server
 # Prepare script for container environment:
 # - Replace systemctl calls with no-ops (systemd doesn't work in containers)
 # This ensures the script won't fail silently on systemctl commands
-# Only replace systemctl at the start of a command (after whitespace), not in strings
-sed 's/^\([[:space:]]*\)systemctl /\1echo "[SKIPPED] systemctl " # /g' /opt/openvpn-install.sh >/tmp/openvpn-install.sh
+sed 's/\bsystemctl /echo "[SKIPPED] systemctl " # /g' /opt/openvpn-install.sh >/tmp/openvpn-install.sh
 chmod +x /tmp/openvpn-install.sh
 
 echo "Running OpenVPN install script..."
