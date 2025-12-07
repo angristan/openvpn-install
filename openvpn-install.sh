@@ -1113,6 +1113,7 @@ verb 3" >>/etc/openvpn/server.conf
 
 	# Enable routing
 	log_info "Enabling IP forwarding..."
+	mkdir -p /etc/sysctl.d
 	echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/99-openvpn.conf
 	if [[ $IPV6_SUPPORT == 'y' ]]; then
 		echo 'net.ipv6.conf.all.forwarding=1' >>/etc/sysctl.d/99-openvpn.conf
