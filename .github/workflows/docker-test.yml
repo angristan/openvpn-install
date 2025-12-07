@@ -141,17 +141,6 @@ jobs:
               docker logs openvpn-client
               exit 1
             fi
-            # Check if the container has stopped
-            if ! docker ps -q -f name=openvpn-client | grep -q .; then
-              # Container stopped - check final logs for success/failure
-              if docker logs openvpn-client 2>&1 | grep -q "ALL TESTS PASSED"; then
-                echo "Tests passed!"
-                exit 0
-              fi
-              echo "Container stopped unexpectedly"
-              docker logs openvpn-client
-              exit 1
-            fi
             echo "Waiting for tests... ($i/60)"
             sleep 2
           done
