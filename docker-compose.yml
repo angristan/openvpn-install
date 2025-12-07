@@ -24,7 +24,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
-      start_period: 120s
 
   openvpn-client:
     build:
