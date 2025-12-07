@@ -1,0 +1,24 @@
+# checkov:skip=CKV_DOCKER_2:Test container doesn't need healthcheck
+# checkov:skip=CKV_DOCKER_3:OpenVPN client requires root for NET_ADMIN
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install OpenVPN client and testing tools
+RUN apt-get update && apt-get install -y \
+    openvpn \
+    iproute2 \
+    iputils-ping \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create TUN device directory (device will be mounted at runtime)
+RUN mkdir -p /dev/net
+
+# Copy test scripts
+COPY test/client-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /etc/openvpn
+
+ENTRYPOINT ["/entrypoint.sh"]

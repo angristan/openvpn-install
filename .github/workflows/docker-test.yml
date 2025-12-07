@@ -1,0 +1,166 @@
+---
+on:
+  push:
+  workflow_dispatch:
+
+name: Docker Test
+
+permissions:
+  contents: read
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: ubuntu-18.04
+            image: ubuntu:18.04
+          - name: ubuntu-20.04
+            image: ubuntu:20.04
+          - name: ubuntu-22.04
+            image: ubuntu:22.04
+          - name: ubuntu-24.04
+            image: ubuntu:24.04
+          - name: debian-11
+            image: debian:11
+          - name: debian-12
+            image: debian:12
+          - name: centos-stream-9
+            image: quay.io/centos/centos:stream9
+          - name: fedora-40
+            image: fedora:40
+          - name: fedora-41
+            image: fedora:41
+          - name: rocky-8
+            image: rockylinux:8
+          - name: rocky-9
+            image: rockylinux:9
+          - name: almalinux-8
+            image: almalinux:8
+          - name: almalinux-9
+            image: almalinux:9
+          - name: archlinux
+            image: archlinux:latest
+          - name: oraclelinux-8
+            image: oraclelinux:8
+          - name: oraclelinux-9
+            image: oraclelinux:9
+          - name: amazonlinux-2
+            image: amazonlinux:2
+          - name: amazonlinux-2023
+            image: amazonlinux:2023
+
+    name: ${{ matrix.os.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build server image
+        run: |
+          docker build \
+            --build-arg BASE_IMAGE=${{ matrix.os.image }} \
+            -t openvpn-server \
+            -f test/Dockerfile.server .
+
+      - name: Build client image
+        run: docker build -t openvpn-client -f test/Dockerfile.client .
+
+      - name: Create Docker network
+        run: docker network create --subnet=172.28.0.0/24 vpn-test
+
+      - name: Create shared volume
+        run: docker volume create shared-config
+
+      - name: Start OpenVPN server
+        run: |
+          docker run -d \
+            --name openvpn-server \
+            --hostname openvpn-server \
+            --cap-add=NET_ADMIN \
+            --device=/dev/net/tun:/dev/net/tun \
+            --sysctl net.ipv4.ip_forward=1 \
+            --network vpn-test \
+            --ip 172.28.0.10 \
+            -v shared-config:/shared \
+            openvpn-server
+
+      - name: Wait for server installation and startup
+        run: |
+          echo "Waiting for OpenVPN server to install and start..."
+          for i in {1..60}; do
+            if docker exec openvpn-server pgrep openvpn > /dev/null 2>&1; then
+              echo "OpenVPN server is running!"
+              break
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 5
+            # Show logs for debugging
+            docker logs --tail 20 openvpn-server 2>&1 || true
+          done
+
+          # Final check
+          if ! docker exec openvpn-server pgrep openvpn > /dev/null 2>&1; then
+            echo "ERROR: OpenVPN server failed to start"
+            docker logs openvpn-server
+            exit 1
+          fi
+
+      - name: Verify client config was generated
+        run: |
+          docker run --rm -v shared-config:/shared alpine \
+            ls -la /shared/
+          docker run --rm -v shared-config:/shared alpine \
+            cat /shared/client.ovpn
+
+      - name: Start OpenVPN client and run tests
+        run: |
+          docker run \
+            --name openvpn-client \
+            --hostname openvpn-client \
+            --cap-add=NET_ADMIN \
+            --device=/dev/net/tun:/dev/net/tun \
+            --network vpn-test \
+            --ip 172.28.0.20 \
+            -v shared-config:/shared:ro \
+            openvpn-client &
+
+          # Wait for tests to complete (look for success message)
+          for i in {1..60}; do
+            if docker logs openvpn-client 2>&1 | grep -q "ALL TESTS PASSED"
+            then
+              echo "Tests passed!"
+              exit 0
+            fi
+            if docker logs openvpn-client 2>&1 | grep -q "FAIL:"; then
+              echo "Tests failed!"
+              docker logs openvpn-client
+              exit 1
+            fi
+            echo "Waiting for tests... ($i/60)"
+            sleep 2
+          done
+
+          echo "Timeout waiting for tests"
+          docker logs openvpn-client
+          exit 1
+
+      - name: Show server logs
+        if: always()
+        run: docker logs openvpn-server 2>&1 || true
+
+      - name: Show client logs
+        if: always()
+        run: docker logs openvpn-client 2>&1 || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop openvpn-server openvpn-client 2>/dev/null || true
+          docker rm openvpn-server openvpn-client 2>/dev/null || true
+          docker network rm vpn-test 2>/dev/null || true
+          docker volume rm shared-config 2>/dev/null || true

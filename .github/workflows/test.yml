@@ -1,8 +1,7 @@
+# DigitalOcean E2E tests (manual trigger only)
+# Primary CI testing is now done via Docker in docker-test.yml
+# This workflow is kept for real-world VM testing when needed
 on:
-  push:
-    branches:
-      - master
-      - ci
   workflow_dispatch:
 
 name: Test
