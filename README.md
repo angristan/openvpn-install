@@ -80,6 +80,7 @@ If you want to customise your installation, you can export them or specify them 
 - `APPROVE_INSTALL=y`
 - `APPROVE_IP=y`
 - `IPV6_SUPPORT=n`
+- `IP_CHOICE=1`
 - `PORT_CHOICE=1`
 - `PROTOCOL_CHOICE=1`
 - `DNS=1`
