@@ -122,7 +122,9 @@ log_menu() {
 run_cmd() {
 	local desc="$1"
 	shift
-	echo -e "${COLOR_DIM}> $*${COLOR_RESET}"
+	if [[ $VERBOSE -eq 1 ]]; then
+		echo -e "${COLOR_DIM}> $*${COLOR_RESET}"
+	fi
 	_log_to_file "[CMD] $*"
 	if [[ $VERBOSE -eq 1 ]]; then
 		if [[ -n "$LOG_FILE" ]]; then
@@ -533,7 +535,7 @@ function installQuestions() {
 	log_menu ""
 	log_prompt "Do you want to use compression? It is not recommended since the VORACLE attack makes use of it."
 	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
-		read -rp"Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
+		read -rp "Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
 	done
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
 		log_prompt "Choose which compression algorithm you want to use: (they are ordered by efficiency)"
@@ -541,7 +543,7 @@ function installQuestions() {
 		log_menu "   2) LZ4"
 		log_menu "   3) LZ0"
 		until [[ $COMPRESSION_CHOICE =~ ^[1-3]$ ]]; do
-			read -rp"Compression algorithm [1-3]: " -e -i 1 COMPRESSION_CHOICE
+			read -rp "Compression algorithm [1-3]: " -e -i 1 COMPRESSION_CHOICE
 		done
 		case $COMPRESSION_CHOICE in
 		1)
@@ -611,7 +613,7 @@ function installQuestions() {
 		log_menu "   1) ECDSA (recommended)"
 		log_menu "   2) RSA"
 		until [[ $CERT_TYPE =~ ^[1-2]$ ]]; do
-			read -rp"Certificate key type [1-2]: " -e -i 1 CERT_TYPE
+			read -rp "Certificate key type [1-2]: " -e -i 1 CERT_TYPE
 		done
 		case $CERT_TYPE in
 		1)
@@ -621,7 +623,7 @@ function installQuestions() {
 			log_menu "   2) secp384r1"
 			log_menu "   3) secp521r1"
 			until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp"Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
+				read -rp "Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
 			done
 			case $CERT_CURVE_CHOICE in
 			1)
@@ -664,7 +666,7 @@ function installQuestions() {
 			log_menu "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
 			log_menu "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
 			until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-				read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+				read -rp "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
 			done
 			case $CC_CIPHER_CHOICE in
 			1)
@@ -679,7 +681,7 @@ function installQuestions() {
 			log_menu "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
 			log_menu "   2) ECDHE-RSA-AES-256-GCM-SHA384"
 			until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-				read -rp"Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+				read -rp "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
 			done
 			case $CC_CIPHER_CHOICE in
 			1)
@@ -696,7 +698,7 @@ function installQuestions() {
 		log_menu "   1) ECDH (recommended)"
 		log_menu "   2) DH"
 		until [[ $DH_TYPE =~ [1-2] ]]; do
-			read -rp"DH key type [1-2]: " -e -i 1 DH_TYPE
+			read -rp "DH key type [1-2]: " -e -i 1 DH_TYPE
 		done
 		case $DH_TYPE in
 		1)
@@ -706,7 +708,7 @@ function installQuestions() {
 			log_menu "   2) secp384r1"
 			log_menu "   3) secp521r1"
 			while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
-				read -rp"Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
+				read -rp "Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
 			done
 			case $DH_CURVE_CHOICE in
 			1)
@@ -1113,7 +1115,7 @@ verb 3" >>/etc/openvpn/server.conf
 
 	# Enable routing
 	log_info "Enabling IP forwarding..."
-	mkdir -p /etc/sysctl.d
+	run_cmd "Creating sysctl.d directory" mkdir -p /etc/sysctl.d
 	echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/99-openvpn.conf
 	if [[ $IPV6_SUPPORT == 'y' ]]; then
 		echo 'net.ipv6.conf.all.forwarding=1' >>/etc/sysctl.d/99-openvpn.conf
@@ -1198,8 +1200,8 @@ ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT
 ip6tables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/rm-openvpn-rules.sh
 	fi
 
-	run_cmd "Making iptables scripts executable" chmod +x /etc/iptables/add-openvpn-rules.sh
-	run_cmd "Making iptables scripts executable" chmod +x /etc/iptables/rm-openvpn-rules.sh
+	run_cmd "Making add-openvpn-rules.sh executable" chmod +x /etc/iptables/add-openvpn-rules.sh
+	run_cmd "Making rm-openvpn-rules.sh executable" chmod +x /etc/iptables/rm-openvpn-rules.sh
 
 	# Handle the rules via a systemd script
 	echo "[Unit]
@@ -1356,7 +1358,7 @@ function newClient() {
 		esac
 	} >>"$homeDir/$CLIENT.ovpn"
 
-	echo ""
+	log_menu ""
 	log_success "The configuration file has been written to $homeDir/$CLIENT.ovpn."
 	log_info "Download the .ovpn file and import it in your OpenVPN client."
 
@@ -1508,7 +1510,7 @@ function manageMenu() {
 	log_header "OpenVPN Management"
 	log_prompt "The git repository is available at: https://github.com/angristan/openvpn-install"
 	log_success "OpenVPN is already installed."
-	echo ""
+	log_menu ""
 	log_prompt "What do you want to do?"
 	log_menu "   1) Add a new user"
 	log_menu "   2) Revoke existing user"
