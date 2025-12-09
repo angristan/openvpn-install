@@ -8,6 +8,14 @@ You can, of course, it's even recommended, update the `openvpn` package with you
 
 ---
 
+**Q:** How do I renew certificates before they expire?
+
+**A:** Run the script again and select "Renew certificates" from the menu. You can renew either client certificates or the server certificate. The script will show you the current expiration date for each certificate and let you choose a new validity period (default: 3650 days / 10 years).
+
+For client renewals, a new `.ovpn` file will be generated that you need to distribute to the client. For server renewals, the OpenVPN service will need to be restarted (the script will prompt you).
+
+---
+
 **Q:** How do I check for DNS leaks?
 
 **A:** Go to [browserleaks.com](https://browserleaks.com/dns) or [ipleak.net](https://ipleak.net/) (both perform IPv4 and IPv6 check) with your browser. Your IP should not show up (test without and without the VPN). The DNS servers should be the ones you selected during the setup, not your IP address nor your ISP's DNS servers' addresses.
