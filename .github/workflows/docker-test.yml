@@ -1,10 +1,15 @@
 ---
 on:
   push:
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
 name: Docker Test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
