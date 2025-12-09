@@ -235,6 +235,29 @@ function initialCheck() {
 	checkOS
 }
 
+# Check if OpenVPN version is at least the specified version
+# Usage: openvpnVersionAtLeast "2.5"
+# Returns 0 if version is >= specified, 1 otherwise
+function openvpnVersionAtLeast() {
+	local required_version="$1"
+	local installed_version
+
+	if ! command -v openvpn &>/dev/null; then
+		return 1
+	fi
+
+	installed_version=$(openvpn --version 2>/dev/null | head -1 | awk '{print $2}')
+	if [[ -z "$installed_version" ]]; then
+		return 1
+	fi
+
+	# Compare versions using sort -V
+	if [[ "$(printf '%s\n' "$required_version" "$installed_version" | sort -V | head -n1)" == "$required_version" ]]; then
+		return 0
+	fi
+	return 1
+}
+
 function installOpenVPNRepo() {
 	log_info "Setting up official OpenVPN repository..."
 
@@ -645,8 +668,9 @@ function installQuestions() {
 		log_menu "   4) AES-128-CBC"
 		log_menu "   5) AES-192-CBC"
 		log_menu "   6) AES-256-CBC"
-		until [[ $CIPHER_CHOICE =~ ^[1-6]$ ]]; do
-			read -rp "Cipher [1-6]: " -e -i 1 CIPHER_CHOICE
+		log_menu "   7) CHACHA20-POLY1305 (requires OpenVPN 2.5+, good for devices without AES-NI)"
+		until [[ $CIPHER_CHOICE =~ ^[1-7]$ ]]; do
+			read -rp "Cipher [1-7]: " -e -i 1 CIPHER_CHOICE
 		done
 		case $CIPHER_CHOICE in
 		1)
@@ -666,6 +690,9 @@ function installQuestions() {
 			;;
 		6)
 			CIPHER="AES-256-CBC"
+			;;
+		7)
+			CIPHER="CHACHA20-POLY1305"
 			;;
 		esac
 		log_menu ""
@@ -725,8 +752,9 @@ function installQuestions() {
 		1)
 			log_menu "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
 			log_menu "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
-			until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-				read -rp "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+			log_menu "   3) ECDHE-ECDSA-CHACHA20-POLY1305 (requires OpenVPN 2.5+)"
+			until [[ $CC_CIPHER_CHOICE =~ ^[1-3]$ ]]; do
+				read -rp "Control channel cipher [1-3]: " -e -i 1 CC_CIPHER_CHOICE
 			done
 			case $CC_CIPHER_CHOICE in
 			1)
@@ -735,13 +763,17 @@ function installQuestions() {
 			2)
 				CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"
 				;;
+			3)
+				CC_CIPHER="TLS-ECDHE-ECDSA-WITH-CHACHA20-POLY1305-SHA256"
+				;;
 			esac
 			;;
 		2)
 			log_menu "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
 			log_menu "   2) ECDHE-RSA-AES-256-GCM-SHA384"
-			until [[ $CC_CIPHER_CHOICE =~ ^[1-2]$ ]]; do
-				read -rp "Control channel cipher [1-2]: " -e -i 1 CC_CIPHER_CHOICE
+			log_menu "   3) ECDHE-RSA-CHACHA20-POLY1305 (requires OpenVPN 2.5+)"
+			until [[ $CC_CIPHER_CHOICE =~ ^[1-3]$ ]]; do
+				read -rp "Control channel cipher [1-3]: " -e -i 1 CC_CIPHER_CHOICE
 			done
 			case $CC_CIPHER_CHOICE in
 			1)
@@ -749,6 +781,9 @@ function installQuestions() {
 				;;
 			2)
 				CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384"
+				;;
+			3)
+				CC_CIPHER="TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256"
 				;;
 			esac
 			;;
@@ -805,10 +840,10 @@ function installQuestions() {
 			;;
 		esac
 		log_menu ""
-		# The "auth" options behaves differently with AEAD ciphers
+		# The "auth" options behaves differently with AEAD ciphers (GCM, ChaCha20-Poly1305)
 		if [[ $CIPHER =~ CBC$ ]]; then
 			log_prompt "The digest algorithm authenticates data channel packets and tls-auth packets from the control channel."
-		elif [[ $CIPHER =~ GCM$ ]]; then
+		elif [[ $CIPHER =~ GCM$ ]] || [[ $CIPHER == "CHACHA20-POLY1305" ]]; then
 			log_prompt "The digest algorithm authenticates tls-auth packets from the control channel."
 		fi
 		log_prompt "Which digest algorithm do you want to use for HMAC?"
@@ -934,6 +969,15 @@ function installOpenVPN() {
 		elif [[ $OS == 'arch' ]]; then
 			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 		fi
+
+		# Verify ChaCha20-Poly1305 compatibility if selected
+		if [[ $CIPHER == "CHACHA20-POLY1305" ]] || [[ $CC_CIPHER =~ CHACHA20 ]]; then
+			if ! openvpnVersionAtLeast "2.5"; then
+				log_fatal "ChaCha20-Poly1305 requires OpenVPN 2.5 or later. Installed version: $(openvpn --version 2>/dev/null | head -1 | awk '{print $2}')"
+			fi
+			log_info "OpenVPN version supports ChaCha20-Poly1305"
+		fi
+
 		# An old version of easy-rsa was available by default in some openvpn packages
 		if [[ -d /etc/openvpn/easy-rsa/ ]]; then
 			run_cmd "Removing old Easy-RSA" rm -rf /etc/openvpn/easy-rsa/

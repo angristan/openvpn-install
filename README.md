@@ -275,6 +275,8 @@ AES-256 is 40% slower than AES-128, and there isn't any real reason to use a 256
 
 AES-GCM is an [AEAD cipher](https://en.wikipedia.org/wiki/Authenticated_encryption) which means it simultaneously provides confidentiality, integrity, and authenticity assurances on the data.
 
+ChaCha20-Poly1305 is another AEAD cipher that provides similar security to AES-GCM. It is particularly useful on devices without hardware AES acceleration (AES-NI), such as older CPUs and many ARM-based devices, where it can be significantly faster than AES.
+
 The script supports the following ciphers:
 
 - `AES-128-GCM`
@@ -283,6 +285,7 @@ The script supports the following ciphers:
 - `AES-128-CBC`
 - `AES-192-CBC`
 - `AES-256-CBC`
+- `CHACHA20-POLY1305` (requires OpenVPN 2.5+)
 
 And defaults to `AES-128-GCM`.
 
@@ -297,9 +300,11 @@ The script proposes the following options, depending on the certificate:
 - ECDSA:
   - `TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256`
   - `TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384`
+  - `TLS-ECDHE-ECDSA-WITH-CHACHA20-POLY1305-SHA256` (requires OpenVPN 2.5+)
 - RSA:
   - `TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256`
   - `TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384`
+  - `TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256` (requires OpenVPN 2.5+)
 
 It defaults to `TLS-ECDHE-*-WITH-AES-128-GCM-SHA256`.
 
