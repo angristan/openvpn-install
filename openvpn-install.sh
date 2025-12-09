@@ -533,7 +533,7 @@ function installQuestions() {
 		fi
 	done
 	log_menu ""
-	read -rp "Do you want the same client .ovpn file to connect multiple clients? (This will add 'duplicate-cn' in the server.conf) [y/n]: " -e -i n MULTI_CLIENT_CHOICE
+	read -rp "Allow a single .ovpn profile to be used on multiple devices simultaneously? [y/n]: " -e -i n MULTI_CLIENT_CHOICE
 	if [[ $MULTI_CLIENT_CHOICE =~ ^[Yy]$ ]]; then
 		MULTI_CLIENT="y"
 	else
