@@ -122,9 +122,8 @@ log_menu() {
 run_cmd() {
 	local desc="$1"
 	shift
-	if [[ $VERBOSE -eq 1 ]]; then
-		echo -e "${COLOR_DIM}> $*${COLOR_RESET}"
-	fi
+	# Display the command being run
+	echo -e "${COLOR_DIM}> $*${COLOR_RESET}"
 	_log_to_file "[CMD] $*"
 	if [[ $VERBOSE -eq 1 ]]; then
 		if [[ -n "$LOG_FILE" ]]; then
