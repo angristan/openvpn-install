@@ -253,6 +253,9 @@ function installOpenVPNRepo() {
 		fi
 
 		# Add repository - using stable release
+		if [[ -z "${VERSION_CODENAME}" ]]; then
+			log_fatal "VERSION_CODENAME is not set. Unable to configure OpenVPN repository."
+		fi
 		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/openvpn-repo-public.asc] https://build.openvpn.net/debian/openvpn/stable ${VERSION_CODENAME} main" >/etc/apt/sources.list.d/openvpn-aptrepo.list
 
 		log_info "Updating package lists with new repository..."
