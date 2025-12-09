@@ -972,8 +972,10 @@ function installOpenVPN() {
 
 		# Verify ChaCha20-Poly1305 compatibility if selected
 		if [[ $CIPHER == "CHACHA20-POLY1305" ]] || [[ $CC_CIPHER =~ CHACHA20 ]]; then
+			local installed_version
+			installed_version=$(openvpn --version 2>/dev/null | head -1 | awk '{print $2}')
 			if ! openvpnVersionAtLeast "2.5"; then
-				log_fatal "ChaCha20-Poly1305 requires OpenVPN 2.5 or later. Installed version: $(openvpn --version 2>/dev/null | head -1 | awk '{print $2}')"
+				log_fatal "ChaCha20-Poly1305 requires OpenVPN 2.5 or later. Installed version: $installed_version"
 			fi
 			log_info "OpenVPN version supports ChaCha20-Poly1305"
 		fi
