@@ -1319,6 +1319,111 @@ verb 3" >>/etc/openvpn/client-template.txt
 	log_success "If you want to add more clients, you simply need to run this script another time!"
 }
 
+# Helper function to get the home directory for storing client configs
+function getHomeDir() {
+	local client="$1"
+	if [ -e "/home/${client}" ]; then
+		echo "/home/${client}"
+	elif [ "${SUDO_USER}" ]; then
+		if [ "${SUDO_USER}" == "root" ]; then
+			echo "/root"
+		else
+			echo "/home/${SUDO_USER}"
+		fi
+	else
+		echo "/root"
+	fi
+}
+
+# Helper function to regenerate the CRL after certificate changes
+function regenerateCRL() {
+	export EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS
+	run_cmd "Regenerating CRL" ./easyrsa gen-crl
+	run_cmd "Removing old CRL" rm -f /etc/openvpn/crl.pem
+	run_cmd "Copying new CRL" cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
+	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/crl.pem
+}
+
+# Helper function to generate .ovpn client config file
+function generateClientConfig() {
+	local client="$1"
+	local home_dir="$2"
+
+	# Determine if we use tls-auth or tls-crypt
+	local tls_sig=""
+	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
+		tls_sig="1"
+	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
+		tls_sig="2"
+	fi
+
+	# Generate the custom client.ovpn
+	run_cmd "Creating client config" cp /etc/openvpn/client-template.txt "$home_dir/$client.ovpn"
+	{
+		echo "<ca>"
+		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
+		echo "</ca>"
+
+		echo "<cert>"
+		awk '/BEGIN/,/END CERTIFICATE/' "/etc/openvpn/easy-rsa/pki/issued/$client.crt"
+		echo "</cert>"
+
+		echo "<key>"
+		cat "/etc/openvpn/easy-rsa/pki/private/$client.key"
+		echo "</key>"
+
+		case $tls_sig in
+		1)
+			echo "<tls-crypt>"
+			cat /etc/openvpn/tls-crypt.key
+			echo "</tls-crypt>"
+			;;
+		2)
+			echo "key-direction 1"
+			echo "<tls-auth>"
+			cat /etc/openvpn/tls-auth.key
+			echo "</tls-auth>"
+			;;
+		esac
+	} >>"$home_dir/$client.ovpn"
+}
+
+# Helper function to list valid clients and select one
+# Arguments: show_expiry (optional, "true" to show expiry info)
+# Sets: CLIENT, CLIENTNUMBER
+function selectClient() {
+	local show_expiry="${1:-false}"
+
+	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
+	if [[ $NUMBEROFCLIENTS == '0' ]]; then
+		log_fatal "You have no existing clients!"
+	fi
+
+	if [[ $show_expiry == "true" ]]; then
+		local i=1
+		while read -r client; do
+			local client_cert="/etc/openvpn/easy-rsa/pki/issued/$client.crt"
+			local days
+			days=$(getDaysUntilExpiry "$client_cert")
+			local expiry
+			expiry=$(formatExpiry "$days")
+			echo "     $i) $client $expiry"
+			((i++))
+		done < <(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2)
+	else
+		tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+	fi
+
+	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
+		if [[ $CLIENTNUMBER == '1' ]]; then
+			read -rp "Select one client [1]: " CLIENTNUMBER
+		else
+			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
+		fi
+	done
+	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+}
+
 function newClient() {
 	log_header "New Client Setup"
 	log_prompt "Tell me a name for the client."
@@ -1366,59 +1471,9 @@ function newClient() {
 		log_success "Client $CLIENT added and is valid for $DAYS_VALID days."
 	fi
 
-	# Home directory of the user, where the client configuration will be written
-	if [ -e "/home/${CLIENT}" ]; then
-		# if $1 is a user name
-		homeDir="/home/${CLIENT}"
-	elif [ "${SUDO_USER}" ]; then
-		# if not, use SUDO_USER
-		if [ "${SUDO_USER}" == "root" ]; then
-			# If running sudo as root
-			homeDir="/root"
-		else
-			homeDir="/home/${SUDO_USER}"
-		fi
-	else
-		# if not SUDO_USER, use /root
-		homeDir="/root"
-	fi
-
-	# Determine if we use tls-auth or tls-crypt
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
-		TLS_SIG="1"
-	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
-		TLS_SIG="2"
-	fi
-
-	# Generates the custom client.ovpn
-	run_cmd "Creating client config" cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
-	{
-		echo "<ca>"
-		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
-		echo "</ca>"
-
-		echo "<cert>"
-		awk '/BEGIN/,/END CERTIFICATE/' "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt"
-		echo "</cert>"
-
-		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$CLIENT.key"
-		echo "</key>"
-
-		case $TLS_SIG in
-		1)
-			echo "<tls-crypt>"
-			cat /etc/openvpn/tls-crypt.key
-			echo "</tls-crypt>"
-			;;
-		2)
-			echo "key-direction 1"
-			echo "<tls-auth>"
-			cat /etc/openvpn/tls-auth.key
-			echo "</tls-auth>"
-			;;
-		esac
-	} >>"$homeDir/$CLIENT.ovpn"
+	# Generate the .ovpn config file
+	homeDir=$(getHomeDir "$CLIENT")
+	generateClientConfig "$CLIENT" "$homeDir"
 
 	log_menu ""
 	log_success "The configuration file has been written to $homeDir/$CLIENT.ovpn."
@@ -1428,30 +1483,14 @@ function newClient() {
 }
 
 function revokeClient() {
-	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
-	if [[ $NUMBEROFCLIENTS == '0' ]]; then
-		log_fatal "You have no existing clients!"
-	fi
-
 	log_header "Revoke Client"
 	log_prompt "Select the existing client certificate you want to revoke"
-	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
-		if [[ $CLIENTNUMBER == '1' ]]; then
-			read -rp "Select one client [1]: " CLIENTNUMBER
-		else
-			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
-		fi
-	done
-	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	selectClient
+
 	cd /etc/openvpn/easy-rsa/ || return
 	log_info "Revoking certificate for $CLIENT..."
 	run_cmd "Revoking certificate" ./easyrsa --batch revoke "$CLIENT"
-	export EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS
-	run_cmd "Regenerating CRL" ./easyrsa gen-crl
-	run_cmd "Removing old CRL" rm -f /etc/openvpn/crl.pem
-	run_cmd "Copying new CRL" cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/crl.pem
+	regenerateCRL
 	run_cmd "Removing client config from /home" find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	run_cmd "Removing client config from /root" rm -f "/root/$CLIENT.ovpn"
 	run_cmd "Removing IP assignment" sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
@@ -1461,34 +1500,9 @@ function revokeClient() {
 }
 
 function renewClient() {
-	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
-	if [[ $NUMBEROFCLIENTS == '0' ]]; then
-		log_fatal "You have no existing clients!"
-	fi
-
 	log_header "Renew Client Certificate"
 	log_prompt "Select the existing client certificate you want to renew"
-
-	# List clients with expiry info
-	local i=1
-	while read -r client; do
-		local client_cert="/etc/openvpn/easy-rsa/pki/issued/$client.crt"
-		local days
-		days=$(getDaysUntilExpiry "$client_cert")
-		local expiry
-		expiry=$(formatExpiry "$days")
-		echo "     $i) $client $expiry"
-		((i++))
-	done < <(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2)
-
-	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
-		if [[ $CLIENTNUMBER == '1' ]]; then
-			read -rp "Select one client [1]: " CLIENTNUMBER
-		else
-			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
-		fi
-	done
-	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	selectClient "true"
 
 	cd /etc/openvpn/easy-rsa/ || return
 	log_info "Renewing certificate for $CLIENT..."
@@ -1501,62 +1515,11 @@ function renewClient() {
 	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$CLIENT"
 
 	# Regenerate the CRL
-	export EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS
-	run_cmd "Regenerating CRL" ./easyrsa gen-crl
-	run_cmd "Removing old CRL" rm -f /etc/openvpn/crl.pem
-	run_cmd "Copying new CRL" cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/crl.pem
+	regenerateCRL
 
 	# Regenerate the .ovpn file with the new certificate
-	# Home directory of the user, where the client configuration will be written
-	if [ -e "/home/${CLIENT}" ]; then
-		homeDir="/home/${CLIENT}"
-	elif [ "${SUDO_USER}" ]; then
-		if [ "${SUDO_USER}" == "root" ]; then
-			homeDir="/root"
-		else
-			homeDir="/home/${SUDO_USER}"
-		fi
-	else
-		homeDir="/root"
-	fi
-
-	# Determine if we use tls-auth or tls-crypt
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
-		TLS_SIG="1"
-	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
-		TLS_SIG="2"
-	fi
-
-	# Generates the custom client.ovpn
-	run_cmd "Creating client config" cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
-	{
-		echo "<ca>"
-		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
-		echo "</ca>"
-
-		echo "<cert>"
-		awk '/BEGIN/,/END CERTIFICATE/' "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt"
-		echo "</cert>"
-
-		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$CLIENT.key"
-		echo "</key>"
-
-		case $TLS_SIG in
-		1)
-			echo "<tls-crypt>"
-			cat /etc/openvpn/tls-crypt.key
-			echo "</tls-crypt>"
-			;;
-		2)
-			echo "key-direction 1"
-			echo "<tls-auth>"
-			cat /etc/openvpn/tls-auth.key
-			echo "</tls-auth>"
-			;;
-		esac
-	} >>"$homeDir/$CLIENT.ovpn"
+	homeDir=$(getHomeDir "$CLIENT")
+	generateClientConfig "$CLIENT" "$homeDir"
 
 	log_menu ""
 	log_success "Certificate for client $CLIENT renewed."
@@ -1591,11 +1554,7 @@ function renewServer() {
 	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$SERVER_NAME"
 
 	# Regenerate the CRL
-	export EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS
-	run_cmd "Regenerating CRL" ./easyrsa gen-crl
-	run_cmd "Removing old CRL" rm -f /etc/openvpn/crl.pem
-	run_cmd "Copying new CRL" cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/crl.pem
+	regenerateCRL
 
 	# Copy the new certificate to /etc/openvpn/
 	run_cmd "Copying new certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" /etc/openvpn/
