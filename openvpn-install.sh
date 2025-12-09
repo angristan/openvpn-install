@@ -1318,6 +1318,116 @@ verb 3" >>/etc/openvpn/client-template.txt
 	log_success "If you want to add more clients, you simply need to run this script another time!"
 }
 
+# Helper function to get the home directory for storing client configs
+function getHomeDir() {
+	local client="$1"
+	if [ -e "/home/${client}" ]; then
+		echo "/home/${client}"
+	elif [ "${SUDO_USER}" ]; then
+		if [ "${SUDO_USER}" == "root" ]; then
+			echo "/root"
+		else
+			echo "/home/${SUDO_USER}"
+		fi
+	else
+		echo "/root"
+	fi
+}
+
+# Helper function to regenerate the CRL after certificate changes
+function regenerateCRL() {
+	export EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS
+	run_cmd "Regenerating CRL" ./easyrsa gen-crl
+	run_cmd "Removing old CRL" rm -f /etc/openvpn/crl.pem
+	run_cmd "Copying new CRL" cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
+	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/crl.pem
+}
+
+# Helper function to generate .ovpn client config file
+function generateClientConfig() {
+	local client="$1"
+	local home_dir="$2"
+
+	# Determine if we use tls-auth or tls-crypt
+	local tls_sig=""
+	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
+		tls_sig="1"
+	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
+		tls_sig="2"
+	fi
+
+	# Generate the custom client.ovpn
+	run_cmd "Creating client config" cp /etc/openvpn/client-template.txt "$home_dir/$client.ovpn"
+	{
+		echo "<ca>"
+		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
+		echo "</ca>"
+
+		echo "<cert>"
+		awk '/BEGIN/,/END CERTIFICATE/' "/etc/openvpn/easy-rsa/pki/issued/$client.crt"
+		echo "</cert>"
+
+		echo "<key>"
+		cat "/etc/openvpn/easy-rsa/pki/private/$client.key"
+		echo "</key>"
+
+		case $tls_sig in
+		1)
+			echo "<tls-crypt>"
+			cat /etc/openvpn/tls-crypt.key
+			echo "</tls-crypt>"
+			;;
+		2)
+			echo "key-direction 1"
+			echo "<tls-auth>"
+			cat /etc/openvpn/tls-auth.key
+			echo "</tls-auth>"
+			;;
+		esac
+	} >>"$home_dir/$client.ovpn"
+}
+
+# Helper function to list valid clients and select one
+# Arguments: show_expiry (optional, "true" to show expiry info)
+# Sets global variables:
+#   CLIENT - the selected client name
+#   CLIENTNUMBER - the selected client number (1-based index)
+#   NUMBEROFCLIENTS - total count of valid clients
+function selectClient() {
+	local show_expiry="${1:-false}"
+	local client_number
+
+	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
+	if [[ $NUMBEROFCLIENTS == '0' ]]; then
+		log_fatal "You have no existing clients!"
+	fi
+
+	if [[ $show_expiry == "true" ]]; then
+		local i=1
+		while read -r client; do
+			local client_cert="/etc/openvpn/easy-rsa/pki/issued/$client.crt"
+			local days
+			days=$(getDaysUntilExpiry "$client_cert")
+			local expiry
+			expiry=$(formatExpiry "$days")
+			echo "     $i) $client $expiry"
+			((i++))
+		done < <(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2)
+	else
+		tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+	fi
+
+	until [[ ${CLIENTNUMBER:-$client_number} -ge 1 && ${CLIENTNUMBER:-$client_number} -le $NUMBEROFCLIENTS ]]; do
+		if [[ $NUMBEROFCLIENTS == '1' ]]; then
+			read -rp "Select one client [1]: " client_number
+		else
+			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " client_number
+		fi
+	done
+	CLIENTNUMBER="${CLIENTNUMBER:-$client_number}"
+	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+}
+
 function newClient() {
 	log_header "New Client Setup"
 	log_prompt "Tell me a name for the client."
@@ -1327,10 +1437,12 @@ function newClient() {
 		read -rp "Client name: " -e CLIENT
 	done
 
-	if [[ -z $DAYS_VALID ]]; then
+	if [[ -z $DAYS_VALID ]] || ! [[ $DAYS_VALID =~ ^[0-9]+$ ]] || [[ $DAYS_VALID -lt 1 ]]; then
 		log_menu ""
 		log_prompt "How many days should the client certificate be valid for?"
-		read -rp "Certificate validity (days): " -e -i 3650 DAYS_VALID
+		until [[ $DAYS_VALID =~ ^[0-9]+$ ]] && [[ $DAYS_VALID -ge 1 ]]; do
+			read -rp "Certificate validity (days): " -e -i 3650 DAYS_VALID
+		done
 	fi
 
 	log_menu ""
@@ -1363,59 +1475,9 @@ function newClient() {
 		log_success "Client $CLIENT added and is valid for $DAYS_VALID days."
 	fi
 
-	# Home directory of the user, where the client configuration will be written
-	if [ -e "/home/${CLIENT}" ]; then
-		# if $1 is a user name
-		homeDir="/home/${CLIENT}"
-	elif [ "${SUDO_USER}" ]; then
-		# if not, use SUDO_USER
-		if [ "${SUDO_USER}" == "root" ]; then
-			# If running sudo as root
-			homeDir="/root"
-		else
-			homeDir="/home/${SUDO_USER}"
-		fi
-	else
-		# if not SUDO_USER, use /root
-		homeDir="/root"
-	fi
-
-	# Determine if we use tls-auth or tls-crypt
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
-		TLS_SIG="1"
-	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
-		TLS_SIG="2"
-	fi
-
-	# Generates the custom client.ovpn
-	run_cmd "Creating client config" cp /etc/openvpn/client-template.txt "$homeDir/$CLIENT.ovpn"
-	{
-		echo "<ca>"
-		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
-		echo "</ca>"
-
-		echo "<cert>"
-		awk '/BEGIN/,/END CERTIFICATE/' "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt"
-		echo "</cert>"
-
-		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$CLIENT.key"
-		echo "</key>"
-
-		case $TLS_SIG in
-		1)
-			echo "<tls-crypt>"
-			cat /etc/openvpn/tls-crypt.key
-			echo "</tls-crypt>"
-			;;
-		2)
-			echo "key-direction 1"
-			echo "<tls-auth>"
-			cat /etc/openvpn/tls-auth.key
-			echo "</tls-auth>"
-			;;
-		esac
-	} >>"$homeDir/$CLIENT.ovpn"
+	# Generate the .ovpn config file
+	homeDir=$(getHomeDir "$CLIENT")
+	generateClientConfig "$CLIENT" "$homeDir"
 
 	log_menu ""
 	log_success "The configuration file has been written to $homeDir/$CLIENT.ovpn."
@@ -1425,36 +1487,200 @@ function newClient() {
 }
 
 function revokeClient() {
-	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
-	if [[ $NUMBEROFCLIENTS == '0' ]]; then
-		log_fatal "You have no existing clients!"
-	fi
-
 	log_header "Revoke Client"
 	log_prompt "Select the existing client certificate you want to revoke"
-	tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
-	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
-		if [[ $CLIENTNUMBER == '1' ]]; then
-			read -rp "Select one client [1]: " CLIENTNUMBER
-		else
-			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
-		fi
-	done
-	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	selectClient
+
 	cd /etc/openvpn/easy-rsa/ || return
 	log_info "Revoking certificate for $CLIENT..."
 	run_cmd "Revoking certificate" ./easyrsa --batch revoke "$CLIENT"
-	export EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS
-	run_cmd "Regenerating CRL" ./easyrsa gen-crl
-	run_cmd "Removing old CRL" rm -f /etc/openvpn/crl.pem
-	run_cmd "Copying new CRL" cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/crl.pem
+	regenerateCRL
 	run_cmd "Removing client config from /home" find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	run_cmd "Removing client config from /root" rm -f "/root/$CLIENT.ovpn"
 	run_cmd "Removing IP assignment" sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
 	run_cmd "Backing up index" cp /etc/openvpn/easy-rsa/pki/index.txt{,.bk}
 
 	log_success "Certificate for client $CLIENT revoked."
+}
+
+function renewClient() {
+	local homeDir days_valid
+
+	log_header "Renew Client Certificate"
+	log_prompt "Select the existing client certificate you want to renew"
+	selectClient "true"
+
+	# Allow user to specify renewal duration (use DAYS_VALID env var for headless mode)
+	if [[ -z $DAYS_VALID ]] || ! [[ $DAYS_VALID =~ ^[0-9]+$ ]] || [[ $DAYS_VALID -lt 1 ]]; then
+		log_menu ""
+		log_prompt "How many days should the renewed certificate be valid for?"
+		until [[ $days_valid =~ ^[0-9]+$ ]] && [[ $days_valid -ge 1 ]]; do
+			read -rp "Certificate validity (days): " -e -i 3650 days_valid
+		done
+	else
+		days_valid=$DAYS_VALID
+	fi
+
+	cd /etc/openvpn/easy-rsa/ || return
+	log_info "Renewing certificate for $CLIENT..."
+
+	# Backup the old certificate before renewal
+	run_cmd "Backing up old certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt" "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt.bak"
+
+	# Renew the certificate (keeps the same private key)
+	export EASYRSA_CERT_EXPIRE=$days_valid
+	run_cmd "Renewing certificate" ./easyrsa --batch renew "$CLIENT"
+
+	# Revoke the old certificate
+	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$CLIENT"
+
+	# Regenerate the CRL
+	regenerateCRL
+
+	# Regenerate the .ovpn file with the new certificate
+	homeDir=$(getHomeDir "$CLIENT")
+	generateClientConfig "$CLIENT" "$homeDir"
+
+	log_menu ""
+	log_success "Certificate for client $CLIENT renewed and is valid for $days_valid days."
+	log_info "The new configuration file has been written to $homeDir/$CLIENT.ovpn."
+	log_info "Download the new .ovpn file and import it in your OpenVPN client."
+}
+
+function renewServer() {
+	local server_name days_valid
+
+	log_header "Renew Server Certificate"
+
+	# Get the server name from the config
+	server_name=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	if [[ -z "$server_name" ]]; then
+		log_fatal "Could not determine server certificate name from /etc/openvpn/server.conf"
+	fi
+
+	log_prompt "This will renew the server certificate: $server_name"
+	log_warn "The OpenVPN service will be restarted after renewal."
+	if [[ -z $CONTINUE ]]; then
+		read -rp "Do you want to continue? [y/n]: " -e -i n CONTINUE
+	fi
+	if [[ $CONTINUE != "y" ]]; then
+		log_info "Renewal aborted."
+		return
+	fi
+
+	# Allow user to specify renewal duration (use DAYS_VALID env var for headless mode)
+	if [[ -z $DAYS_VALID ]] || ! [[ $DAYS_VALID =~ ^[0-9]+$ ]] || [[ $DAYS_VALID -lt 1 ]]; then
+		log_menu ""
+		log_prompt "How many days should the renewed certificate be valid for?"
+		until [[ $days_valid =~ ^[0-9]+$ ]] && [[ $days_valid -ge 1 ]]; do
+			read -rp "Certificate validity (days): " -e -i 3650 days_valid
+		done
+	else
+		days_valid=$DAYS_VALID
+	fi
+
+	cd /etc/openvpn/easy-rsa/ || return
+	log_info "Renewing server certificate..."
+
+	# Backup the old certificate before renewal
+	run_cmd "Backing up old certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt" "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt.bak"
+
+	# Renew the certificate (keeps the same private key)
+	export EASYRSA_CERT_EXPIRE=$days_valid
+	run_cmd "Renewing certificate" ./easyrsa --batch renew "$server_name"
+
+	# Revoke the old certificate
+	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$server_name"
+
+	# Regenerate the CRL
+	regenerateCRL
+
+	# Copy the new certificate to /etc/openvpn/
+	run_cmd "Copying new certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt" /etc/openvpn/
+
+	# Restart OpenVPN
+	log_info "Restarting OpenVPN service..."
+	if [[ $OS =~ (fedora|arch|centos|oracle) ]]; then
+		run_cmd "Restarting OpenVPN" systemctl restart openvpn-server@server
+	elif [[ $OS == "ubuntu" ]] && [[ $VERSION_ID == "16.04" ]]; then
+		run_cmd "Restarting OpenVPN" systemctl restart openvpn
+	else
+		run_cmd "Restarting OpenVPN" systemctl restart openvpn@server
+	fi
+
+	log_success "Server certificate renewed successfully and is valid for $days_valid days."
+}
+
+function getDaysUntilExpiry() {
+	local cert_file="$1"
+	if [[ -f "$cert_file" ]]; then
+		local expiry_date
+		expiry_date=$(openssl x509 -in "$cert_file" -noout -enddate | cut -d= -f2)
+		local expiry_epoch
+		expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%b %d %T %Y %Z" "$expiry_date" +%s 2>/dev/null)
+		if [[ -z "$expiry_epoch" ]]; then
+			echo "?"
+			return
+		fi
+		local now_epoch
+		now_epoch=$(date +%s)
+		echo $(((expiry_epoch - now_epoch) / 86400))
+	else
+		echo "?"
+	fi
+}
+
+function formatExpiry() {
+	local days="$1"
+	if [[ "$days" == "?" ]]; then
+		echo "(unknown expiry)"
+	elif [[ $days -lt 0 ]]; then
+		echo "(EXPIRED $((-days)) days ago)"
+	elif [[ $days -eq 0 ]]; then
+		echo "(expires today)"
+	elif [[ $days -eq 1 ]]; then
+		echo "(expires in 1 day)"
+	else
+		echo "(expires in $days days)"
+	fi
+}
+
+function renewMenu() {
+	local server_name server_cert server_days server_expiry renew_option
+
+	log_header "Certificate Renewal"
+
+	# Get server certificate expiry for menu display
+	server_name=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	if [[ -z "$server_name" ]]; then
+		server_expiry="(unknown expiry)"
+	else
+		server_cert="/etc/openvpn/easy-rsa/pki/issued/$server_name.crt"
+		server_days=$(getDaysUntilExpiry "$server_cert")
+		server_expiry=$(formatExpiry "$server_days")
+	fi
+
+	log_menu ""
+	log_prompt "What do you want to renew?"
+	log_menu "   1) Renew a client certificate"
+	log_menu "   2) Renew the server certificate $server_expiry"
+	log_menu "   3) Back to main menu"
+	until [[ ${RENEW_OPTION:-$renew_option} =~ ^[1-3]$ ]]; do
+		read -rp "Select an option [1-3]: " renew_option
+	done
+	renew_option="${RENEW_OPTION:-$renew_option}"
+
+	case $renew_option in
+	1)
+		renewClient
+		;;
+	2)
+		renewServer
+		;;
+	3)
+		manageMenu
+		;;
+	esac
 }
 
 function removeUnbound() {
@@ -1584,6 +1810,8 @@ function removeOpenVPN() {
 }
 
 function manageMenu() {
+	local menu_option
+
 	log_header "OpenVPN Management"
 	log_prompt "The git repository is available at: https://github.com/angristan/openvpn-install"
 	log_success "OpenVPN is already installed."
@@ -1591,13 +1819,15 @@ function manageMenu() {
 	log_prompt "What do you want to do?"
 	log_menu "   1) Add a new user"
 	log_menu "   2) Revoke existing user"
-	log_menu "   3) Remove OpenVPN"
-	log_menu "   4) Exit"
-	until [[ $MENU_OPTION =~ ^[1-4]$ ]]; do
-		read -rp "Select an option [1-4]: " MENU_OPTION
+	log_menu "   3) Renew certificate"
+	log_menu "   4) Remove OpenVPN"
+	log_menu "   5) Exit"
+	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-5]$ ]]; do
+		read -rp "Select an option [1-5]: " menu_option
 	done
+	menu_option="${MENU_OPTION:-$menu_option}"
 
-	case $MENU_OPTION in
+	case $menu_option in
 	1)
 		newClient
 		;;
@@ -1605,9 +1835,12 @@ function manageMenu() {
 		revokeClient
 		;;
 	3)
-		removeOpenVPN
+		renewMenu
 		;;
 	4)
+		removeOpenVPN
+		;;
+	5)
 		exit 0
 		;;
 	esac
@@ -1617,7 +1850,7 @@ function manageMenu() {
 initialCheck
 
 # Check if OpenVPN is already installed
-if [[ -e /etc/openvpn/server.conf && $AUTO_INSTALL != "y" ]]; then
+if [[ -e /etc/openvpn/server.conf ]]; then
 	manageMenu
 else
 	installOpenVPN

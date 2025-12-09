@@ -52,6 +52,7 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 
 - Add a client
 - Remove a client
+- Renew certificates (client or server)
 - Uninstall OpenVPN
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
@@ -113,6 +114,7 @@ export PASS="1"
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
+- Certificate renewal for both client and server certificates
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Iptables rules and forwarding managed in a seamless way
 - If needed, the script can cleanly remove OpenVPN, including configuration and iptables rules
