@@ -105,7 +105,7 @@ echo "Original client certificate serial: $ORIG_CERT_SERIAL"
 # Test client certificate renewal using the script
 echo "Testing client certificate renewal..."
 RENEW_OUTPUT="/tmp/renew-client-output.log"
-(MENU_OPTION=3 RENEW_OPTION=1 CLIENTNUMBER=1 DAYS_VALID=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
+(MENU_OPTION=3 RENEW_OPTION=1 CLIENTNUMBER=1 CLIENT_CERT_DURATION_DAYS=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Certificate for client testclient renewed" "$RENEW_OUTPUT"; then
@@ -185,7 +185,7 @@ echo "Original server certificate serial: $ORIG_SERVER_SERIAL"
 # Test server certificate renewal
 echo "Testing server certificate renewal..."
 RENEW_SERVER_OUTPUT="/tmp/renew-server-output.log"
-(MENU_OPTION=3 RENEW_OPTION=2 CONTINUE=y DAYS_VALID=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
+(MENU_OPTION=3 RENEW_OPTION=2 CONTINUE=y SERVER_CERT_DURATION_DAYS=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Server certificate renewed successfully" "$RENEW_SERVER_OUTPUT"; then

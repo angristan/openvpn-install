@@ -7,8 +7,8 @@
 # https://github.com/angristan/openvpn-install
 
 # Configuration constants
-readonly CERT_VALIDITY_DAYS=3650 # 10 years
-readonly CRL_VALIDITY_DAYS=3650  # 10 years
+readonly DEFAULT_CERT_VALIDITY_DURATION_DAYS=3650 # 10 years
+readonly DEFAULT_CRL_VALIDITY_DURATION_DAYS=5475  # 15 years
 readonly EASYRSA_VERSION="3.1.2"
 readonly EASYRSA_SHA256="d63cf129490ffd6d8792ede7344806c506c82c32428b5bb609ad97ca6a6e4499"
 
@@ -861,7 +861,8 @@ function installOpenVPN() {
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
-		DAYS_VALID=${DAYS_VALID:-3650}
+		CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+		SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		CONTINUE=${CONTINUE:-y}
 
 		if [[ -z $ENDPOINT ]]; then
@@ -881,7 +882,8 @@ function installOpenVPN() {
 		log_info "  CUSTOMIZE_ENC=$CUSTOMIZE_ENC"
 		log_info "  CLIENT=$CLIENT"
 		log_info "  PASS=$PASS"
-		log_info "  DAYS_VALID=$DAYS_VALID"
+		log_info "  CLIENT_CERT_DURATION_DAYS=$CLIENT_CERT_DURATION_DAYS"
+		log_info "  SERVER_CERT_DURATION_DAYS=$SERVER_CERT_DURATION_DAYS"
 	fi
 
 	# Run setup questions first, and set other variables if auto-install
@@ -979,7 +981,7 @@ function installOpenVPN() {
 		# Create the PKI, set up the CA, the DH params and the server certificate
 		log_info "Initializing PKI..."
 		run_cmd "Initializing PKI" ./easyrsa init-pki
-		export EASYRSA_CA_EXPIRE=$CERT_VALIDITY_DAYS
+		export EASYRSA_CA_EXPIRE=$DEFAULT_CERT_VALIDITY_DURATION_DAYS
 		log_info "Building CA..."
 		run_cmd "Building CA" ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
 
@@ -988,10 +990,10 @@ function installOpenVPN() {
 			run_cmd "Generating DH parameters (this may take a while)" openssl dhparam -out dh.pem "$DH_KEY_SIZE"
 		fi
 
-		export EASYRSA_CERT_EXPIRE=$CERT_VALIDITY_DAYS
+		export EASYRSA_CERT_EXPIRE=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		log_info "Building server certificate..."
 		run_cmd "Building server certificate" ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
-		export EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS
+		export EASYRSA_CRL_DAYS=$DEFAULT_CRL_VALIDITY_DURATION_DAYS
 		run_cmd "Generating CRL" ./easyrsa gen-crl
 
 		log_info "Generating TLS key..."
@@ -1336,7 +1338,7 @@ function getHomeDir() {
 
 # Helper function to regenerate the CRL after certificate changes
 function regenerateCRL() {
-	export EASYRSA_CRL_DAYS=$CRL_VALIDITY_DAYS
+	export EASYRSA_CRL_DAYS=$DEFAULT_CRL_VALIDITY_DURATION_DAYS
 	run_cmd "Regenerating CRL" ./easyrsa gen-crl
 	run_cmd "Removing old CRL" rm -f /etc/openvpn/crl.pem
 	run_cmd "Copying new CRL" cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
@@ -1437,11 +1439,11 @@ function newClient() {
 		read -rp "Client name: " -e CLIENT
 	done
 
-	if [[ -z $DAYS_VALID ]] || ! [[ $DAYS_VALID =~ ^[0-9]+$ ]] || [[ $DAYS_VALID -lt 1 ]]; then
+	if [[ -z $CLIENT_CERT_DURATION_DAYS ]] || ! [[ $CLIENT_CERT_DURATION_DAYS =~ ^[0-9]+$ ]] || [[ $CLIENT_CERT_DURATION_DAYS -lt 1 ]]; then
 		log_menu ""
 		log_prompt "How many days should the client certificate be valid for?"
-		until [[ $DAYS_VALID =~ ^[0-9]+$ ]] && [[ $DAYS_VALID -ge 1 ]]; do
-			read -rp "Certificate validity (days): " -e -i 3650 DAYS_VALID
+		until [[ $CLIENT_CERT_DURATION_DAYS =~ ^[0-9]+$ ]] && [[ $CLIENT_CERT_DURATION_DAYS -ge 1 ]]; do
+			read -rp "Certificate validity (days): " -e -i $DEFAULT_CERT_VALIDITY_DURATION_DAYS CLIENT_CERT_DURATION_DAYS
 		done
 	fi
 
@@ -1462,7 +1464,7 @@ function newClient() {
 	else
 		cd /etc/openvpn/easy-rsa/ || return
 		log_info "Generating client certificate..."
-		export EASYRSA_CERT_EXPIRE=$DAYS_VALID
+		export EASYRSA_CERT_EXPIRE=$CLIENT_CERT_DURATION_DAYS
 		case $PASS in
 		1)
 			run_cmd "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
@@ -1472,7 +1474,7 @@ function newClient() {
 			./easyrsa --batch build-client-full "$CLIENT"
 			;;
 		esac
-		log_success "Client $CLIENT added and is valid for $DAYS_VALID days."
+		log_success "Client $CLIENT added and is valid for $CLIENT_CERT_DURATION_DAYS days."
 	fi
 
 	# Generate the .ovpn config file
@@ -1504,21 +1506,21 @@ function revokeClient() {
 }
 
 function renewClient() {
-	local homeDir days_valid
+	local homeDir client_cert_duration_days
 
 	log_header "Renew Client Certificate"
 	log_prompt "Select the existing client certificate you want to renew"
 	selectClient "true"
 
-	# Allow user to specify renewal duration (use DAYS_VALID env var for headless mode)
-	if [[ -z $DAYS_VALID ]] || ! [[ $DAYS_VALID =~ ^[0-9]+$ ]] || [[ $DAYS_VALID -lt 1 ]]; then
+	# Allow user to specify renewal duration (use CLIENT_CERT_DURATION_DAYS env var for headless mode)
+	if [[ -z $CLIENT_CERT_DURATION_DAYS ]] || ! [[ $CLIENT_CERT_DURATION_DAYS =~ ^[0-9]+$ ]] || [[ $CLIENT_CERT_DURATION_DAYS -lt 1 ]]; then
 		log_menu ""
 		log_prompt "How many days should the renewed certificate be valid for?"
-		until [[ $days_valid =~ ^[0-9]+$ ]] && [[ $days_valid -ge 1 ]]; do
-			read -rp "Certificate validity (days): " -e -i 3650 days_valid
+		until [[ $client_cert_duration_days =~ ^[0-9]+$ ]] && [[ $client_cert_duration_days -ge 1 ]]; do
+			read -rp "Certificate validity (days): " -e -i $DEFAULT_CERT_VALIDITY_DURATION_DAYS client_cert_duration_days
 		done
 	else
-		days_valid=$DAYS_VALID
+		client_cert_duration_days=$CLIENT_CERT_DURATION_DAYS
 	fi
 
 	cd /etc/openvpn/easy-rsa/ || return
@@ -1528,7 +1530,7 @@ function renewClient() {
 	run_cmd "Backing up old certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt" "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt.bak"
 
 	# Renew the certificate (keeps the same private key)
-	export EASYRSA_CERT_EXPIRE=$days_valid
+	export EASYRSA_CERT_EXPIRE=$client_cert_duration_days
 	run_cmd "Renewing certificate" ./easyrsa --batch renew "$CLIENT"
 
 	# Revoke the old certificate
@@ -1542,13 +1544,13 @@ function renewClient() {
 	generateClientConfig "$CLIENT" "$homeDir"
 
 	log_menu ""
-	log_success "Certificate for client $CLIENT renewed and is valid for $days_valid days."
+	log_success "Certificate for client $CLIENT renewed and is valid for $client_cert_duration_days days."
 	log_info "The new configuration file has been written to $homeDir/$CLIENT.ovpn."
 	log_info "Download the new .ovpn file and import it in your OpenVPN client."
 }
 
 function renewServer() {
-	local server_name days_valid
+	local server_name server_cert_duration_days
 
 	log_header "Renew Server Certificate"
 
@@ -1568,15 +1570,15 @@ function renewServer() {
 		return
 	fi
 
-	# Allow user to specify renewal duration (use DAYS_VALID env var for headless mode)
-	if [[ -z $DAYS_VALID ]] || ! [[ $DAYS_VALID =~ ^[0-9]+$ ]] || [[ $DAYS_VALID -lt 1 ]]; then
+	# Allow user to specify renewal duration (use SERVER_CERT_DURATION_DAYS env var for headless mode)
+	if [[ -z $SERVER_CERT_DURATION_DAYS ]] || ! [[ $SERVER_CERT_DURATION_DAYS =~ ^[0-9]+$ ]] || [[ $SERVER_CERT_DURATION_DAYS -lt 1 ]]; then
 		log_menu ""
 		log_prompt "How many days should the renewed certificate be valid for?"
-		until [[ $days_valid =~ ^[0-9]+$ ]] && [[ $days_valid -ge 1 ]]; do
-			read -rp "Certificate validity (days): " -e -i 3650 days_valid
+		until [[ $server_cert_duration_days =~ ^[0-9]+$ ]] && [[ $server_cert_duration_days -ge 1 ]]; do
+			read -rp "Certificate validity (days): " -e -i $DEFAULT_CERT_VALIDITY_DURATION_DAYS server_cert_duration_days
 		done
 	else
-		days_valid=$DAYS_VALID
+		server_cert_duration_days=$SERVER_CERT_DURATION_DAYS
 	fi
 
 	cd /etc/openvpn/easy-rsa/ || return
@@ -1586,7 +1588,7 @@ function renewServer() {
 	run_cmd "Backing up old certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt" "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt.bak"
 
 	# Renew the certificate (keeps the same private key)
-	export EASYRSA_CERT_EXPIRE=$days_valid
+	export EASYRSA_CERT_EXPIRE=$server_cert_duration_days
 	run_cmd "Renewing certificate" ./easyrsa --batch renew "$server_name"
 
 	# Revoke the old certificate
@@ -1608,7 +1610,7 @@ function renewServer() {
 		run_cmd "Restarting OpenVPN" systemctl restart openvpn@server
 	fi
 
-	log_success "Server certificate renewed successfully and is valid for $days_valid days."
+	log_success "Server certificate renewed successfully and is valid for $server_cert_duration_days days."
 }
 
 function getDaysUntilExpiry() {
