@@ -253,7 +253,7 @@ function installOpenVPNRepo() {
 		fi
 
 		# Add repository - using stable release
-		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/openvpn-repo-public.asc] https://build.openvpn.net/debian/openvpn/stable ${VERSION_CODENAME} main" > /etc/apt/sources.list.d/openvpn-aptrepo.list
+		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/openvpn-repo-public.asc] https://build.openvpn.net/debian/openvpn/stable ${VERSION_CODENAME} main" >/etc/apt/sources.list.d/openvpn-aptrepo.list
 
 		log_info "Updating package lists with new repository..."
 		run_cmd "Update package lists" apt-get update
@@ -262,12 +262,15 @@ function installOpenVPNRepo() {
 
 	elif [[ $OS =~ (centos|oracle) ]]; then
 		# For RHEL-based systems, use Fedora Copr (OpenVPN 2.6 stable)
+		# EPEL is required for pkcs11-helper dependency
 		log_info "Configuring OpenVPN Copr repository for RHEL-based system..."
 
-		if ! command -v dnf &> /dev/null; then
+		if ! command -v dnf &>/dev/null; then
+			run_cmd "Installing EPEL repository" yum install -y epel-release
 			run_cmd "Installing yum-plugin-copr" yum install -y yum-plugin-copr
 			run_cmd "Enabling OpenVPN Copr repo" yum copr enable -y @OpenVPN/openvpn-release-2.6
 		else
+			run_cmd "Installing EPEL repository" dnf install -y epel-release
 			run_cmd "Installing dnf-plugins-core" dnf install -y dnf-plugins-core
 			run_cmd "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6
 		fi
@@ -1536,7 +1539,7 @@ function removeOpenVPN() {
 		elif [[ $OS =~ (centos|oracle) ]]; then
 			run_cmd "Removing OpenVPN" yum remove -y openvpn
 			# Disable Copr repo if it was enabled
-			if command -v dnf &> /dev/null; then
+			if command -v dnf &>/dev/null; then
 				run_cmd "Disabling OpenVPN Copr repo" dnf copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
 			else
 				run_cmd "Disabling OpenVPN Copr repo" yum copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
