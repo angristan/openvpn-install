@@ -1530,7 +1530,7 @@ function renewClient() {
 
 	# Renew the certificate (keeps the same private key)
 	export EASYRSA_CERT_EXPIRE=$days_valid
-	run_cmd "Renewing certificate" ./easyrsa --batch renew "$CLIENT" nopass
+	run_cmd "Renewing certificate" ./easyrsa --batch renew "$CLIENT"
 
 	# Revoke the old certificate
 	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$CLIENT"
@@ -1588,7 +1588,7 @@ function renewServer() {
 
 	# Renew the certificate (keeps the same private key)
 	export EASYRSA_CERT_EXPIRE=$days_valid
-	run_cmd "Renewing certificate" ./easyrsa --batch renew "$server_name" nopass
+	run_cmd "Renewing certificate" ./easyrsa --batch renew "$server_name"
 
 	# Revoke the old certificate
 	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$server_name"
