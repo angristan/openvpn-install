@@ -1390,7 +1390,10 @@ function generateClientConfig() {
 
 # Helper function to list valid clients and select one
 # Arguments: show_expiry (optional, "true" to show expiry info)
-# Sets: CLIENT, CLIENTNUMBER
+# Sets global variables:
+#   CLIENT - the selected client name
+#   CLIENTNUMBER - the selected client number (1-based index)
+#   NUMBEROFCLIENTS - total count of valid clients
 function selectClient() {
 	local show_expiry="${1:-false}"
 
@@ -1415,7 +1418,7 @@ function selectClient() {
 	fi
 
 	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
-		if [[ $CLIENTNUMBER == '1' ]]; then
+		if [[ $NUMBEROFCLIENTS == '1' ]]; then
 			read -rp "Select one client [1]: " CLIENTNUMBER
 		else
 			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
@@ -1500,15 +1503,31 @@ function revokeClient() {
 }
 
 function renewClient() {
+	local homeDir days_valid
+
 	log_header "Renew Client Certificate"
 	log_prompt "Select the existing client certificate you want to renew"
 	selectClient "true"
 
+	# Allow user to specify renewal duration (use DAYS_VALID env var for headless mode)
+	if [[ -z $DAYS_VALID ]] || ! [[ $DAYS_VALID =~ ^[0-9]+$ ]] || [[ $DAYS_VALID -lt 1 ]]; then
+		log_menu ""
+		log_prompt "How many days should the renewed certificate be valid for?"
+		until [[ $days_valid =~ ^[0-9]+$ ]] && [[ $days_valid -ge 1 ]]; do
+			read -rp "Certificate validity (days): " -e -i 3650 days_valid
+		done
+	else
+		days_valid=$DAYS_VALID
+	fi
+
 	cd /etc/openvpn/easy-rsa/ || return
 	log_info "Renewing certificate for $CLIENT..."
 
+	# Backup the old certificate before renewal
+	run_cmd "Backing up old certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt" "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt.bak"
+
 	# Renew the certificate (keeps the same private key)
-	export EASYRSA_CERT_EXPIRE=$CERT_VALIDITY_DAYS
+	export EASYRSA_CERT_EXPIRE=$days_valid
 	run_cmd "Renewing certificate" ./easyrsa --batch renew "$CLIENT" nopass
 
 	# Revoke the old certificate
@@ -1522,18 +1541,20 @@ function renewClient() {
 	generateClientConfig "$CLIENT" "$homeDir"
 
 	log_menu ""
-	log_success "Certificate for client $CLIENT renewed."
+	log_success "Certificate for client $CLIENT renewed and is valid for $days_valid days."
 	log_info "The new configuration file has been written to $homeDir/$CLIENT.ovpn."
 	log_info "Download the new .ovpn file and import it in your OpenVPN client."
 }
 
 function renewServer() {
+	local server_name days_valid
+
 	log_header "Renew Server Certificate"
 
 	# Get the server name from the config
-	SERVER_NAME=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	server_name=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
 
-	log_prompt "This will renew the server certificate: $SERVER_NAME"
+	log_prompt "This will renew the server certificate: $server_name"
 	log_warn "The OpenVPN service will be restarted after renewal."
 	if [[ -z $CONTINUE ]]; then
 		read -rp "Do you want to continue? [y/n]: " -e -i n CONTINUE
@@ -1543,21 +1564,35 @@ function renewServer() {
 		return
 	fi
 
+	# Allow user to specify renewal duration (use DAYS_VALID env var for headless mode)
+	if [[ -z $DAYS_VALID ]] || ! [[ $DAYS_VALID =~ ^[0-9]+$ ]] || [[ $DAYS_VALID -lt 1 ]]; then
+		log_menu ""
+		log_prompt "How many days should the renewed certificate be valid for?"
+		until [[ $days_valid =~ ^[0-9]+$ ]] && [[ $days_valid -ge 1 ]]; do
+			read -rp "Certificate validity (days): " -e -i 3650 days_valid
+		done
+	else
+		days_valid=$DAYS_VALID
+	fi
+
 	cd /etc/openvpn/easy-rsa/ || return
 	log_info "Renewing server certificate..."
 
+	# Backup the old certificate before renewal
+	run_cmd "Backing up old certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt" "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt.bak"
+
 	# Renew the certificate (keeps the same private key)
-	export EASYRSA_CERT_EXPIRE=$CERT_VALIDITY_DAYS
-	run_cmd "Renewing certificate" ./easyrsa --batch renew "$SERVER_NAME" nopass
+	export EASYRSA_CERT_EXPIRE=$days_valid
+	run_cmd "Renewing certificate" ./easyrsa --batch renew "$server_name" nopass
 
 	# Revoke the old certificate
-	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$SERVER_NAME"
+	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$server_name"
 
 	# Regenerate the CRL
 	regenerateCRL
 
 	# Copy the new certificate to /etc/openvpn/
-	run_cmd "Copying new certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" /etc/openvpn/
+	run_cmd "Copying new certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt" /etc/openvpn/
 
 	# Restart OpenVPN
 	log_info "Restarting OpenVPN service..."
@@ -1569,7 +1604,7 @@ function renewServer() {
 		run_cmd "Restarting OpenVPN" systemctl restart openvpn@server
 	fi
 
-	log_success "Server certificate renewed successfully."
+	log_success "Server certificate renewed successfully and is valid for $days_valid days."
 }
 
 function getDaysUntilExpiry() {
@@ -1603,24 +1638,27 @@ function formatExpiry() {
 }
 
 function renewMenu() {
+	local server_name server_cert server_days server_expiry renew_option
+
 	log_header "Certificate Renewal"
 
 	# Get server certificate expiry for menu display
-	SERVER_NAME=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
-	SERVER_CERT="/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt"
-	SERVER_DAYS=$(getDaysUntilExpiry "$SERVER_CERT")
-	SERVER_EXPIRY=$(formatExpiry "$SERVER_DAYS")
+	server_name=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	server_cert="/etc/openvpn/easy-rsa/pki/issued/$server_name.crt"
+	server_days=$(getDaysUntilExpiry "$server_cert")
+	server_expiry=$(formatExpiry "$server_days")
 
 	log_menu ""
 	log_prompt "What do you want to renew?"
 	log_menu "   1) Renew a client certificate"
-	log_menu "   2) Renew the server certificate $SERVER_EXPIRY"
+	log_menu "   2) Renew the server certificate $server_expiry"
 	log_menu "   3) Back to main menu"
-	until [[ $RENEW_OPTION =~ ^[1-3]$ ]]; do
-		read -rp "Select an option [1-3]: " RENEW_OPTION
+	until [[ ${RENEW_OPTION:-$renew_option} =~ ^[1-3]$ ]]; do
+		read -rp "Select an option [1-3]: " renew_option
 	done
+	renew_option="${RENEW_OPTION:-$renew_option}"
 
-	case $RENEW_OPTION in
+	case $renew_option in
 	1)
 		renewClient
 		;;
