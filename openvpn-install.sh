@@ -533,12 +533,10 @@ function installQuestions() {
 		fi
 	done
 	log_menu ""
-	read -rp "Allow a single .ovpn profile to be used on multiple devices simultaneously? [y/n]: " -e -i n MULTI_CLIENT_CHOICE
-	if [[ $MULTI_CLIENT_CHOICE =~ ^[Yy]$ ]]; then
-		MULTI_CLIENT="y"
-	else
-		MULTI_CLIENT="n"
-	fi
+	log_prompt "Do you want to allow a single .ovpn profile to be used on multiple devices simultaneously?"
+	until [[ $MULTI_CLIENT =~ (y|n) ]]; do
+		read -rp "Allow multiple devices per client? [y/n]: " -e -i n MULTI_CLIENT
+	done
 	log_menu ""
 	log_prompt "Do you want to use compression? It is not recommended since the VORACLE attack makes use of it."
 	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
@@ -804,6 +802,7 @@ function installOpenVPN() {
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
 		DNS=${DNS:-1}
 		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
+		MULTI_CLIENT=${MULTI_CLIENT:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
@@ -822,6 +821,7 @@ function installOpenVPN() {
 		log_info "  PROTOCOL_CHOICE=$PROTOCOL_CHOICE"
 		log_info "  DNS=$DNS"
 		log_info "  COMPRESSION_ENABLED=$COMPRESSION_ENABLED"
+		log_info "  MULTI_CLIENT=$MULTI_CLIENT"
 		log_info "  CUSTOMIZE_ENC=$CUSTOMIZE_ENC"
 		log_info "  CLIENT=$CLIENT"
 		log_info "  PASS=$PASS"
