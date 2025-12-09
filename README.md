@@ -89,7 +89,8 @@ If you want to customise your installation, you can export them or specify them 
 - `CLIENT=clientname`
 - `PASS=1`
 - `MULTI_CLIENT=n`
-- `DAYS_VALID=3650`
+- `CLIENT_CERT_DURATION_DAYS=3650`
+- `SERVER_CERT_DURATION_DAYS=3650`
 
 If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
 
