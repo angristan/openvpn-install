@@ -38,7 +38,8 @@ echo "Running OpenVPN install script..."
 # Capture output to validate logging format, while still displaying it
 # Use || true to prevent set -e from exiting on failure, then check exit code
 INSTALL_OUTPUT="/tmp/install-output.log"
-(bash /tmp/openvpn-install.sh) 2>&1 | tee "$INSTALL_OUTPUT" && INSTALL_EXIT_CODE=${PIPESTATUS[0]} || INSTALL_EXIT_CODE=${PIPESTATUS[0]}
+(bash /tmp/openvpn-install.sh) 2>&1 | tee "$INSTALL_OUTPUT"
+INSTALL_EXIT_CODE=${PIPESTATUS[0]}
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
 

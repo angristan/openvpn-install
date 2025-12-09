@@ -902,10 +902,12 @@ function installOpenVPN() {
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
 		run_cmd "Downloading Easy-RSA v${EASYRSA_VERSION}" wget -O ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
 		log_info "Verifying Easy-RSA checksum..."
-		if ! echo "${EASYRSA_SHA256}  $HOME/easy-rsa.tgz" | sha256sum -c --status; then
+		CHECKSUM_OUTPUT=$(echo "${EASYRSA_SHA256}  $HOME/easy-rsa.tgz" | sha256sum -c 2>&1) || {
+			_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
 			run_cmd "Cleaning up failed download" rm -f ~/easy-rsa.tgz
 			log_fatal "SHA256 checksum verification failed for easy-rsa download!"
-		fi
+		}
+		_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
 		run_cmd "Creating Easy-RSA directory" mkdir -p /etc/openvpn/easy-rsa
 		run_cmd "Extracting Easy-RSA" tar xzf ~/easy-rsa.tgz --strip-components=1 --no-same-owner --directory /etc/openvpn/easy-rsa
 		run_cmd "Cleaning up archive" rm -f ~/easy-rsa.tgz
