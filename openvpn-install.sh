@@ -862,6 +862,7 @@ function installOpenVPN() {
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
+		DAYS_VALID=${DAYS_VALID:-3650}
 		CONTINUE=${CONTINUE:-y}
 
 		if [[ -z $ENDPOINT ]]; then
@@ -881,6 +882,7 @@ function installOpenVPN() {
 		log_info "  CUSTOMIZE_ENC=$CUSTOMIZE_ENC"
 		log_info "  CLIENT=$CLIENT"
 		log_info "  PASS=$PASS"
+		log_info "  DAYS_VALID=$DAYS_VALID"
 	fi
 
 	# Run setup questions first, and set other variables if auto-install
@@ -1326,6 +1328,12 @@ function newClient() {
 		read -rp "Client name: " -e CLIENT
 	done
 
+	if [[ -z $DAYS_VALID ]]; then
+		log_menu ""
+		log_prompt "How many days should the client certificate be valid for?"
+		read -rp "Certificate validity (days): " -e -i 3650 DAYS_VALID
+	fi
+
 	log_menu ""
 	log_prompt "Do you want to protect the configuration file with a password?"
 	log_prompt "(e.g. encrypt the private key with a password)"
@@ -1343,7 +1351,7 @@ function newClient() {
 	else
 		cd /etc/openvpn/easy-rsa/ || return
 		log_info "Generating client certificate..."
-		export EASYRSA_CERT_EXPIRE=$CERT_VALIDITY_DAYS
+		export EASYRSA_CERT_EXPIRE=$DAYS_VALID
 		case $PASS in
 		1)
 			run_cmd "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
@@ -1353,7 +1361,7 @@ function newClient() {
 			./easyrsa --batch build-client-full "$CLIENT"
 			;;
 		esac
-		log_success "Client $CLIENT added."
+		log_success "Client $CLIENT added and is valid for $DAYS_VALID days."
 	fi
 
 	# Home directory of the user, where the client configuration will be written
