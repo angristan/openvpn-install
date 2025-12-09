@@ -862,6 +862,7 @@ function installOpenVPN() {
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		CLIENT=${CLIENT:-client}
 		PASS=${PASS:-1}
+		DAYS_VALID=${DAYS_VALID:-3650}
 		CONTINUE=${CONTINUE:-y}
 
 		if [[ -z $ENDPOINT ]]; then
@@ -881,6 +882,7 @@ function installOpenVPN() {
 		log_info "  CUSTOMIZE_ENC=$CUSTOMIZE_ENC"
 		log_info "  CLIENT=$CLIENT"
 		log_info "  PASS=$PASS"
+		log_info "  DAYS_VALID=$DAYS_VALID"
 	fi
 
 	# Run setup questions first, and set other variables if auto-install
@@ -1326,9 +1328,11 @@ function newClient() {
 		read -rp "Client name: " -e CLIENT
 	done
 
-	log_menu ""
-	log_prompt "How many days should the client be valid for?"
-	read -rp "Enter the number of days (default is 3650, which is about 10 years): " -e -i 3650 DAYS_VALID
+	if [[ -z $DAYS_VALID ]]; then
+		log_menu ""
+		log_prompt "How many days should the client certificate be valid for?"
+		read -rp "Certificate validity (days): " -e -i 3650 DAYS_VALID
+	fi
 
 	log_menu ""
 	log_prompt "Do you want to protect the configuration file with a password?"
