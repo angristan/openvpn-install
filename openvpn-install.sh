@@ -247,8 +247,7 @@ function installOpenVPNRepo() {
 		run_cmd "Creating keyrings directory" mkdir -p /etc/apt/keyrings
 
 		# Download and install GPG key
-		log_info "Downloading OpenVPN repository GPG key..."
-		if ! curl -fsSL https://swupdate.openvpn.net/repos/repo-public.gpg -o /etc/apt/keyrings/openvpn-repo-public.asc; then
+		if ! run_cmd "Downloading OpenVPN GPG key" curl -fsSL https://swupdate.openvpn.net/repos/repo-public.gpg -o /etc/apt/keyrings/openvpn-repo-public.asc; then
 			log_fatal "Failed to download OpenVPN repository GPG key"
 		fi
 
