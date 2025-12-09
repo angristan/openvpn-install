@@ -114,6 +114,9 @@ test-arch:
 test-centos-stream-9:
 	$(MAKE) test BASE_IMAGE=quay.io/centos/centos:stream9
 
+test-alinux-3:
+	$(MAKE) test BASE_IMAGE=registry.cn-hangzhou.aliyuncs.com/alinux/alinux3
+
 # Test all distributions (runs sequentially)
 test-all:
 	$(MAKE) test-ubuntu-18.04
@@ -134,3 +137,4 @@ test-all:
 	$(MAKE) test-amazon-2023
 	$(MAKE) test-arch
 	$(MAKE) test-centos-stream-9
+	$(MAKE) test-alinux-3

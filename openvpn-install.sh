@@ -3,7 +3,7 @@
 # SC1091: Not following /etc/os-release (sourced dynamically)
 # SC2034: Variables used indirectly or exported for subprocesses
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux, Arch Linux, Rocky Linux and AlmaLinux.
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux, Arch Linux, Rocky Linux, AlmaLinux and Alibaba Cloud Linux.
 # https://github.com/angristan/openvpn-install
 
 # Configuration constants
@@ -73,6 +73,16 @@ function checkOS() {
 				exit 1
 			fi
 		fi
+		if [[ $ID == "alinux" ]]; then
+			OS="centos"
+			if [[ ${VERSION_ID%.*} -lt 3 ]]; then
+				echo "⚠️ Your version of Alibaba Cloud Linux is not supported."
+				echo ""
+				echo "The script only supports Alibaba Cloud Linux 3+."
+				echo ""
+				exit 1
+			fi
+		fi
 		if [[ $ID == "ol" ]]; then
 			OS="oracle"
 			if [[ ! $VERSION_ID =~ ^(8|9) ]]; then
@@ -98,7 +108,7 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux or Arch Linux system."
+		echo "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux, Arch Linux or Alibaba Cloud Linux system."
 		exit 1
 	fi
 }
@@ -721,7 +731,14 @@ function installOpenVPN() {
 			# Ubuntu >= 18.04 and Debian >= 11 have OpenVPN >= 2.4 without the need of a third party repository.
 			apt-get install -y openvpn iptables openssl wget ca-certificates curl
 		elif [[ $OS == 'centos' ]]; then
-			yum install -y epel-release
+			if [[ $ID == "alinux" ]]; then
+				# Alibaba Cloud Linux has EPEL pre-configured but with internal mirrors
+				# that are only accessible from within Alibaba Cloud. Replace with official EPEL.
+				rm -f /etc/yum.repos.d/epel*.repo
+				yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+			else
+				yum install -y epel-release
+			fi
 			yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
 			if [[ $VERSION_ID =~ ^8 ]]; then
