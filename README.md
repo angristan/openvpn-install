@@ -113,6 +113,7 @@ export PASS="1"
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
+- Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) for the latest stable releases (Debian, Ubuntu, CentOS, Oracle Linux, Rocky Linux, AlmaLinux, Fedora)
 - Iptables rules and forwarding managed in a seamless way
 - If needed, the script can cleanly remove OpenVPN, including configuration and iptables rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
