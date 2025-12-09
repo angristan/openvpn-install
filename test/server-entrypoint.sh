@@ -92,6 +92,157 @@ cp /root/testclient.ovpn /shared/client.ovpn
 sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
 echo "Client config copied to /shared/client.ovpn"
 
+# =====================================================
+# Test certificate renewal functionality
+# =====================================================
+echo ""
+echo "=== Testing Certificate Renewal ==="
+
+# Get the original certificate serial number for comparison
+ORIG_CERT_SERIAL=$(openssl x509 -in /etc/openvpn/easy-rsa/pki/issued/testclient.crt -noout -serial | cut -d= -f2)
+echo "Original client certificate serial: $ORIG_CERT_SERIAL"
+
+# Test client certificate renewal using the script
+echo "Testing client certificate renewal..."
+RENEW_OUTPUT="/tmp/renew-client-output.log"
+(MENU_OPTION=3 RENEW_OPTION=1 CLIENTNUMBER=1 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
+
+# Verify renewal succeeded
+if grep -q "Certificate for client testclient renewed" "$RENEW_OUTPUT"; then
+	echo "PASS: Client renewal completed successfully"
+else
+	echo "FAIL: Client renewal did not complete"
+	cat "$RENEW_OUTPUT"
+	exit 1
+fi
+
+# Verify new certificate has different serial
+NEW_CERT_SERIAL=$(openssl x509 -in /etc/openvpn/easy-rsa/pki/issued/testclient.crt -noout -serial | cut -d= -f2)
+echo "New client certificate serial: $NEW_CERT_SERIAL"
+if [ "$ORIG_CERT_SERIAL" != "$NEW_CERT_SERIAL" ]; then
+	echo "PASS: Certificate serial changed (renewal created new cert)"
+else
+	echo "FAIL: Certificate serial unchanged"
+	exit 1
+fi
+
+# Verify renewed certificate has correct validity period
+# The default is 3650 days, so the cert should be valid for ~10 years from now
+CLIENT_CERT_NOT_AFTER=$(openssl x509 -in /etc/openvpn/easy-rsa/pki/issued/testclient.crt -noout -enddate | cut -d= -f2)
+CLIENT_CERT_NOT_BEFORE=$(openssl x509 -in /etc/openvpn/easy-rsa/pki/issued/testclient.crt -noout -startdate | cut -d= -f2)
+echo "Client certificate valid from: $CLIENT_CERT_NOT_BEFORE"
+echo "Client certificate valid until: $CLIENT_CERT_NOT_AFTER"
+
+# Calculate days until expiry (should be close to 3650)
+CERT_END_EPOCH=$(date -d "$CLIENT_CERT_NOT_AFTER" +%s 2>/dev/null || date -j -f "%b %d %T %Y %Z" "$CLIENT_CERT_NOT_AFTER" +%s 2>/dev/null)
+NOW_EPOCH=$(date +%s)
+DAYS_VALID_ACTUAL=$(((CERT_END_EPOCH - NOW_EPOCH) / 86400))
+echo "Client certificate validity: $DAYS_VALID_ACTUAL days"
+
+# Should be between 3640 and 3650 days (allowing some tolerance for timing)
+if [ "$DAYS_VALID_ACTUAL" -ge 3640 ] && [ "$DAYS_VALID_ACTUAL" -le 3650 ]; then
+	echo "PASS: Client certificate validity is correct (~3650 days)"
+else
+	echo "FAIL: Client certificate validity is unexpected: $DAYS_VALID_ACTUAL days (expected ~3650)"
+	exit 1
+fi
+
+# Verify new .ovpn file was generated
+if [ -f /root/testclient.ovpn ]; then
+	echo "PASS: New .ovpn file generated"
+else
+	echo "FAIL: .ovpn file not found after renewal"
+	exit 1
+fi
+
+# Verify CRL was updated
+if [ -f /etc/openvpn/crl.pem ]; then
+	echo "PASS: CRL file exists"
+else
+	echo "FAIL: CRL file missing after renewal"
+	exit 1
+fi
+
+# Update shared client config with renewed certificate
+cp /root/testclient.ovpn /shared/client.ovpn
+sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
+echo "Updated client config with renewed certificate"
+
+echo "=== Client Certificate Renewal Tests PASSED ==="
+
+# =====================================================
+# Test server certificate renewal
+# =====================================================
+echo ""
+echo "=== Testing Server Certificate Renewal ==="
+
+# Get server certificate name and original serial
+SERVER_NAME=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+ORIG_SERVER_SERIAL=$(openssl x509 -in "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
+echo "Server certificate: $SERVER_NAME"
+echo "Original server certificate serial: $ORIG_SERVER_SERIAL"
+
+# Test server certificate renewal
+echo "Testing server certificate renewal..."
+RENEW_SERVER_OUTPUT="/tmp/renew-server-output.log"
+(MENU_OPTION=3 RENEW_OPTION=2 CONTINUE=y bash /tmp/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
+
+# Verify renewal succeeded
+if grep -q "Server certificate renewed successfully" "$RENEW_SERVER_OUTPUT"; then
+	echo "PASS: Server renewal completed successfully"
+else
+	echo "FAIL: Server renewal did not complete"
+	cat "$RENEW_SERVER_OUTPUT"
+	exit 1
+fi
+
+# Verify new certificate has different serial
+NEW_SERVER_SERIAL=$(openssl x509 -in "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
+echo "New server certificate serial: $NEW_SERVER_SERIAL"
+if [ "$ORIG_SERVER_SERIAL" != "$NEW_SERVER_SERIAL" ]; then
+	echo "PASS: Server certificate serial changed (renewal created new cert)"
+else
+	echo "FAIL: Server certificate serial unchanged"
+	exit 1
+fi
+
+# Verify renewed server certificate has correct validity period
+SERVER_CERT_NOT_AFTER=$(openssl x509 -in "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -enddate | cut -d= -f2)
+SERVER_CERT_NOT_BEFORE=$(openssl x509 -in "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -startdate | cut -d= -f2)
+echo "Server certificate valid from: $SERVER_CERT_NOT_BEFORE"
+echo "Server certificate valid until: $SERVER_CERT_NOT_AFTER"
+
+# Calculate days until expiry (should be close to 3650)
+SERVER_END_EPOCH=$(date -d "$SERVER_CERT_NOT_AFTER" +%s 2>/dev/null || date -j -f "%b %d %T %Y %Z" "$SERVER_CERT_NOT_AFTER" +%s 2>/dev/null)
+SERVER_DAYS_VALID=$(((SERVER_END_EPOCH - NOW_EPOCH) / 86400))
+echo "Server certificate validity: $SERVER_DAYS_VALID days"
+
+if [ "$SERVER_DAYS_VALID" -ge 3640 ] && [ "$SERVER_DAYS_VALID" -le 3650 ]; then
+	echo "PASS: Server certificate validity is correct (~3650 days)"
+else
+	echo "FAIL: Server certificate validity is unexpected: $SERVER_DAYS_VALID days (expected ~3650)"
+	exit 1
+fi
+
+# Verify the new certificate was copied to /etc/openvpn/
+if [ -f "/etc/openvpn/$SERVER_NAME.crt" ]; then
+	DEPLOYED_SERIAL=$(openssl x509 -in "/etc/openvpn/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
+	if [ "$NEW_SERVER_SERIAL" = "$DEPLOYED_SERIAL" ]; then
+		echo "PASS: New server certificate deployed to /etc/openvpn/"
+	else
+		echo "FAIL: Deployed certificate doesn't match renewed certificate"
+		exit 1
+	fi
+else
+	echo "FAIL: Server certificate not found in /etc/openvpn/"
+	exit 1
+fi
+
+echo "=== Server Certificate Renewal Tests PASSED ==="
+echo ""
+echo "=== All Certificate Renewal Tests PASSED ==="
+echo ""
+
 # Start OpenVPN server manually (systemd doesn't work in containers)
 echo "Starting OpenVPN server..."
 
