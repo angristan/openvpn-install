@@ -236,6 +236,62 @@ function initialCheck() {
 	checkOS
 }
 
+function installOpenVPNRepo() {
+	log_info "Setting up official OpenVPN repository..."
+
+	if [[ $OS =~ (debian|ubuntu) ]]; then
+		run_cmd "Update package lists" apt-get update
+		run_cmd "Installing prerequisites" apt-get install -y ca-certificates curl
+
+		# Create keyrings directory
+		run_cmd "Creating keyrings directory" mkdir -p /etc/apt/keyrings
+
+		# Download and install GPG key
+		if ! run_cmd "Downloading OpenVPN GPG key" curl -fsSL https://swupdate.openvpn.net/repos/repo-public.gpg -o /etc/apt/keyrings/openvpn-repo-public.asc; then
+			log_fatal "Failed to download OpenVPN repository GPG key"
+		fi
+
+		# Add repository - using stable release
+		if [[ -z "${VERSION_CODENAME}" ]]; then
+			log_fatal "VERSION_CODENAME is not set. Unable to configure OpenVPN repository."
+		fi
+		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/openvpn-repo-public.asc] https://build.openvpn.net/debian/openvpn/stable ${VERSION_CODENAME} main" >/etc/apt/sources.list.d/openvpn-aptrepo.list
+
+		log_info "Updating package lists with new repository..."
+		run_cmd "Update package lists" apt-get update
+
+		log_info "OpenVPN official repository configured"
+
+	elif [[ $OS =~ (centos|oracle) ]]; then
+		# For RHEL-based systems, use Fedora Copr (OpenVPN 2.6 stable)
+		# EPEL is required for pkcs11-helper dependency
+		log_info "Configuring OpenVPN Copr repository for RHEL-based system..."
+
+		if ! command -v dnf &>/dev/null; then
+			run_cmd "Installing EPEL repository" yum install -y epel-release
+			run_cmd "Installing yum-plugin-copr" yum install -y yum-plugin-copr
+			run_cmd "Enabling OpenVPN Copr repo" yum copr enable -y @OpenVPN/openvpn-release-2.6
+		else
+			run_cmd "Installing EPEL repository" dnf install -y epel-release
+			run_cmd "Installing dnf-plugins-core" dnf install -y dnf-plugins-core
+			run_cmd "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6
+		fi
+
+		log_info "OpenVPN Copr repository configured"
+
+	elif [[ $OS == "fedora" ]]; then
+		# Fedora already has recent OpenVPN, but we can use Copr for latest 2.6
+		log_info "Configuring OpenVPN Copr repository for Fedora..."
+		run_cmd "Installing dnf-plugins-core" dnf install -y dnf-plugins-core
+		run_cmd "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6
+
+		log_info "OpenVPN Copr repository configured"
+
+	else
+		log_info "No official OpenVPN repository available for this OS, using distribution packages"
+	fi
+}
+
 function installUnbound() {
 	log_info "Installing Unbound DNS resolver..."
 	# If Unbound isn't installed, install it
@@ -853,43 +909,26 @@ function installOpenVPN() {
 	# the first time.
 	if [[ ! -e /etc/openvpn/server.conf ]]; then
 		log_header "Installing OpenVPN"
+
+		# Setup official OpenVPN repository for latest versions
+		installOpenVPNRepo
+
+		log_info "Installing OpenVPN and dependencies..."
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			log_info "Updating package lists..."
-			run_cmd "Update package lists" apt-get update
-			run_cmd "Installing prerequisites" apt-get -y install ca-certificates gnupg
-			# Ubuntu >= 18.04 and Debian >= 11 have OpenVPN >= 2.4 without the need of a third party repository.
-			log_info "Installing OpenVPN and dependencies..."
-			run_cmd "Installing OpenVPN" apt-get install -y openvpn iptables openssl wget ca-certificates curl
+			run_cmd "Installing OpenVPN" apt-get install -y openvpn iptables openssl wget
 		elif [[ $OS == 'centos' ]]; then
-			log_info "Installing EPEL repository..."
-			run_cmd "Installing EPEL" yum install -y epel-release
-			log_info "Installing OpenVPN and dependencies..."
 			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-			log_info "Installing EPEL repository..."
-			if [[ $VERSION_ID =~ ^8 ]]; then
-				run_cmd "Installing Oracle EPEL" yum install -y oracle-epel-release-el8
-				run_cmd "Enabling EPEL repository" yum-config-manager --enable ol8_developer_EPEL
-			elif [[ $VERSION_ID =~ ^9 ]]; then
-				run_cmd "Installing Oracle EPEL" yum install -y oracle-epel-release-el9
-				run_cmd "Enabling EPEL repository" yum-config-manager --enable ol9_developer_EPEL
-			fi
-			log_info "Installing OpenVPN and dependencies..."
 			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl wget ca-certificates curl tar policycoreutils-python-utils
 		elif [[ $OS == 'amzn' ]]; then
 			log_info "Installing EPEL repository..."
 			run_cmd "Installing EPEL" amazon-linux-extras install -y epel
-			log_info "Installing OpenVPN and dependencies..."
 			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl wget ca-certificates curl
 		elif [[ $OS == 'amzn2023' ]]; then
-			log_info "Installing OpenVPN and dependencies..."
 			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl wget ca-certificates
 		elif [[ $OS == 'fedora' ]]; then
-			log_info "Installing OpenVPN and dependencies..."
 			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl wget ca-certificates curl policycoreutils-python-utils
 		elif [[ $OS == 'arch' ]]; then
-			# Install required dependencies and upgrade the system
-			log_info "Installing OpenVPN and dependencies..."
 			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
 		fi
 		# An old version of easy-rsa was available by default in some openvpn packages
@@ -1489,16 +1528,34 @@ function removeOpenVPN() {
 		log_info "Removing OpenVPN package..."
 		if [[ $OS =~ (debian|ubuntu) ]]; then
 			run_cmd "Removing OpenVPN" apt-get remove --purge -y openvpn
-			if [[ -e /etc/apt/sources.list.d/openvpn.list ]]; then
-				run_cmd "Removing OpenVPN repo" rm /etc/apt/sources.list.d/openvpn.list
-				run_cmd "Updating package lists" apt-get update
+			# Remove OpenVPN official repository and GPG key
+			if [[ -e /etc/apt/sources.list.d/openvpn-aptrepo.list ]]; then
+				run_cmd "Removing OpenVPN repo" rm /etc/apt/sources.list.d/openvpn-aptrepo.list
 			fi
+			if [[ -e /etc/apt/keyrings/openvpn-repo-public.asc ]]; then
+				run_cmd "Removing OpenVPN GPG key" rm /etc/apt/keyrings/openvpn-repo-public.asc
+			fi
+			run_cmd "Updating package lists" apt-get update
 		elif [[ $OS == 'arch' ]]; then
 			run_cmd "Removing OpenVPN" pacman --noconfirm -R openvpn
-		elif [[ $OS =~ (centos|amzn|oracle) ]]; then
+		elif [[ $OS =~ (centos|oracle) ]]; then
 			run_cmd "Removing OpenVPN" yum remove -y openvpn
+			# Disable Copr repo if it was enabled
+			if command -v dnf &>/dev/null; then
+				run_cmd "Disabling OpenVPN Copr repo" dnf copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
+			else
+				run_cmd "Disabling OpenVPN Copr repo" yum copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
+			fi
+		elif [[ $OS =~ (amzn|amzn2023) ]]; then
+			if [[ $OS == 'amzn2023' ]]; then
+				run_cmd "Removing OpenVPN" dnf remove -y openvpn
+			else
+				run_cmd "Removing OpenVPN" yum remove -y openvpn
+			fi
 		elif [[ $OS == 'fedora' ]]; then
 			run_cmd "Removing OpenVPN" dnf remove -y openvpn
+			# Disable Copr repo
+			run_cmd "Disabling OpenVPN Copr repo" dnf copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
 		fi
 
 		# Cleanup
