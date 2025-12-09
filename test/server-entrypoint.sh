@@ -14,6 +14,7 @@ echo "TUN device ready"
 
 # Set up environment for auto-install
 export AUTO_INSTALL=y
+export FORCE_COLOR=1
 export APPROVE_INSTALL=y
 export APPROVE_IP=y
 export IPV6_SUPPORT=n
@@ -34,10 +35,23 @@ chmod +x /tmp/openvpn-install.sh
 
 echo "Running OpenVPN install script..."
 # Run in subshell because the script calls 'exit 0' after generating client config
+# Capture output to validate logging format, while still displaying it
 # Use || true to prevent set -e from exiting on failure, then check exit code
-(bash -x /tmp/openvpn-install.sh) && INSTALL_EXIT_CODE=0 || INSTALL_EXIT_CODE=$?
+INSTALL_OUTPUT="/tmp/install-output.log"
+(bash /tmp/openvpn-install.sh) 2>&1 | tee "$INSTALL_OUTPUT"
+INSTALL_EXIT_CODE=${PIPESTATUS[0]}
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
+
+# Validate that all output uses proper logging format (ANSI color codes)
+echo "Validating output format..."
+if /opt/test/validate-output.sh "$INSTALL_OUTPUT"; then
+	echo "PASS: All script output uses proper log formatting"
+else
+	echo "FAIL: Script output contains unformatted lines"
+	echo "This indicates echo statements that should use log_* functions"
+	exit 1
+fi
 
 if [ "$INSTALL_EXIT_CODE" -ne 0 ]; then
 	echo "ERROR: Install script failed with exit code $INSTALL_EXIT_CODE"
