@@ -1351,7 +1351,7 @@ function newClient() {
 			./easyrsa --batch build-client-full "$CLIENT"
 			;;
 		esac
-		log_info "Client $CLIENT added."
+		log_success "Client $CLIENT added."
 	fi
 
 	# Home directory of the user, where the client configuration will be written
