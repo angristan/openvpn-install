@@ -1396,6 +1396,7 @@ function generateClientConfig() {
 #   NUMBEROFCLIENTS - total count of valid clients
 function selectClient() {
 	local show_expiry="${1:-false}"
+	local client_number
 
 	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
 	if [[ $NUMBEROFCLIENTS == '0' ]]; then
@@ -1417,13 +1418,14 @@ function selectClient() {
 		tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 	fi
 
-	until [[ $CLIENTNUMBER -ge 1 && $CLIENTNUMBER -le $NUMBEROFCLIENTS ]]; do
+	until [[ ${CLIENTNUMBER:-$client_number} -ge 1 && ${CLIENTNUMBER:-$client_number} -le $NUMBEROFCLIENTS ]]; do
 		if [[ $NUMBEROFCLIENTS == '1' ]]; then
-			read -rp "Select one client [1]: " CLIENTNUMBER
+			read -rp "Select one client [1]: " client_number
 		else
-			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " CLIENTNUMBER
+			read -rp "Select one client [1-$NUMBEROFCLIENTS]: " client_number
 		fi
 	done
+	CLIENTNUMBER="${CLIENTNUMBER:-$client_number}"
 	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 }
 
@@ -1553,6 +1555,9 @@ function renewServer() {
 
 	# Get the server name from the config
 	server_name=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	if [[ -z "$server_name" ]]; then
+		log_fatal "Could not determine server certificate name from /etc/openvpn/server.conf"
+	fi
 
 	log_prompt "This will renew the server certificate: $server_name"
 	log_warn "The OpenVPN service will be restarted after renewal."
@@ -1614,6 +1619,10 @@ function getDaysUntilExpiry() {
 		expiry_date=$(openssl x509 -in "$cert_file" -noout -enddate | cut -d= -f2)
 		local expiry_epoch
 		expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%b %d %T %Y %Z" "$expiry_date" +%s 2>/dev/null)
+		if [[ -z "$expiry_epoch" ]]; then
+			echo "?"
+			return
+		fi
 		local now_epoch
 		now_epoch=$(date +%s)
 		echo $(((expiry_epoch - now_epoch) / 86400))
@@ -1644,9 +1653,13 @@ function renewMenu() {
 
 	# Get server certificate expiry for menu display
 	server_name=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
-	server_cert="/etc/openvpn/easy-rsa/pki/issued/$server_name.crt"
-	server_days=$(getDaysUntilExpiry "$server_cert")
-	server_expiry=$(formatExpiry "$server_days")
+	if [[ -z "$server_name" ]]; then
+		server_expiry="(unknown expiry)"
+	else
+		server_cert="/etc/openvpn/easy-rsa/pki/issued/$server_name.crt"
+		server_days=$(getDaysUntilExpiry "$server_cert")
+		server_expiry=$(formatExpiry "$server_days")
+	fi
 
 	log_menu ""
 	log_prompt "What do you want to renew?"
@@ -1798,6 +1811,8 @@ function removeOpenVPN() {
 }
 
 function manageMenu() {
+	local menu_option
+
 	log_header "OpenVPN Management"
 	log_prompt "The git repository is available at: https://github.com/angristan/openvpn-install"
 	log_success "OpenVPN is already installed."
@@ -1808,11 +1823,12 @@ function manageMenu() {
 	log_menu "   3) Renew certificate"
 	log_menu "   4) Remove OpenVPN"
 	log_menu "   5) Exit"
-	until [[ $MENU_OPTION =~ ^[1-5]$ ]]; do
-		read -rp "Select an option [1-5]: " MENU_OPTION
+	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-5]$ ]]; do
+		read -rp "Select an option [1-5]: " menu_option
 	done
+	menu_option="${MENU_OPTION:-$menu_option}"
 
-	case $MENU_OPTION in
+	case $menu_option in
 	1)
 		newClient
 		;;
