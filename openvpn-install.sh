@@ -339,7 +339,7 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
 			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
 
-		elif [[ $OS == "fedora" ]]; then
+		elif [[ $OS =~ (fedora|amzn2023) ]]; then
 			run_cmd "Installing Unbound" dnf install -y unbound
 
 			# Configuration
@@ -389,7 +389,7 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/unbound.conf
 		fi
 
-		if [[ ! $OS =~ (fedora|centos|oracle) ]]; then
+		if [[ ! $OS =~ (fedora|centos|oracle|amzn2023) ]]; then
 			# DNS Rebinding fix
 			echo "private-address: 10.0.0.0/8
 private-address: fd42:42:42:42::/112
@@ -1747,7 +1747,7 @@ function removeUnbound() {
 			run_cmd "Removing Unbound" pacman --noconfirm -R unbound
 		elif [[ $OS =~ (centos|oracle) ]]; then
 			run_cmd "Removing Unbound" yum remove -y unbound
-		elif [[ $OS == 'fedora' ]]; then
+		elif [[ $OS =~ (fedora|amzn2023) ]]; then
 			run_cmd "Removing Unbound" dnf remove -y unbound
 		fi
 
