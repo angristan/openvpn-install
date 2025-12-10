@@ -258,6 +258,42 @@ function openvpnVersionAtLeast() {
 	return 1
 }
 
+# Check if kernel version is at least the specified version
+# Usage: kernelVersionAtLeast "6.16"
+# Returns 0 if version is >= specified, 1 otherwise
+function kernelVersionAtLeast() {
+	local required_version="$1"
+	local kernel_version
+
+	kernel_version=$(uname -r | cut -d'-' -f1)
+	if [[ -z "$kernel_version" ]]; then
+		return 1
+	fi
+
+	if [[ "$(printf '%s\n' "$required_version" "$kernel_version" | sort -V | head -n1)" == "$required_version" ]]; then
+		return 0
+	fi
+	return 1
+}
+
+# Check if Data Channel Offload (DCO) is available
+# DCO requires: OpenVPN 2.6+, kernel support (Linux 6.16+ or ovpn-dco module)
+# Returns 0 if DCO is available, 1 otherwise
+function isDCOAvailable() {
+	# DCO requires OpenVPN 2.6+
+	if ! openvpnVersionAtLeast "2.6"; then
+		return 1
+	fi
+
+	# DCO is built into Linux 6.16+, or available via ovpn-dco module
+	if kernelVersionAtLeast "6.16"; then
+		return 0
+	elif lsmod 2>/dev/null | grep -q "^ovpn_dco" || modinfo ovpn-dco &>/dev/null; then
+		return 0
+	fi
+	return 1
+}
+
 function installOpenVPNRepo() {
 	log_info "Setting up official OpenVPN repository..."
 
@@ -978,6 +1014,18 @@ function installOpenVPN() {
 				log_fatal "ChaCha20-Poly1305 requires OpenVPN 2.5 or later. Installed version: $installed_version"
 			fi
 			log_info "OpenVPN version supports ChaCha20-Poly1305"
+		fi
+
+		# Check Data Channel Offload (DCO) availability
+		if isDCOAvailable; then
+			# Check if configuration is DCO-compatible
+			if [[ $PROTOCOL == "udp" ]] && [[ $COMPRESSION_ENABLED == "n" ]] && [[ $CIPHER =~ (GCM|CHACHA20-POLY1305) ]]; then
+				log_info "Data Channel Offload (DCO) is available and will be used for improved performance"
+			else
+				log_info "Data Channel Offload (DCO) is available but not enabled (requires UDP, AEAD cipher, no compression)"
+			fi
+		else
+			log_info "Data Channel Offload (DCO) is not available (requires OpenVPN 2.6+ and kernel support)"
 		fi
 
 		# An old version of easy-rsa was available by default in some openvpn packages

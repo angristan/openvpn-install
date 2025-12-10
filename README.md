@@ -363,6 +363,26 @@ So both provide an additional layer of security and mitigate DoS attacks. They a
 
 The script supports both and uses `tls-crypt` by default.
 
+### Data Channel Offload (DCO)
+
+[Data Channel Offload](https://openvpn.net/as-docs/openvpn-data-channel-offload.html) (DCO) is a kernel acceleration feature that significantly improves OpenVPN performance by keeping data channel encryption/decryption in kernel space, eliminating costly context switches between user and kernel space for each packet.
+
+DCO was merged into the Linux kernel 6.16 (April 2025).
+
+**Requirements:**
+
+- OpenVPN 2.6.0 or later
+- Linux kernel 6.16+ (built-in) or `ovpn-dco` kernel module
+- UDP protocol (TCP is not supported)
+- AEAD cipher (`AES-128-GCM`, `AES-256-GCM`, or `CHACHA20-POLY1305`)
+- Compression disabled
+
+The script's default settings (AES-128-GCM, UDP, no compression) are DCO-compatible. When DCO is available and the configuration is compatible, OpenVPN will automatically use it for improved performance.
+
+**Note:** DCO must be supported on both the server and the client for full acceleration. Client support is available in OpenVPN 2.6+ (Linux, Windows, FreeBSD) and OpenVPN Connect 3.4+ (Windows). macOS does not currently support DCO, but clients can still connect to DCO-enabled servers with partial performance benefits on the server side.
+
+The script will display the DCO availability status during installation.
+
 ## Say thanks
 
 You can [say thanks](https://saythanks.io/to/angristan) if you want!
