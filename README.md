@@ -142,7 +142,6 @@ The script supports these Linux distributions:
 |                    | Support |
 | ------------------ | ------- |
 | AlmaLinux >= 8     | ✅ 🤖   |
-| Amazon Linux 2     | ✅ 🤖   |
 | Amazon Linux 2023  | ✅ 🤖   |
 | Arch Linux         | ✅ 🤖   |
 | CentOS Stream >= 8 | ✅ 🤖   |
