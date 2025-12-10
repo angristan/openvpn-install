@@ -4,7 +4,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^openvpn-install\\.sh$"],
+      "managerFilePatterns": ["/^openvpn-install\\.sh$/"],
       "matchStrings": [
         "EASYRSA_VERSION=\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
       ],

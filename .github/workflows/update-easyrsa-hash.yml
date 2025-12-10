@@ -3,7 +3,7 @@ name: Update Easy-RSA SHA256
 on:
   pull_request:
     paths:
-      - 'openvpn-install.sh'
+      - "openvpn-install.sh"
 
 jobs:
   update-hash:
