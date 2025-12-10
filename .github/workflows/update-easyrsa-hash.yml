@@ -1,8 +1,9 @@
 name: Update Easy-RSA SHA256
 
 # Note: This workflow commits and pushes changes to openvpn-install.sh.
-# Infinite recursion is prevented because pushes made with GITHUB_TOKEN do not trigger workflows.
-# See: https://docs.github.com/en/actions/using-workflows/triggering-a-workflow#preventing-workflow-runs-from-recursively-generating-new-workflow-runs
+# Uses PAT to trigger CI on the resulting commit. Infinite recursion is prevented
+# by the 'renovate/' branch prefix check - CI commits don't re-trigger this workflow.
+# Requires: Create a PAT with 'contents: write' scope and add as repository secret 'PAT'
 
 on:
   pull_request:
@@ -23,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
 
       - name: Extract version and update SHA256
         run: |
