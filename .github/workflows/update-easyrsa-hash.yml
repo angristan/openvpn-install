@@ -1,0 +1,46 @@
+name: Update Easy-RSA SHA256
+
+on:
+  pull_request:
+    paths:
+      - 'openvpn-install.sh'
+
+jobs:
+  update-hash:
+    if: startsWith(github.head_ref, 'renovate/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version and update SHA256
+        run: |
+          VERSION=$(grep -oP 'EASYRSA_VERSION="\K[^"]+' openvpn-install.sh)
+          echo "Easy-RSA version: $VERSION"
+
+          CURRENT_SHA=$(grep -oP 'EASYRSA_SHA256="\K[^"]+' openvpn-install.sh)
+          echo "Current SHA256: $CURRENT_SHA"
+
+          NEW_SHA=$(curl -sL "https://github.com/OpenVPN/easy-rsa/releases/download/v${VERSION}/EasyRSA-${VERSION}.tgz" | sha256sum | cut -d' ' -f1)
+          echo "New SHA256: $NEW_SHA"
+
+          if [ "$CURRENT_SHA" != "$NEW_SHA" ]; then
+            sed -i "s/EASYRSA_SHA256=\"$CURRENT_SHA\"/EASYRSA_SHA256=\"$NEW_SHA\"/" openvpn-install.sh
+            echo "SHA256 updated"
+            echo "HASH_CHANGED=true" >> $GITHUB_ENV
+          else
+            echo "SHA256 already correct"
+          fi
+
+      - name: Commit changes
+        if: env.HASH_CHANGED == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add openvpn-install.sh
+          git commit -m "chore: update Easy-RSA SHA256 hash"
+          git push
