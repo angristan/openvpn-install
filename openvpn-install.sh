@@ -9,8 +9,8 @@
 # Configuration constants
 readonly DEFAULT_CERT_VALIDITY_DURATION_DAYS=3650 # 10 years
 readonly DEFAULT_CRL_VALIDITY_DURATION_DAYS=5475  # 15 years
-readonly EASYRSA_VERSION="3.1.2"
-readonly EASYRSA_SHA256="d63cf129490ffd6d8792ede7344806c506c82c32428b5bb609ad97ca6a6e4499"
+readonly EASYRSA_VERSION="3.2.3"
+readonly EASYRSA_SHA256="577d9a0f5205ee74d818af163c2f3447fff8d3dd11b91523db2fe8d99cd851e3"
 
 # =============================================================================
 # Logging Configuration
@@ -1541,7 +1541,7 @@ function revokeClient() {
 
 	cd /etc/openvpn/easy-rsa/ || return
 	log_info "Revoking certificate for $CLIENT..."
-	run_cmd "Revoking certificate" ./easyrsa --batch revoke "$CLIENT"
+	run_cmd "Revoking certificate" ./easyrsa --batch revoke-issued "$CLIENT"
 	regenerateCRL
 	run_cmd "Removing client config from /home" find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	run_cmd "Removing client config from /root" rm -f "/root/$CLIENT.ovpn"
