@@ -102,9 +102,6 @@ test-oracle-8:
 test-oracle-9:
 	$(MAKE) test BASE_IMAGE=oraclelinux:9
 
-test-amazon-2:
-	$(MAKE) test BASE_IMAGE=amazonlinux:2
-
 test-amazon-2023:
 	$(MAKE) test BASE_IMAGE=amazonlinux:2023
 
@@ -130,7 +127,6 @@ test-all:
 	$(MAKE) test-almalinux-9
 	$(MAKE) test-oracle-8
 	$(MAKE) test-oracle-9
-	$(MAKE) test-amazon-2
 	$(MAKE) test-amazon-2023
 	$(MAKE) test-arch
 	$(MAKE) test-centos-stream-9

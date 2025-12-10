@@ -3,7 +3,7 @@
 # SC1091: Not following /etc/os-release (sourced dynamically)
 # SC2034: Variables used indirectly or exported for subprocesses
 
-# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2, Fedora, Oracle Linux, Arch Linux, Rocky Linux and AlmaLinux.
+# Secure OpenVPN server installer for Debian, Ubuntu, CentOS, Amazon Linux 2023, Fedora, Oracle Linux, Arch Linux, Rocky Linux and AlmaLinux.
 # https://github.com/angristan/openvpn-install
 
 # Configuration constants
@@ -209,19 +209,18 @@ function checkOS() {
 			fi
 		fi
 		if [[ $ID == "amzn" ]]; then
-			if [[ $VERSION_ID == "2" ]]; then
-				OS="amzn"
-			elif [[ "$(echo "$PRETTY_NAME" | cut -c 1-18)" == "Amazon Linux 2023." ]] && [[ "$(echo "$PRETTY_NAME" | cut -c 19)" -ge 6 ]]; then
+			if [[ "$(echo "$PRETTY_NAME" | cut -c 1-18)" == "Amazon Linux 2023." ]] && [[ "$(echo "$PRETTY_NAME" | cut -c 19)" -ge 6 ]]; then
 				OS="amzn2023"
 			else
-				log_info "The script only supports Amazon Linux 2 or Amazon Linux 2023.6+"
+				log_info "The script only supports Amazon Linux 2023.6+"
+				log_info "Amazon Linux 2 is EOL and no longer supported."
 				log_fatal "Your version of Amazon Linux is not supported."
 			fi
 		fi
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		log_fatal "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2, Oracle Linux or Arch Linux system."
+		log_fatal "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2023, Oracle Linux or Arch Linux system."
 	fi
 }
 
@@ -330,7 +329,7 @@ hide-version: yes
 use-caps-for-id: yes
 prefetch: yes' >>/etc/unbound/unbound.conf
 
-		elif [[ $OS =~ (centos|amzn|oracle) ]]; then
+		elif [[ $OS =~ (centos|oracle) ]]; then
 			run_cmd "Installing Unbound" yum install -y unbound
 
 			# Configuration
@@ -340,7 +339,7 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 			sed -i 's|# hide-version: no|hide-version: yes|' /etc/unbound/unbound.conf
 			sed -i 's|use-caps-for-id: no|use-caps-for-id: yes|' /etc/unbound/unbound.conf
 
-		elif [[ $OS == "fedora" ]]; then
+		elif [[ $OS =~ (fedora|amzn2023) ]]; then
 			run_cmd "Installing Unbound" dnf install -y unbound
 
 			# Configuration
@@ -390,7 +389,7 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/unbound.conf
 		fi
 
-		if [[ ! $OS =~ (fedora|centos|amzn|oracle) ]]; then
+		if [[ ! $OS =~ (fedora|centos|oracle|amzn2023) ]]; then
 			# DNS Rebinding fix
 			echo "private-address: 10.0.0.0/8
 private-address: fd42:42:42:42::/112
@@ -958,10 +957,6 @@ function installOpenVPN() {
 			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
 			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl wget ca-certificates curl tar policycoreutils-python-utils
-		elif [[ $OS == 'amzn' ]]; then
-			log_info "Installing EPEL repository..."
-			run_cmd "Installing EPEL" amazon-linux-extras install -y epel
-			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl wget ca-certificates curl
 		elif [[ $OS == 'amzn2023' ]]; then
 			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl wget ca-certificates
 		elif [[ $OS == 'fedora' ]]; then
@@ -1750,9 +1745,9 @@ function removeUnbound() {
 			run_cmd "Removing Unbound" apt-get remove --purge -y unbound
 		elif [[ $OS == 'arch' ]]; then
 			run_cmd "Removing Unbound" pacman --noconfirm -R unbound
-		elif [[ $OS =~ (centos|amzn|oracle) ]]; then
+		elif [[ $OS =~ (centos|oracle) ]]; then
 			run_cmd "Removing Unbound" yum remove -y unbound
-		elif [[ $OS == 'fedora' ]]; then
+		elif [[ $OS =~ (fedora|amzn2023) ]]; then
 			run_cmd "Removing Unbound" dnf remove -y unbound
 		fi
 
@@ -1827,12 +1822,8 @@ function removeOpenVPN() {
 			else
 				run_cmd "Disabling OpenVPN Copr repo" yum copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
 			fi
-		elif [[ $OS =~ (amzn|amzn2023) ]]; then
-			if [[ $OS == 'amzn2023' ]]; then
-				run_cmd "Removing OpenVPN" dnf remove -y openvpn
-			else
-				run_cmd "Removing OpenVPN" yum remove -y openvpn
-			fi
+		elif [[ $OS == 'amzn2023' ]]; then
+			run_cmd "Removing OpenVPN" dnf remove -y openvpn
 		elif [[ $OS == 'fedora' ]]; then
 			run_cmd "Removing OpenVPN" dnf remove -y openvpn
 			# Disable Copr repo
