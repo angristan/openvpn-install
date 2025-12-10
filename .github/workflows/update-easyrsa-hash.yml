@@ -10,6 +10,9 @@ on:
     paths:
       - "openvpn-install.sh"
 
+permissions:
+  contents: read
+
 jobs:
   update-hash:
     if: startsWith(github.head_ref, 'renovate/')
@@ -49,7 +52,7 @@ jobs:
           if [ "$CURRENT_SHA" != "$NEW_SHA" ]; then
             sed -i "s|EASYRSA_SHA256=\"$CURRENT_SHA\"|EASYRSA_SHA256=\"$NEW_SHA\"|" openvpn-install.sh
             echo "SHA256 updated"
-            echo "HASH_CHANGED=true" >> $GITHUB_ENV
+            echo "HASH_CHANGED=true" >> "$GITHUB_ENV"
           else
             echo "SHA256 already correct"
           fi
