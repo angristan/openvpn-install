@@ -1,0 +1,71 @@
+name: Update Easy-RSA SHA256
+
+# Note: This workflow commits and pushes changes to openvpn-install.sh.
+# Infinite recursion is prevented because pushes made with GITHUB_TOKEN do not trigger workflows.
+# See: https://docs.github.com/en/actions/using-workflows/triggering-a-workflow#preventing-workflow-runs-from-recursively-generating-new-workflow-runs
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - "openvpn-install.sh"
+
+permissions:
+  contents: read
+
+jobs:
+  update-hash:
+    if: startsWith(github.head_ref, 'renovate/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version and update SHA256
+        run: |
+          VERSION=$(grep -oP 'EASYRSA_VERSION="\K[^"]+' openvpn-install.sh)
+          if [ -z "$VERSION" ]; then
+            echo "Error: Failed to extract EASYRSA_VERSION"
+            exit 1
+          fi
+          echo "Easy-RSA version: $VERSION"
+
+          CURRENT_SHA=$(grep -oP 'EASYRSA_SHA256="\K[^"]+' openvpn-install.sh)
+          if [ -z "$CURRENT_SHA" ]; then
+            echo "Error: Failed to extract EASYRSA_SHA256"
+            exit 1
+          fi
+          echo "Current SHA256: $CURRENT_SHA"
+
+          TARBALL_URL="https://github.com/OpenVPN/easy-rsa/releases/download/v${VERSION}/EasyRSA-${VERSION}.tgz"
+          if ! curl -fsSL "$TARBALL_URL" -o /tmp/easyrsa.tgz; then
+            echo "Error: Failed to download Easy-RSA tarball from $TARBALL_URL"
+            exit 1
+          fi
+          NEW_SHA=$(sha256sum /tmp/easyrsa.tgz | cut -d' ' -f1)
+          echo "New SHA256: $NEW_SHA"
+
+          if [ "$CURRENT_SHA" != "$NEW_SHA" ]; then
+            sed -i "s|EASYRSA_SHA256=\"$CURRENT_SHA\"|EASYRSA_SHA256=\"$NEW_SHA\"|" openvpn-install.sh
+            echo "SHA256 updated"
+            echo "HASH_CHANGED=true" >> "$GITHUB_ENV"
+          else
+            echo "SHA256 already correct"
+          fi
+
+      - name: Commit changes
+        if: env.HASH_CHANGED == 'true'
+        run: |
+          if ! git diff --quiet openvpn-install.sh; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add openvpn-install.sh
+            git commit -m "chore: update Easy-RSA SHA256 hash"
+            git push
+          else
+            echo "No changes to commit"
+          fi
