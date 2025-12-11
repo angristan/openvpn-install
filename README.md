@@ -34,7 +34,7 @@ OpenVPN was the de facto standard for open-source VPNs when this script was crea
 That said, OpenVPN still makes sense when you need:
 
 - **TCP support**: works in restrictive environments where UDP is blocked (corporate networks, airports, hotels, etc.)
-- **Password-protected profiles**: WireGuard configs store the private key in plain text
+- **Password-protected private keys**: WireGuard configs store the private key in plain text
 - **Legacy compatibility**: clients exist for pretty much every platform, including older systems
 
 ## Usage
