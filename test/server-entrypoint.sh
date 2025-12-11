@@ -255,22 +255,12 @@ echo "=== Starting Unbound DNS Resolver ==="
 if [ -f /etc/unbound/unbound.conf ]; then
 	echo "Starting Unbound DNS resolver..."
 
-	# Create root key for DNSSEC if it doesn't exist (needed in containers)
-	if [ ! -f /var/lib/unbound/root.key ]; then
-		echo "Creating DNSSEC root key..."
+	# Create root key for DNSSEC if it doesn't exist
+	# Normally, unbound.service's ExecStartPre copies /usr/share/dns/root.key to /var/lib/unbound/root.key
+	# In Docker, policy-rc.d blocks service starts during apt install, so this never happens
+	if [ ! -f /var/lib/unbound/root.key ] && [ -f /usr/share/dns/root.key ]; then
 		mkdir -p /var/lib/unbound
-		# Use unbound-anchor if available, otherwise fetch from dns-root-data
-		if command -v unbound-anchor >/dev/null 2>&1; then
-			if ! unbound-anchor -a /var/lib/unbound/root.key; then
-				echo "WARNING: unbound-anchor failed, DNSSEC may not work"
-			fi
-		elif [ -f /usr/share/dns/root.key ]; then
-			cp /usr/share/dns/root.key /var/lib/unbound/root.key
-		else
-			# Fallback: disable DNSSEC by removing the auto-trust-anchor config
-			rm -f /etc/unbound/unbound.conf.d/root-auto-trust-anchor-file.conf
-			echo "DNSSEC disabled (no root key available)"
-		fi
+		cp /usr/share/dns/root.key /var/lib/unbound/root.key
 		chown -R unbound:unbound /var/lib/unbound 2>/dev/null || true
 	fi
 
