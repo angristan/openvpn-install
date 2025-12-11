@@ -1,0 +1,5 @@
+# Test containers require root for OpenVPN NET_ADMIN capability
+AVD-DS-0002
+
+# Test containers don't need healthcheck
+AVD-DS-0026

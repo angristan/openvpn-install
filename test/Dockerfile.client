@@ -1,7 +1,5 @@
 # checkov:skip=CKV_DOCKER_2:Test container doesn't need healthcheck
 # checkov:skip=CKV_DOCKER_3:OpenVPN client requires root for NET_ADMIN
-# trivy:ignore:AVD-DS-0002 OpenVPN client requires root for NET_ADMIN
-# trivy:ignore:AVD-DS-0026 Test container doesn't need healthcheck
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive

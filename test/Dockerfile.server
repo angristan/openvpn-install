@@ -1,8 +1,6 @@
 # checkov:skip=CKV_DOCKER_2:Test container doesn't need healthcheck
 # checkov:skip=CKV_DOCKER_3:OpenVPN server requires root for NET_ADMIN
 # checkov:skip=CKV_DOCKER_7:Base image is parameterized, some use latest tag
-# trivy:ignore:AVD-DS-0002 OpenVPN server requires root for NET_ADMIN
-# trivy:ignore:AVD-DS-0026 Test container doesn't need healthcheck
 ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
