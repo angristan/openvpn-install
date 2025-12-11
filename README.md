@@ -141,15 +141,15 @@ The script supports these Linux distributions:
 
 |                    | Support |
 | ------------------ | ------- |
-| AlmaLinux >= 8     | ✅ 🤖   |
-| Amazon Linux 2023  | ✅ 🤖   |
-| Arch Linux         | ✅ 🤖   |
-| CentOS Stream >= 8 | ✅ 🤖   |
-| Debian >= 11       | ✅ 🤖   |
-| Fedora >= 40       | ✅ 🤖   |
-| Oracle Linux >= 8  | ✅ 🤖   |
-| Rocky Linux >= 8   | ✅ 🤖   |
-| Ubuntu >= 18.04    | ✅ 🤖   |
+| AlmaLinux >= 8     | ✅ 🤖  |
+| Amazon Linux 2023  | ✅ 🤖  |
+| Arch Linux         | ✅ 🤖  |
+| CentOS Stream >= 8 | ✅ 🤖  |
+| Debian >= 11       | ✅ 🤖  |
+| Fedora >= 40       | ✅ 🤖  |
+| Oracle Linux >= 8  | ✅ 🤖  |
+| Rocky Linux >= 8   | ✅ 🤖  |
+| Ubuntu >= 18.04    | ✅ 🤖  |
 
 To be noted:
 
@@ -211,7 +211,7 @@ Please open an issue before submitting a PR if you want to discuss a change, esp
 
 ### Code formatting
 
-We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the configuration [here](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/lint.yml).
+We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce Bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the [lint workflow configuration](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/lint.yml).
 
 ## Security and Encryption
 

@@ -1,11 +1,13 @@
 # checkov:skip=CKV_DOCKER_2:Test container doesn't need healthcheck
 # checkov:skip=CKV_DOCKER_3:OpenVPN client requires root for NET_ADMIN
+# trivy:ignore:AVD-DS-0002 OpenVPN client requires root for NET_ADMIN
+# trivy:ignore:AVD-DS-0026 Test container doesn't need healthcheck
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install OpenVPN client and testing tools
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     openvpn \
     iproute2 \
     iputils-ping \

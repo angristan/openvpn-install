@@ -25,12 +25,3 @@ jobs:
         uses: super-linter/super-linter@v8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Disable Biome (new in v8) - conflicts with existing prettier config
-          VALIDATE_BIOME_FORMAT: false
-          VALIDATE_BIOME_LINT: false
-          # Disable new linters in v8 that flag pre-existing issues
-          VALIDATE_EDITORCONFIG: false
-          VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
-          VALIDATE_MARKDOWN: false
-          VALIDATE_NATURAL_LANGUAGE: false
-          VALIDATE_TRIVY: false

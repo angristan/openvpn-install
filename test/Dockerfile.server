@@ -1,6 +1,8 @@
 # checkov:skip=CKV_DOCKER_2:Test container doesn't need healthcheck
 # checkov:skip=CKV_DOCKER_3:OpenVPN server requires root for NET_ADMIN
 # checkov:skip=CKV_DOCKER_7:Base image is parameterized, some use latest tag
+# trivy:ignore:AVD-DS-0002 OpenVPN server requires root for NET_ADMIN
+# trivy:ignore:AVD-DS-0026 Test container doesn't need healthcheck
 ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
@@ -9,7 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install basic dependencies based on the OS
 RUN if command -v apt-get >/dev/null; then \
-        apt-get update && apt-get install -y \
+        apt-get update && apt-get install -y --no-install-recommends \
             iproute2 iptables curl procps systemd systemd-sysv \
         && rm -rf /var/lib/apt/lists/*; \
     elif command -v dnf >/dev/null; then \
