@@ -353,7 +353,7 @@ OPENVPN_PID=$!
 
 # Wait for OpenVPN to start
 echo "Waiting for OpenVPN server to start..."
-for i in $(seq 1 30); do
+for _ in $(seq 1 30); do
 	if pgrep -f "openvpn --config" >/dev/null; then
 		echo "OpenVPN server started (PID: $OPENVPN_PID)"
 		break
@@ -524,8 +524,8 @@ else
 fi
 
 # Verify there's also a revoked entry (both should exist)
-REVOKED_COUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^R.*CN=$REVOKE_CLIENT\$" | wc -l)
-VALID_COUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V.*CN=$REVOKE_CLIENT\$" | wc -l)
+REVOKED_COUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^R.*CN=$REVOKE_CLIENT\$")
+VALID_COUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V.*CN=$REVOKE_CLIENT\$")
 echo "Certificates for '$REVOKE_CLIENT': $REVOKED_COUNT revoked, $VALID_COUNT valid"
 if [ "$REVOKED_COUNT" -ge 1 ] && [ "$VALID_COUNT" -eq 1 ]; then
 	echo "PASS: Both revoked and new valid certificate entries exist"
