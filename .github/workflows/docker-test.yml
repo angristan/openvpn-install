@@ -17,7 +17,7 @@ permissions:
 jobs:
   docker-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -134,11 +134,12 @@ jobs:
             --device=/dev/net/tun:/dev/net/tun \
             --network vpn-test \
             --ip 172.28.0.20 \
-            -v shared-config:/shared:ro \
+            -v shared-config:/shared \
             openvpn-client &
 
           # Wait for tests to complete (look for success message)
-          for i in {1..60}; do
+          # Extended timeout for revocation e2e tests
+          for i in {1..180}; do
             if docker logs openvpn-client 2>&1 | grep -q "ALL TESTS PASSED"
             then
               echo "Tests passed!"
@@ -149,7 +150,7 @@ jobs:
               docker logs openvpn-client
               exit 1
             fi
-            echo "Waiting for tests... ($i/60)"
+            echo "Waiting for tests... ($i/180)"
             sleep 2
           done
 

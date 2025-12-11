@@ -346,6 +346,228 @@ if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "1" ]; then
 	}
 fi
 
-# Start OpenVPN in foreground (run from /etc/openvpn so relative paths work)
+# Start OpenVPN in background (run from /etc/openvpn so relative paths work)
 cd /etc/openvpn
-exec openvpn --config /etc/openvpn/server.conf
+openvpn --config /etc/openvpn/server.conf --log /var/log/openvpn-server.log &
+OPENVPN_PID=$!
+
+# Wait for OpenVPN to start
+echo "Waiting for OpenVPN server to start..."
+for _ in $(seq 1 30); do
+	if pgrep -f "openvpn --config" >/dev/null; then
+		echo "OpenVPN server started (PID: $OPENVPN_PID)"
+		break
+	fi
+	sleep 1
+done
+
+if ! pgrep -f "openvpn --config" >/dev/null; then
+	echo "FAIL: OpenVPN server failed to start"
+	cat /var/log/openvpn-server.log || true
+	exit 1
+fi
+
+# =====================================================
+# Wait for initial client tests to complete
+# =====================================================
+echo ""
+echo "=== Waiting for initial client connectivity tests ==="
+MAX_WAIT=120
+WAITED=0
+while [ ! -f /shared/initial-tests-passed ] && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for initial tests... ($WAITED/$MAX_WAIT seconds)"
+done
+
+if [ ! -f /shared/initial-tests-passed ]; then
+	echo "ERROR: Initial client tests did not complete in time"
+	exit 1
+fi
+echo "Initial client tests passed, proceeding with revocation tests"
+
+# =====================================================
+# Test certificate revocation functionality
+# =====================================================
+echo ""
+echo "=== Testing Certificate Revocation ==="
+
+# Create a new client for revocation testing
+REVOKE_CLIENT="revoketest"
+echo "Creating client '$REVOKE_CLIENT' for revocation testing..."
+REVOKE_CREATE_OUTPUT="/tmp/revoke-create-output.log"
+(MENU_OPTION=1 CLIENT=$REVOKE_CLIENT PASS=1 CLIENT_CERT_DURATION_DAYS=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$REVOKE_CREATE_OUTPUT" || true
+
+if [ -f "/root/$REVOKE_CLIENT.ovpn" ]; then
+	echo "PASS: Client '$REVOKE_CLIENT' created successfully"
+else
+	echo "FAIL: Failed to create client '$REVOKE_CLIENT'"
+	cat "$REVOKE_CREATE_OUTPUT"
+	exit 1
+fi
+
+# Copy config for revocation test client
+cp "/root/$REVOKE_CLIENT.ovpn" "/shared/$REVOKE_CLIENT.ovpn"
+sed -i 's/^remote .*/remote openvpn-server 1194/' "/shared/$REVOKE_CLIENT.ovpn"
+echo "Copied $REVOKE_CLIENT config to /shared/"
+
+# Signal client that revoke test config is ready
+touch /shared/revoke-client-config-ready
+
+# Wait for client to confirm connection with revoke test client
+echo "Waiting for client to connect with '$REVOKE_CLIENT' certificate..."
+MAX_WAIT=60
+WAITED=0
+while [ ! -f /shared/revoke-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for revoke test connection... ($WAITED/$MAX_WAIT seconds)"
+done
+
+if [ ! -f /shared/revoke-client-connected ]; then
+	echo "ERROR: Client did not connect with revoke test certificate"
+	exit 1
+fi
+echo "PASS: Client connected with '$REVOKE_CLIENT' certificate"
+
+# Signal client to disconnect before revocation
+touch /shared/revoke-client-disconnect
+
+# Wait for client to disconnect
+echo "Waiting for client to disconnect..."
+MAX_WAIT=30
+WAITED=0
+while [ ! -f /shared/revoke-client-disconnected ] && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+done
+
+if [ ! -f /shared/revoke-client-disconnected ]; then
+	echo "ERROR: Client did not signal disconnect"
+	exit 1
+fi
+echo "Client disconnected"
+
+# Now revoke the certificate
+echo "Revoking certificate for '$REVOKE_CLIENT'..."
+REVOKE_OUTPUT="/tmp/revoke-output.log"
+# MENU_OPTION=2 is revoke, CLIENTNUMBER is dynamically determined from index.txt
+# We need to find the client number for revoketest
+REVOKE_CLIENT_NUM=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | grep -n "CN=$REVOKE_CLIENT\$" | cut -d: -f1)
+if [ -z "$REVOKE_CLIENT_NUM" ]; then
+	echo "ERROR: Could not find client number for '$REVOKE_CLIENT'"
+	cat /etc/openvpn/easy-rsa/pki/index.txt
+	exit 1
+fi
+echo "Revoke client number: $REVOKE_CLIENT_NUM"
+(MENU_OPTION=2 CLIENTNUMBER=$REVOKE_CLIENT_NUM bash /tmp/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
+
+if grep -q "Certificate for client $REVOKE_CLIENT revoked" "$REVOKE_OUTPUT"; then
+	echo "PASS: Certificate for '$REVOKE_CLIENT' revoked successfully"
+else
+	echo "FAIL: Failed to revoke certificate"
+	cat "$REVOKE_OUTPUT"
+	exit 1
+fi
+
+# Verify certificate is marked as revoked in index.txt
+if tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -q "^R.*CN=$REVOKE_CLIENT\$"; then
+	echo "PASS: Certificate marked as revoked in index.txt"
+else
+	echo "FAIL: Certificate not marked as revoked"
+	cat /etc/openvpn/easy-rsa/pki/index.txt
+	exit 1
+fi
+
+# Signal client to try reconnecting (should fail)
+touch /shared/revoke-try-reconnect
+
+# Wait for client to confirm that connection with revoked cert failed
+echo "Waiting for client to confirm revoked cert connection failure..."
+MAX_WAIT=60
+WAITED=0
+while [ ! -f /shared/revoke-reconnect-failed ] && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for reconnect failure confirmation... ($WAITED/$MAX_WAIT seconds)"
+done
+
+if [ ! -f /shared/revoke-reconnect-failed ]; then
+	echo "ERROR: Client did not confirm that revoked cert connection failed"
+	exit 1
+fi
+echo "PASS: Connection with revoked certificate correctly rejected"
+
+echo "=== Certificate Revocation Tests PASSED ==="
+
+# =====================================================
+# Test reusing revoked client name
+# =====================================================
+echo ""
+echo "=== Testing Reuse of Revoked Client Name ==="
+
+# Create a new certificate with the same name as the revoked one
+echo "Creating new client with same name '$REVOKE_CLIENT'..."
+RECREATE_OUTPUT="/tmp/recreate-output.log"
+(MENU_OPTION=1 CLIENT=$REVOKE_CLIENT PASS=1 CLIENT_CERT_DURATION_DAYS=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RECREATE_OUTPUT" || true
+
+if [ -f "/root/$REVOKE_CLIENT.ovpn" ]; then
+	echo "PASS: New client '$REVOKE_CLIENT' created successfully (reusing revoked name)"
+else
+	echo "FAIL: Failed to create client with revoked name"
+	cat "$RECREATE_OUTPUT"
+	exit 1
+fi
+
+# Verify the new certificate is valid (V) in index.txt
+if tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -q "^V.*CN=$REVOKE_CLIENT\$"; then
+	echo "PASS: New certificate is valid in index.txt"
+else
+	echo "FAIL: New certificate not marked as valid"
+	cat /etc/openvpn/easy-rsa/pki/index.txt
+	exit 1
+fi
+
+# Verify there's also a revoked entry (both should exist)
+REVOKED_COUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^R.*CN=$REVOKE_CLIENT\$")
+VALID_COUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V.*CN=$REVOKE_CLIENT\$")
+echo "Certificates for '$REVOKE_CLIENT': $REVOKED_COUNT revoked, $VALID_COUNT valid"
+if [ "$REVOKED_COUNT" -ge 1 ] && [ "$VALID_COUNT" -eq 1 ]; then
+	echo "PASS: Both revoked and new valid certificate entries exist"
+else
+	echo "FAIL: Unexpected certificate state"
+	cat /etc/openvpn/easy-rsa/pki/index.txt
+	exit 1
+fi
+
+# Copy the new config
+cp "/root/$REVOKE_CLIENT.ovpn" "/shared/$REVOKE_CLIENT-new.ovpn"
+sed -i 's/^remote .*/remote openvpn-server 1194/' "/shared/$REVOKE_CLIENT-new.ovpn"
+echo "Copied new $REVOKE_CLIENT config to /shared/"
+
+# Signal client that new config is ready
+touch /shared/new-client-config-ready
+
+# Wait for client to confirm successful connection with new cert
+echo "Waiting for client to connect with new '$REVOKE_CLIENT' certificate..."
+MAX_WAIT=60
+WAITED=0
+while [ ! -f /shared/new-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for new cert connection... ($WAITED/$MAX_WAIT seconds)"
+done
+
+if [ ! -f /shared/new-client-connected ]; then
+	echo "ERROR: Client did not connect with new certificate"
+	exit 1
+fi
+echo "PASS: Client connected with new '$REVOKE_CLIENT' certificate"
+
+echo "=== Reuse of Revoked Client Name Tests PASSED ==="
+echo ""
+echo "=== All Revocation Tests PASSED ==="
+
+# Keep server running for any remaining client tests
+echo "Server waiting for client to complete all tests..."
+wait $OPENVPN_PID

@@ -3,7 +3,7 @@
 # Run the full test suite
 test: test-build test-up
 	@echo "Waiting for tests to complete..."
-	@for i in $$(seq 1 60); do \
+	@for i in $$(seq 1 180); do \
 		if docker logs openvpn-client 2>&1 | grep -q "ALL TESTS PASSED"; then \
 			echo "✓ Tests passed!"; \
 			$(MAKE) test-down; \
@@ -15,7 +15,7 @@ test: test-build test-up
 			$(MAKE) test-down; \
 			exit 1; \
 		fi; \
-		echo "Waiting... ($$i/60)"; \
+		echo "Waiting... ($$i/180)"; \
 		sleep 2; \
 	done; \
 	echo "Timeout waiting for tests"; \

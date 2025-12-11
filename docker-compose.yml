@@ -36,7 +36,7 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     volumes:
-      - shared-config:/shared:ro
+      - shared-config:/shared
     networks:
       vpn-test:
         ipv4_address: 172.28.0.20
