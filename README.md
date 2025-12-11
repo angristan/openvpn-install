@@ -225,18 +225,23 @@ We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://
 
 ## Security and Encryption
 
-> **Note**
-> This section covers security features for OpenVPN 2.4+. OpenVPN 2.5+ introduced additional features like TLS 1.3 support, but this script maintains TLS 1.2 as the minimum for broader client compatibility.
+> [!NOTE]
+> This script was created in 2016 when OpenVPN's defaults were quite weak. Back then, customising encryption settings was essential for a secure setup. Since then, OpenVPN has significantly improved its defaults, but the script still offers customisation options.
 
-OpenVPN's default settings are pretty weak regarding encryption. This script aims to improve that.
+OpenVPN 2.3 and earlier shipped with outdated defaults like Blowfish (BF-CBC), TLS 1.0, and SHA1. Each major release since has brought significant improvements:
 
-OpenVPN 2.4 was a great update regarding encryption. It added support for ECDSA, ECDH, AES GCM, NCP and tls-crypt.
+- **OpenVPN 2.4** (2016): Added ECDSA, ECDH, AES-GCM, NCP (cipher negotiation), and tls-crypt
+- **OpenVPN 2.5** (2020): Default cipher changed from BF-CBC to AES-256-GCM:AES-128-GCM, added ChaCha20-Poly1305, tls-crypt-v2, and TLS 1.3 support
+- **OpenVPN 2.6** (2023): TLS 1.2 minimum by default, compression blocked by default, `--peer-fingerprint` for PKI-less setups, and DCO kernel acceleration
 
 If you want more information about an option mentioned below, head to the [OpenVPN manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage). It is very complete.
 
-Most of OpenVPN's encryption-related stuff is managed by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Defaults parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.0.7/easyrsa3/vars.example) file.
+Certificate and PKI management is handled by [Easy-RSA](https://github.com/OpenVPN/easy-rsa). Default parameters are in the [vars.example](https://github.com/OpenVPN/easy-rsa/blob/v3.2.2/easyrsa3/vars.example) file.
 
 ### Compression
+
+> [!NOTE]
+> OpenVPN 2.6+ defaults `--allow-compression` to `no`, which blocks even server-pushed compression. Prior versions allowed servers to push compression settings to clients.
 
 By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 (v1/v2) algorithms, the latter being more efficient.
 
@@ -244,7 +249,10 @@ However, it is discouraged to use compression since the [VORACLE attack](https:/
 
 ### TLS version
 
-OpenVPN accepts TLS 1.0 by default, which is nearly [20 years old](https://en.wikipedia.org/wiki/Transport_Layer_Security#TLS_1.0).
+> [!NOTE]
+> OpenVPN 2.6+ defaults to TLS 1.2 minimum. Prior versions accepted TLS 1.0 by default.
+
+OpenVPN 2.5 and earlier accepted TLS 1.0 by default, which is nearly [20 years old](https://en.wikipedia.org/wiki/Transport_Layer_Security#TLS_1.0).
 
 With `tls-version-min 1.2` we enforce TLS 1.2, which the best protocol available currently for OpenVPN.
 
@@ -267,7 +275,10 @@ OpenVPN uses `SHA-256` as the signature hash by default, and so does the script.
 
 ### Data channel
 
-By default, OpenVPN uses `BF-CBC` as the data channel cipher. Blowfish is an old (1993) and weak algorithm. Even the official OpenVPN documentation admits it.
+> [!NOTE]
+> The default data channel cipher changed in OpenVPN 2.5. Prior versions defaulted to `BF-CBC`, while OpenVPN 2.5+ defaults to `AES-256-GCM:AES-128-GCM`. OpenVPN 2.6+ also includes `CHACHA20-POLY1305` in the default cipher list when available.
+
+By default, OpenVPN 2.4 and earlier used `BF-CBC` as the data channel cipher. Blowfish is an old (1993) and weak algorithm. Even the official OpenVPN documentation admits it.
 
 > The default is BF-CBC, an abbreviation for Blowfish in Cipher Block Chaining mode.
 >
