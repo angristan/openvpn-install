@@ -85,11 +85,13 @@ fi
 echo "Test 3: Testing DNS resolution via Unbound (10.8.0.1)..."
 DNS_SUCCESS=false
 for i in 1 2 3; do
-	if dig @10.8.0.1 example.com +short +time=5 >/dev/null 2>&1; then
+	DIG_OUTPUT=$(dig @10.8.0.1 example.com +short +time=5 2>&1)
+	if [ -n "$DIG_OUTPUT" ] && ! echo "$DIG_OUTPUT" | grep -qi "timed out\|SERVFAIL\|connection refused"; then
 		DNS_SUCCESS=true
 		break
 	fi
-	echo "DNS attempt $i failed, retrying..."
+	echo "DNS attempt $i failed:"
+	echo "$DIG_OUTPUT"
 	sleep 2
 done
 if [ "$DNS_SUCCESS" = true ]; then

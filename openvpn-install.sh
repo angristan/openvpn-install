@@ -371,7 +371,7 @@ function installUnbound() {
 
 	# Ensure main config includes conf.d directory
 	# Modern Debian/Ubuntu use include-toplevel, others need include directive
-	if ! grep -qE "include(-toplevel)?: .*/etc/unbound/unbound.conf.d" /etc/unbound/unbound.conf 2>/dev/null; then
+	if ! grep -qE "include(-toplevel)?:\s*.*/etc/unbound/unbound.conf.d" /etc/unbound/unbound.conf 2>/dev/null; then
 		# Add include directive for conf.d if not present
 		echo 'include: "/etc/unbound/unbound.conf.d/*.conf"' >>/etc/unbound/unbound.conf
 	fi
@@ -382,7 +382,7 @@ function installUnbound() {
 		echo 'server:'
 		echo '    # OpenVPN DNS resolver configuration'
 		echo '    interface: 10.8.0.1'
-		echo '    access-control: 10.8.0.1/24 allow'
+		echo '    access-control: 10.8.0.0/24 allow'
 		echo ''
 		echo '    # Security hardening'
 		echo '    hide-identity: yes'
@@ -1740,6 +1740,12 @@ function renewMenu() {
 
 function removeUnbound() {
 	run_cmd "Removing OpenVPN Unbound config" rm -f /etc/unbound/unbound.conf.d/openvpn.conf
+
+	# Clean up include directive if conf.d directory is now empty
+	if [[ -d /etc/unbound/unbound.conf.d ]] && [[ -z "$(ls -A /etc/unbound/unbound.conf.d)" ]]; then
+		run_cmd "Cleaning up Unbound include directive" \
+			sed -i '/^include: "\/etc\/unbound\/unbound\.conf\.d\/\*\.conf"$/d' /etc/unbound/unbound.conf
+	fi
 
 	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
 		log_info "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
