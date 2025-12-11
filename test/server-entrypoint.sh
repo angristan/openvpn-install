@@ -287,18 +287,15 @@ fi
 echo ""
 echo "=== Verifying Unbound Installation ==="
 
-# Verify Unbound config exists (check both modern and legacy locations)
-UNBOUND_OPENVPN_CONF=""
-if [ -f /etc/unbound/unbound.conf.d/openvpn.conf ]; then
-	UNBOUND_OPENVPN_CONF="/etc/unbound/unbound.conf.d/openvpn.conf"
-	echo "PASS: Found modern Unbound config at $UNBOUND_OPENVPN_CONF"
-elif grep -q "interface: 10.8.0.1" /etc/unbound/unbound.conf 2>/dev/null; then
-	UNBOUND_OPENVPN_CONF="/etc/unbound/unbound.conf"
-	echo "PASS: Found legacy Unbound config at $UNBOUND_OPENVPN_CONF"
+# Verify Unbound config exists in conf.d directory
+UNBOUND_OPENVPN_CONF="/etc/unbound/unbound.conf.d/openvpn.conf"
+if [ -f "$UNBOUND_OPENVPN_CONF" ]; then
+	echo "PASS: Found Unbound config at $UNBOUND_OPENVPN_CONF"
 else
-	echo "FAIL: OpenVPN Unbound config not found"
+	echo "FAIL: OpenVPN Unbound config not found at $UNBOUND_OPENVPN_CONF"
 	echo "Contents of /etc/unbound/:"
 	ls -la /etc/unbound/
+	ls -la /etc/unbound/unbound.conf.d/ 2>/dev/null || true
 	exit 1
 fi
 
@@ -308,6 +305,28 @@ if grep -q "interface: 10.8.0.1" "$UNBOUND_OPENVPN_CONF"; then
 else
 	echo "FAIL: Unbound not configured for 10.8.0.1"
 	cat "$UNBOUND_OPENVPN_CONF"
+	exit 1
+fi
+
+# Verify best-practice options are present
+if grep -q "ip-freebind: yes" "$UNBOUND_OPENVPN_CONF"; then
+	echo "PASS: ip-freebind enabled"
+else
+	echo "FAIL: ip-freebind not configured"
+	exit 1
+fi
+
+if grep -q "harden-glue: yes" "$UNBOUND_OPENVPN_CONF"; then
+	echo "PASS: harden-glue enabled"
+else
+	echo "FAIL: harden-glue not configured"
+	exit 1
+fi
+
+if grep -q "qname-minimisation: yes" "$UNBOUND_OPENVPN_CONF"; then
+	echo "PASS: qname-minimisation enabled"
+else
+	echo "FAIL: qname-minimisation not configured"
 	exit 1
 fi
 
