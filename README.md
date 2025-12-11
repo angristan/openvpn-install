@@ -372,6 +372,12 @@ So both provide an additional layer of security and mitigate DoS attacks. They a
 
 The script supports both and uses `tls-crypt` by default.
 
+### Certificate type verification (`remote-cert-tls`)
+
+The server is configured with `remote-cert-tls client`, which requires connecting peers to have a certificate with the "TLS Web Client Authentication" extended key usage. This prevents a server certificate from being used to impersonate a client.
+
+Similarly, clients are configured with `remote-cert-tls server` to ensure they only connect to servers presenting valid server certificates. This protects against an attacker with a valid client certificate setting up a rogue server.
+
 ### Data Channel Offload (DCO)
 
 [Data Channel Offload](https://openvpn.net/as-docs/openvpn-data-channel-offload.html) (DCO) is a kernel acceleration feature that significantly improves OpenVPN performance by keeping data channel encryption/decryption in kernel space, eliminating costly context switches between user and kernel space for each packet.
