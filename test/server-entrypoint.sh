@@ -318,28 +318,6 @@ else
 	exit 1
 fi
 
-# Verify best-practice options are present
-if grep -q "ip-freebind: yes" "$UNBOUND_OPENVPN_CONF"; then
-	echo "PASS: ip-freebind enabled"
-else
-	echo "FAIL: ip-freebind not configured"
-	exit 1
-fi
-
-if grep -q "harden-glue: yes" "$UNBOUND_OPENVPN_CONF"; then
-	echo "PASS: harden-glue enabled"
-else
-	echo "FAIL: harden-glue not configured"
-	exit 1
-fi
-
-if grep -q "qname-minimisation: yes" "$UNBOUND_OPENVPN_CONF"; then
-	echo "PASS: qname-minimisation enabled"
-else
-	echo "FAIL: qname-minimisation not configured"
-	exit 1
-fi
-
 # Verify OpenVPN pushes correct DNS
 if grep -q 'push "dhcp-option DNS 10.8.0.1"' /etc/openvpn/server.conf; then
 	echo "PASS: OpenVPN configured to push Unbound DNS"

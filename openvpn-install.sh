@@ -1740,13 +1740,7 @@ function renewMenu() {
 }
 
 function removeUnbound() {
-	# Remove OpenVPN-related config (handle both conf.d and legacy locations)
 	run_cmd "Removing OpenVPN Unbound config" rm -f /etc/unbound/unbound.conf.d/openvpn.conf
-	# Legacy cleanup
-	if [[ -f /etc/unbound/openvpn.conf ]]; then
-		sed -i '/include: .*openvpn.conf/d' /etc/unbound/unbound.conf 2>/dev/null || true
-		rm -f /etc/unbound/openvpn.conf
-	fi
 
 	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
 		log_info "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
@@ -1853,8 +1847,8 @@ function removeOpenVPN() {
 		run_cmd "Removing sysctl config" rm -f /etc/sysctl.d/99-openvpn.conf
 		run_cmd "Removing OpenVPN logs" rm -rf /var/log/openvpn
 
-		# Unbound (check both legacy and modern config locations)
-		if [[ -e /etc/unbound/openvpn.conf ]] || [[ -e /etc/unbound/unbound.conf.d/openvpn.conf ]]; then
+		# Unbound
+		if [[ -e /etc/unbound/unbound.conf.d/openvpn.conf ]]; then
 			removeUnbound
 		fi
 		log_success "OpenVPN removed!"
