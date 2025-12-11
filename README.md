@@ -140,7 +140,7 @@ export PASS="1"
 - Block DNS leaks on Windows 10
 - Randomised server certificate name
 - Choice to protect clients with a password (private key encryption)
-- Option to allow multiple devices to use the same client profile simultaneously
+- Option to allow multiple devices to use the same client profile simultaneously (disables persistent IP addresses)
 - Many other little things!
 
 ## Compatibility
