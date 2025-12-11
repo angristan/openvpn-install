@@ -636,6 +636,7 @@ function installQuestions() {
 	done
 	log_menu ""
 	log_prompt "Do you want to allow a single .ovpn profile to be used on multiple devices simultaneously?"
+	log_prompt "Note: Enabling this disables persistent IP addresses for clients."
 	until [[ $MULTI_CLIENT =~ (y|n) ]]; do
 		read -rp "Allow multiple devices per client? [y/n]: " -e -i n MULTI_CLIENT
 	done
@@ -1124,8 +1125,12 @@ persist-key
 persist-tun
 keepalive 10 120
 topology subnet
-server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
+server 10.8.0.0 255.255.255.0" >>/etc/openvpn/server.conf
+
+	# ifconfig-pool-persist is incompatible with duplicate-cn
+	if [[ $MULTI_CLIENT != "y" ]]; then
+		echo "ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
+	fi
 
 	# DNS resolvers
 	case $DNS in
