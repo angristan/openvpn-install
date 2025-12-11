@@ -1243,6 +1243,7 @@ cipher $CIPHER
 ncp-ciphers $CIPHER
 tls-server
 tls-version-min 1.2
+remote-cert-tls client
 tls-cipher $CC_CIPHER
 client-config-dir /etc/openvpn/ccd
 status /var/log/openvpn/status.log
