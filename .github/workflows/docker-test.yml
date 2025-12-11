@@ -36,24 +36,32 @@ jobs:
             image: debian:12
           - name: centos-stream-9
             image: quay.io/centos/centos:stream9
+          - name: centos-stream-10
+            image: quay.io/centos/centos:stream10
           - name: fedora-42
             image: fedora:42
           - name: fedora-43
             image: fedora:43
           - name: rocky-8
-            image: rockylinux:8
+            image: rockylinux/rockylinux:8
           - name: rocky-9
-            image: rockylinux:9
+            image: rockylinux/rockylinux:9
+          - name: rocky-10
+            image: rockylinux/rockylinux:10
           - name: almalinux-8
             image: almalinux:8
           - name: almalinux-9
             image: almalinux:9
+          - name: almalinux-10
+            image: almalinux:10
           - name: archlinux
             image: archlinux:latest
           - name: oraclelinux-8
             image: oraclelinux:8
           - name: oraclelinux-9
             image: oraclelinux:9
+          - name: oraclelinux-10
+            image: oraclelinux:10
           - name: amazonlinux-2023
             image: amazonlinux:2023
 
