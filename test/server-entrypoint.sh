@@ -29,8 +29,11 @@ export ENDPOINT=openvpn-server
 
 # Prepare script for container environment:
 # - Replace systemctl calls with no-ops (systemd doesn't work in containers)
+# - Skip Unbound startup validation (we start Unbound manually later)
 # This ensures the script won't fail silently on systemctl commands
-sed 's/\bsystemctl /echo "[SKIPPED] systemctl " # /g' /opt/openvpn-install.sh >/tmp/openvpn-install.sh
+sed -e 's/\bsystemctl /echo "[SKIPPED] systemctl " # /g' \
+    -e 's/log_fatal "Unbound failed to start/return 0 # [SKIPPED] /g' \
+    /opt/openvpn-install.sh >/tmp/openvpn-install.sh
 chmod +x /tmp/openvpn-install.sh
 
 echo "Running OpenVPN install script..."

@@ -422,7 +422,7 @@ function installUnbound() {
 	run_cmd "Enabling Unbound service" systemctl enable unbound
 	run_cmd "Starting Unbound service" systemctl restart unbound
 
-	# Validate Unbound is running (poll up to 10 seconds)
+	# Validate Unbound is running
 	for i in {1..10}; do
 		if pgrep -x unbound >/dev/null; then
 			return 0
