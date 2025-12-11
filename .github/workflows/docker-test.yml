@@ -36,10 +36,10 @@ jobs:
             image: debian:12
           - name: centos-stream-9
             image: quay.io/centos/centos:stream9
-          - name: fedora-40
-            image: fedora:40
-          - name: fedora-41
-            image: fedora:41
+          - name: fedora-42
+            image: fedora:42
+          - name: fedora-43
+            image: fedora:43
           - name: rocky-8
             image: rockylinux:8
           - name: rocky-9
