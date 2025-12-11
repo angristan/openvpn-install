@@ -83,11 +83,20 @@ fi
 
 # Test 3: DNS resolution through Unbound
 echo "Test 3: Testing DNS resolution via Unbound (10.8.0.1)..."
-if dig @10.8.0.1 example.com +short +time=5 >/dev/null 2>&1; then
+DNS_SUCCESS=false
+for i in 1 2 3; do
+	if dig @10.8.0.1 example.com +short +time=5 >/dev/null 2>&1; then
+		DNS_SUCCESS=true
+		break
+	fi
+	echo "DNS attempt $i failed, retrying..."
+	sleep 2
+done
+if [ "$DNS_SUCCESS" = true ]; then
 	echo "PASS: DNS resolution through Unbound works"
 	echo "Resolved example.com to: $(dig @10.8.0.1 example.com +short +time=5)"
 else
-	echo "FAIL: DNS resolution through Unbound failed"
+	echo "FAIL: DNS resolution through Unbound failed after 3 attempts"
 	dig @10.8.0.1 example.com +time=5 || true
 	exit 1
 fi

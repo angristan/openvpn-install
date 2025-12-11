@@ -258,7 +258,9 @@ if [ -f /etc/unbound/unbound.conf ]; then
 		mkdir -p /var/lib/unbound
 		# Use unbound-anchor if available, otherwise fetch from dns-root-data
 		if command -v unbound-anchor >/dev/null 2>&1; then
-			unbound-anchor -a /var/lib/unbound/root.key || true
+			if ! unbound-anchor -a /var/lib/unbound/root.key; then
+				echo "WARNING: unbound-anchor failed, DNSSEC may not work"
+			fi
 		elif [ -f /usr/share/dns/root.key ]; then
 			cp /usr/share/dns/root.key /var/lib/unbound/root.key
 		else
@@ -270,10 +272,15 @@ if [ -f /etc/unbound/unbound.conf ]; then
 	fi
 
 	unbound
-	sleep 2
-	if pgrep -x unbound >/dev/null; then
-		echo "PASS: Unbound is running"
-	else
+	# Poll up to 10 seconds for Unbound to start
+	for _ in $(seq 1 10); do
+		if pgrep -x unbound >/dev/null; then
+			echo "PASS: Unbound is running"
+			break
+		fi
+		sleep 1
+	done
+	if ! pgrep -x unbound >/dev/null; then
 		echo "FAIL: Unbound failed to start"
 		# Show debug info
 		unbound-checkconf /etc/unbound/unbound.conf 2>&1 || true

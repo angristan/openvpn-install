@@ -365,6 +365,7 @@ function installUnbound() {
 		fi
 	fi
 
+	# Configure Unbound for OpenVPN (runs whether freshly installed or pre-existing)
 	# Create conf.d directory (works on all distros)
 	run_cmd "Creating Unbound config directory" mkdir -p /etc/unbound/unbound.conf.d
 
@@ -421,11 +422,14 @@ function installUnbound() {
 	run_cmd "Enabling Unbound service" systemctl enable unbound
 	run_cmd "Starting Unbound service" systemctl restart unbound
 
-	# Validate Unbound is running and responding
-	sleep 2
-	if ! pgrep -x unbound >/dev/null; then
-		log_fatal "Unbound failed to start. Check 'journalctl -u unbound' for details."
-	fi
+	# Validate Unbound is running (poll up to 10 seconds)
+	for i in {1..10}; do
+		if pgrep -x unbound >/dev/null; then
+			return 0
+		fi
+		sleep 1
+	done
+	log_fatal "Unbound failed to start. Check 'journalctl -u unbound' for details."
 }
 
 function resolvePublicIP() {
