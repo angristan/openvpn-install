@@ -155,8 +155,8 @@ The script supports these Linux distributions:
 | CentOS Stream >= 8  | ✅ 🤖   |
 | Debian >= 11        | ✅ 🤖   |
 | Fedora >= 40        | ✅ 🤖   |
-| openSUSE Leap 15.4+ | ✅      |
-| openSUSE Tumbleweed | ✅      |
+| openSUSE Leap >= 16 | ✅ 🤖   |
+| openSUSE Tumbleweed | ✅ 🤖   |
 | Oracle Linux >= 8   | ✅ 🤖   |
 | Rocky Linux >= 8    | ✅ 🤖   |
 | Ubuntu >= 18.04     | ✅ 🤖   |

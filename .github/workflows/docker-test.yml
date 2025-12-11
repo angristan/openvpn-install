@@ -56,6 +56,10 @@ jobs:
             image: almalinux:10
           - name: archlinux
             image: archlinux:latest
+          - name: opensuse-leap-16.0
+            image: opensuse/leap:16.0
+          - name: opensuse-tumbleweed
+            image: opensuse/tumbleweed
           - name: oraclelinux-8
             image: oraclelinux:8
           - name: oraclelinux-9

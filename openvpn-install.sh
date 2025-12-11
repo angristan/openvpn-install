@@ -194,8 +194,15 @@ function checkOS() {
 		if [[ $ID == "fedora" || $ID_LIKE == "fedora" ]]; then
 			OS="fedora"
 		fi
-		if [[ $ID == "opensuse-leap" || $ID == "opensuse-tumbleweed" ]]; then
+		if [[ $ID == "opensuse-tumbleweed" ]]; then
 			OS="opensuse"
+		fi
+		if [[ $ID == "opensuse-leap" ]]; then
+			OS="opensuse"
+			if [[ ${VERSION_ID%.*} -lt 16 ]]; then
+				log_info "The script only supports openSUSE Leap 16+."
+				log_fatal "Your version of openSUSE Leap is not supported."
+			fi
 		fi
 		if [[ $ID == "centos" || $ID == "rocky" || $ID == "almalinux" ]]; then
 			OS="centos"
@@ -423,6 +430,13 @@ function installUnbound() {
 			echo '    interface: fd42:42:42:42::1'
 			echo '    access-control: fd42:42:42:42::/112 allow'
 			echo '    private-address: fd42:42:42:42::/112'
+		fi
+
+		# Disable remote-control (requires SSL certs on openSUSE)
+		if [[ $OS == "opensuse" ]]; then
+			echo ''
+			echo 'remote-control:'
+			echo '    control-enable: no'
 		fi
 	} >/etc/unbound/unbound.conf.d/openvpn.conf
 
@@ -1252,7 +1266,7 @@ verb 3" >>/etc/openvpn/server.conf
 
 	# Finally, restart and enable OpenVPN
 	log_info "Configuring OpenVPN service..."
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'opensuse' || $OS == 'centos' || $OS == 'oracle' || $OS == 'amzn2023' ]]; then
+	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' || $OS == 'amzn2023' ]]; then
 		# Don't modify package-provided service
 		run_cmd "Copying OpenVPN service file" cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
@@ -1796,12 +1810,13 @@ function removeOpenVPN() {
 
 		# Stop OpenVPN
 		log_info "Stopping OpenVPN service..."
-		if [[ $OS =~ (fedora|opensuse|arch|centos|oracle|amzn2023) ]]; then
+		if [[ $OS =~ (fedora|arch|centos|oracle|amzn2023) ]]; then
 			run_cmd "Disabling OpenVPN service" systemctl disable openvpn-server@server
 			run_cmd "Stopping OpenVPN service" systemctl stop openvpn-server@server
 			# Remove customised service
 			run_cmd "Removing service file" rm /etc/systemd/system/openvpn-server@.service
 		else
+			# Debian, Ubuntu, openSUSE use openvpn@server
 			run_cmd "Disabling OpenVPN service" systemctl disable openvpn@server
 			run_cmd "Stopping OpenVPN service" systemctl stop openvpn@server
 			# Remove customised service

@@ -111,6 +111,12 @@ test-arch:
 test-centos-stream-9:
 	$(MAKE) test BASE_IMAGE=quay.io/centos/centos:stream9
 
+test-opensuse-leap:
+	$(MAKE) test BASE_IMAGE=opensuse/leap:16.0
+
+test-opensuse-tumbleweed:
+	$(MAKE) test BASE_IMAGE=opensuse/tumbleweed
+
 # Test all distributions (runs sequentially)
 test-all:
 	$(MAKE) test-ubuntu-18.04
@@ -130,3 +136,5 @@ test-all:
 	$(MAKE) test-amazon-2023
 	$(MAKE) test-arch
 	$(MAKE) test-centos-stream-9
+	$(MAKE) test-opensuse-leap
+	$(MAKE) test-opensuse-tumbleweed
