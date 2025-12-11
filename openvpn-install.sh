@@ -223,6 +223,9 @@ function checkOS() {
 				log_fatal "Your version of Amazon Linux is not supported."
 			fi
 		fi
+		if [[ $ID == "arch" ]]; then
+			OS="arch"
+		fi
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
