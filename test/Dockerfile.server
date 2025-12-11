@@ -25,6 +25,10 @@ RUN if command -v apt-get >/dev/null; then \
         pacman -Syu --noconfirm \
             iproute2 iptables curl procps-ng bind \
         && pacman -Scc --noconfirm; \
+    elif command -v zypper >/dev/null; then \
+        zypper install -y \
+            iproute2 iptables curl procps systemd tar gzip bind-utils gawk \
+        && zypper clean -a; \
     fi
 
 # Create TUN device (will be mounted at runtime)

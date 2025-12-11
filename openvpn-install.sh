@@ -189,10 +189,20 @@ function checkOS() {
 				fi
 			fi
 		fi
-	elif [[ -e /etc/system-release ]]; then
+	elif [[ -e /etc/os-release ]]; then
 		source /etc/os-release
 		if [[ $ID == "fedora" || $ID_LIKE == "fedora" ]]; then
 			OS="fedora"
+		fi
+		if [[ $ID == "opensuse-tumbleweed" ]]; then
+			OS="opensuse"
+		fi
+		if [[ $ID == "opensuse-leap" ]]; then
+			OS="opensuse"
+			if [[ ${VERSION_ID%.*} -lt 16 ]]; then
+				log_info "The script only supports openSUSE Leap 16+."
+				log_fatal "Your version of openSUSE Leap is not supported."
+			fi
 		fi
 		if [[ $ID == "centos" || $ID == "rocky" || $ID == "almalinux" ]]; then
 			OS="centos"
@@ -213,10 +223,13 @@ function checkOS() {
 				log_fatal "Your version of Amazon Linux is not supported."
 			fi
 		fi
+		if [[ $ID == "arch" ]]; then
+			OS="arch"
+		fi
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		log_fatal "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2023, Oracle Linux, Arch Linux, Rocky Linux or AlmaLinux system."
+		log_fatal "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, openSUSE, CentOS, Amazon Linux 2023, Oracle Linux, Arch Linux, Rocky Linux or AlmaLinux system."
 	fi
 }
 
@@ -363,6 +376,8 @@ function installUnbound() {
 			run_cmd "Installing Unbound" yum install -y unbound
 		elif [[ $OS =~ (fedora|amzn2023) ]]; then
 			run_cmd "Installing Unbound" dnf install -y unbound
+		elif [[ $OS == "opensuse" ]]; then
+			run_cmd "Installing Unbound" zypper install -y unbound
 		elif [[ $OS == "arch" ]]; then
 			run_cmd "Installing Unbound" pacman -Syu --noconfirm unbound
 		fi
@@ -418,6 +433,13 @@ function installUnbound() {
 			echo '    interface: fd42:42:42:42::1'
 			echo '    access-control: fd42:42:42:42::/112 allow'
 			echo '    private-address: fd42:42:42:42::/112'
+		fi
+
+		# Disable remote-control (requires SSL certs on openSUSE)
+		if [[ $OS == "opensuse" ]]; then
+			echo ''
+			echo 'remote-control:'
+			echo '    control-enable: no'
 		fi
 	} >/etc/unbound/unbound.conf.d/openvpn.conf
 
@@ -964,6 +986,8 @@ function installOpenVPN() {
 			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl
 		elif [[ $OS == 'fedora' ]]; then
 			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl policycoreutils-python-utils
+		elif [[ $OS == 'opensuse' ]]; then
+			run_cmd "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl
 		elif [[ $OS == 'arch' ]]; then
 			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl
 		fi
@@ -1767,6 +1791,8 @@ function removeUnbound() {
 			run_cmd "Removing Unbound" yum remove -y unbound
 		elif [[ $OS =~ (fedora|amzn2023) ]]; then
 			run_cmd "Removing Unbound" dnf remove -y unbound
+		elif [[ $OS == 'opensuse' ]]; then
+			run_cmd "Removing Unbound" zypper remove -y unbound
 		fi
 
 		run_cmd "Removing Unbound config" rm -rf /etc/unbound/
@@ -1793,6 +1819,7 @@ function removeOpenVPN() {
 			# Remove customised service
 			run_cmd "Removing service file" rm /etc/systemd/system/openvpn-server@.service
 		else
+			# Debian, Ubuntu, openSUSE use openvpn@server
 			run_cmd "Disabling OpenVPN service" systemctl disable openvpn@server
 			run_cmd "Stopping OpenVPN service" systemctl stop openvpn@server
 			# Remove customised service
@@ -1845,6 +1872,8 @@ function removeOpenVPN() {
 			run_cmd "Removing OpenVPN" dnf remove -y openvpn
 			# Disable Copr repo
 			run_cmd "Disabling OpenVPN Copr repo" dnf copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
+		elif [[ $OS == 'opensuse' ]]; then
+			run_cmd "Removing OpenVPN" zypper remove -y openvpn
 		fi
 
 		# Cleanup
