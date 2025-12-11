@@ -20,7 +20,7 @@ export APPROVE_IP=y
 export IPV6_SUPPORT=n
 export PORT_CHOICE=1
 export PROTOCOL_CHOICE=1
-export DNS=9 # Google DNS (works in containers)
+export DNS=2 # Self-hosted Unbound DNS resolver
 export COMPRESSION_ENABLED=n
 export CUSTOMIZE_ENC=n
 export CLIENT=testclient
@@ -29,8 +29,11 @@ export ENDPOINT=openvpn-server
 
 # Prepare script for container environment:
 # - Replace systemctl calls with no-ops (systemd doesn't work in containers)
+# - Skip Unbound startup validation (we start Unbound manually later)
 # This ensures the script won't fail silently on systemctl commands
-sed 's/\bsystemctl /echo "[SKIPPED] systemctl " # /g' /opt/openvpn-install.sh >/tmp/openvpn-install.sh
+sed -e 's/\bsystemctl /echo "[SKIPPED] systemctl " # /g' \
+	-e 's/log_fatal "Unbound failed to start/return 0 # [SKIPPED] /g' \
+	/opt/openvpn-install.sh >/tmp/openvpn-install.sh
 chmod +x /tmp/openvpn-install.sh
 
 echo "Running OpenVPN install script..."
@@ -241,6 +244,80 @@ fi
 echo "=== Server Certificate Renewal Tests PASSED ==="
 echo ""
 echo "=== All Certificate Renewal Tests PASSED ==="
+echo ""
+
+# =====================================================
+# Start and verify Unbound DNS resolver
+# =====================================================
+echo "=== Starting Unbound DNS Resolver ==="
+
+# Start Unbound manually (systemctl commands are no-ops in container)
+if [ -f /etc/unbound/unbound.conf ]; then
+	echo "Starting Unbound DNS resolver..."
+
+	# Create root key for DNSSEC if it doesn't exist
+	# Normally, unbound.service's ExecStartPre copies /usr/share/dns/root.key to /var/lib/unbound/root.key
+	# In Docker, policy-rc.d blocks service starts during apt install, so this never happens
+	if [ ! -f /var/lib/unbound/root.key ] && [ -f /usr/share/dns/root.key ]; then
+		mkdir -p /var/lib/unbound
+		cp /usr/share/dns/root.key /var/lib/unbound/root.key
+		chown -R unbound:unbound /var/lib/unbound 2>/dev/null || true
+	fi
+
+	unbound
+	# Poll up to 10 seconds for Unbound to start
+	for _ in $(seq 1 10); do
+		if pgrep -x unbound >/dev/null; then
+			echo "PASS: Unbound is running"
+			break
+		fi
+		sleep 1
+	done
+	if ! pgrep -x unbound >/dev/null; then
+		echo "FAIL: Unbound failed to start"
+		# Show debug info
+		unbound-checkconf /etc/unbound/unbound.conf 2>&1 || true
+		exit 1
+	fi
+else
+	echo "FAIL: /etc/unbound/unbound.conf not found"
+	exit 1
+fi
+
+echo ""
+echo "=== Verifying Unbound Installation ==="
+
+# Verify Unbound config exists in conf.d directory
+UNBOUND_OPENVPN_CONF="/etc/unbound/unbound.conf.d/openvpn.conf"
+if [ -f "$UNBOUND_OPENVPN_CONF" ]; then
+	echo "PASS: Found Unbound config at $UNBOUND_OPENVPN_CONF"
+else
+	echo "FAIL: OpenVPN Unbound config not found at $UNBOUND_OPENVPN_CONF"
+	echo "Contents of /etc/unbound/:"
+	ls -la /etc/unbound/
+	ls -la /etc/unbound/unbound.conf.d/ 2>/dev/null || true
+	exit 1
+fi
+
+# Verify Unbound listens on VPN gateway
+if grep -q "interface: 10.8.0.1" "$UNBOUND_OPENVPN_CONF"; then
+	echo "PASS: Unbound configured to listen on 10.8.0.1"
+else
+	echo "FAIL: Unbound not configured for 10.8.0.1"
+	cat "$UNBOUND_OPENVPN_CONF"
+	exit 1
+fi
+
+# Verify OpenVPN pushes correct DNS
+if grep -q 'push "dhcp-option DNS 10.8.0.1"' /etc/openvpn/server.conf; then
+	echo "PASS: OpenVPN configured to push Unbound DNS"
+else
+	echo "FAIL: OpenVPN not configured to push Unbound DNS"
+	grep "dhcp-option DNS" /etc/openvpn/server.conf || echo "No DNS push found"
+	exit 1
+fi
+
+echo "=== Unbound Installation Verified ==="
 echo ""
 
 # Start OpenVPN server manually (systemd doesn't work in containers)
