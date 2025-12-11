@@ -39,7 +39,7 @@ That said, OpenVPN still makes sense when you need:
 
 ## Usage
 
-First, get the script and make it executable:
+First, on your server, get the script and make it executable:
 
 ```bash
 curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
