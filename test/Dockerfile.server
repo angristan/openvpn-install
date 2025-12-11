@@ -8,21 +8,22 @@ ARG BASE_IMAGE
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install basic dependencies based on the OS
+# dnsutils/bind-utils provides dig for DNS testing with Unbound
 RUN if command -v apt-get >/dev/null; then \
         apt-get update && apt-get install -y --no-install-recommends \
-            iproute2 iptables curl procps systemd systemd-sysv \
+            iproute2 iptables curl procps systemd systemd-sysv dnsutils \
         && rm -rf /var/lib/apt/lists/*; \
     elif command -v dnf >/dev/null; then \
         dnf install -y --allowerasing \
-            iproute iptables curl procps-ng systemd tar gzip \
+            iproute iptables curl procps-ng systemd tar gzip bind-utils \
         && dnf clean all; \
     elif command -v yum >/dev/null; then \
         yum install -y \
-            iproute iptables curl procps-ng systemd tar gzip \
+            iproute iptables curl procps-ng systemd tar gzip bind-utils \
         && yum clean all; \
     elif command -v pacman >/dev/null; then \
         pacman -Syu --noconfirm \
-            iproute2 iptables curl procps-ng \
+            iproute2 iptables curl procps-ng bind \
         && pacman -Scc --noconfirm; \
     fi
 

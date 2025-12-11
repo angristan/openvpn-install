@@ -20,7 +20,7 @@ export APPROVE_IP=y
 export IPV6_SUPPORT=n
 export PORT_CHOICE=1
 export PROTOCOL_CHOICE=1
-export DNS=9 # Google DNS (works in containers)
+export DNS=2 # Self-hosted Unbound DNS resolver
 export COMPRESSION_ENABLED=n
 export CUSTOMIZE_ENC=n
 export CLIENT=testclient
@@ -241,6 +241,61 @@ fi
 echo "=== Server Certificate Renewal Tests PASSED ==="
 echo ""
 echo "=== All Certificate Renewal Tests PASSED ==="
+echo ""
+
+# =====================================================
+# Start and verify Unbound DNS resolver
+# =====================================================
+echo "=== Starting Unbound DNS Resolver ==="
+
+# Start Unbound manually (systemctl commands are no-ops in container)
+if [ -f /etc/unbound/unbound.conf ]; then
+	echo "Starting Unbound DNS resolver..."
+	unbound
+	sleep 2
+	if pgrep -x unbound >/dev/null; then
+		echo "PASS: Unbound is running"
+	else
+		echo "FAIL: Unbound failed to start"
+		exit 1
+	fi
+else
+	echo "FAIL: /etc/unbound/unbound.conf not found"
+	exit 1
+fi
+
+echo ""
+echo "=== Verifying Unbound Installation ==="
+
+# Verify Unbound listens on VPN gateway
+if grep -q "interface: 10.8.0.1" /etc/unbound/unbound.conf; then
+	echo "PASS: Unbound configured to listen on 10.8.0.1"
+else
+	echo "FAIL: Unbound not configured for 10.8.0.1"
+	cat /etc/unbound/unbound.conf
+	exit 1
+fi
+
+# Verify OpenVPN pushes correct DNS
+if grep -q 'push "dhcp-option DNS 10.8.0.1"' /etc/openvpn/server.conf; then
+	echo "PASS: OpenVPN configured to push Unbound DNS"
+else
+	echo "FAIL: OpenVPN not configured to push Unbound DNS"
+	grep "dhcp-option DNS" /etc/openvpn/server.conf || echo "No DNS push found"
+	exit 1
+fi
+
+# Test DNS resolution locally (requires dig from dnsutils/bind-utils)
+echo "Testing DNS resolution via Unbound..."
+if dig @10.8.0.1 example.com +short +time=5 >/dev/null 2>&1; then
+	echo "PASS: Unbound responds to DNS queries"
+else
+	echo "FAIL: Unbound not responding to DNS queries"
+	dig @10.8.0.1 example.com +time=5 || true
+	exit 1
+fi
+
+echo "=== Unbound Installation Verified ==="
 echo ""
 
 # Start OpenVPN server manually (systemd doesn't work in containers)

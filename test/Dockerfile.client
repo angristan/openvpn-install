@@ -5,11 +5,13 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install OpenVPN client and testing tools
+# dnsutils provides dig for DNS testing with Unbound
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openvpn \
     iproute2 \
     iputils-ping \
     procps \
+    dnsutils \
     && rm -rf /var/lib/apt/lists/*
 
 # Create TUN device directory (device will be mounted at runtime)
