@@ -952,17 +952,17 @@ function installOpenVPN() {
 
 		log_info "Installing OpenVPN and dependencies..."
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			run_cmd "Installing OpenVPN" apt-get install -y openvpn iptables openssl wget
+			run_cmd "Installing OpenVPN" apt-get install -y openvpn iptables openssl curl ca-certificates
 		elif [[ $OS == 'centos' ]]; then
-			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl wget ca-certificates curl tar 'policycoreutils-python*'
+			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl wget ca-certificates curl tar policycoreutils-python-utils
+			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar policycoreutils-python-utils
 		elif [[ $OS == 'amzn2023' ]]; then
-			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl wget ca-certificates
+			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl
 		elif [[ $OS == 'fedora' ]]; then
-			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl wget ca-certificates curl policycoreutils-python-utils
+			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl policycoreutils-python-utils
 		elif [[ $OS == 'arch' ]]; then
-			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl wget ca-certificates curl
+			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl
 		fi
 
 		# Verify ChaCha20-Poly1305 compatibility if selected
@@ -1002,7 +1002,7 @@ function installOpenVPN() {
 
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
-		run_cmd "Downloading Easy-RSA v${EASYRSA_VERSION}" wget -O ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
+		run_cmd "Downloading Easy-RSA v${EASYRSA_VERSION}" curl -fL --retry 3 -o ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
 		log_info "Verifying Easy-RSA checksum..."
 		CHECKSUM_OUTPUT=$(echo "${EASYRSA_SHA256}  $HOME/easy-rsa.tgz" | sha256sum -c 2>&1) || {
 			_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
