@@ -392,7 +392,6 @@ function installUnbound() {
 		echo ''
 		echo '    # Performance optimizations'
 		echo '    prefetch: yes'
-		echo '    num-threads: 2'
 		echo '    use-caps-for-id: yes'
 		echo '    qname-minimisation: yes'
 		echo ''
