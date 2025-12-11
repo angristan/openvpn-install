@@ -99,7 +99,8 @@ jobs:
         run: |
           echo "Waiting for OpenVPN server to install and start..."
           for i in {1..60}; do
-            if docker exec openvpn-server pgrep openvpn > /dev/null 2>&1; then
+            # Use pgrep -x to match exactly "openvpn" process, not "apt-get install openvpn"
+            if docker exec openvpn-server pgrep -x openvpn > /dev/null 2>&1; then
               echo "OpenVPN server is running!"
               break
             fi
@@ -110,7 +111,7 @@ jobs:
           done
 
           # Final check
-          if ! docker exec openvpn-server pgrep openvpn > /dev/null 2>&1; then
+          if ! docker exec openvpn-server pgrep -x openvpn > /dev/null 2>&1; then
             echo "ERROR: OpenVPN server failed to start"
             docker logs openvpn-server
             exit 1
