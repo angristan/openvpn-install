@@ -141,15 +141,15 @@ The script supports these Linux distributions:
 
 |                    | Support |
 | ------------------ | ------- |
-| AlmaLinux >= 8     | ✅ 🤖  |
-| Amazon Linux 2023  | ✅ 🤖  |
-| Arch Linux         | ✅ 🤖  |
-| CentOS Stream >= 8 | ✅ 🤖  |
-| Debian >= 11       | ✅ 🤖  |
-| Fedora >= 40       | ✅ 🤖  |
-| Oracle Linux >= 8  | ✅ 🤖  |
-| Rocky Linux >= 8   | ✅ 🤖  |
-| Ubuntu >= 18.04    | ✅ 🤖  |
+| AlmaLinux >= 8     | ✅ 🤖   |
+| Amazon Linux 2023  | ✅ 🤖   |
+| Arch Linux         | ✅ 🤖   |
+| CentOS Stream >= 8 | ✅ 🤖   |
+| Debian >= 11       | ✅ 🤖   |
+| Fedora >= 40       | ✅ 🤖   |
+| Oracle Linux >= 8  | ✅ 🤖   |
+| Rocky Linux >= 8   | ✅ 🤖   |
+| Ubuntu >= 18.04    | ✅ 🤖   |
 
 To be noted:
 

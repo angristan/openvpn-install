@@ -23,6 +23,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Lint Code Base
-        uses: super-linter/super-linter@v8
+        uses: super-linter/super-linter@f74ec440e1978c07a875ee254a3b6ab0b5598632 # v8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

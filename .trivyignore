@@ -3,3 +3,6 @@ AVD-DS-0002
 
 # Test containers don't need healthcheck
 AVD-DS-0026
+
+# False positive: yum clean all is present in the conditional but Trivy doesn't detect it
+AVD-DS-0015
