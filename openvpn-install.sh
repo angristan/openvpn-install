@@ -1810,7 +1810,7 @@ function removeOpenVPN() {
 
 		# Stop OpenVPN
 		log_info "Stopping OpenVPN service..."
-		if [[ $OS =~ (fedora|arch|centos|oracle|amzn2023) ]]; then
+		if [[ $OS =~ (fedora|arch|centos|oracle) ]]; then
 			run_cmd "Disabling OpenVPN service" systemctl disable openvpn-server@server
 			run_cmd "Stopping OpenVPN service" systemctl stop openvpn-server@server
 			# Remove customised service
