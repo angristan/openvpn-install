@@ -35,7 +35,7 @@ up /etc/openvpn/update-resolv-conf
 down /etc/openvpn/update-resolv-conf
 ```
 
-Centos 6, 7
+CentOS 6, 7
 
 ```
 script-security 2
@@ -43,7 +43,7 @@ up /usr/share/doc/openvpn-2.4.8/contrib/pull-resolv-conf/client.up
 down /usr/share/doc/openvpn-2.4.8/contrib/pull-resolv-conf/client.down
 ```
 
-Centos 8, Fedora 30, 31
+CentOS 8, Fedora 30, 31
 
 ```
 script-security 2
@@ -117,13 +117,13 @@ Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
 
 **Q:** How can I access computers the OpenVPN server's remote LAN?
 
-**A:** Add a route with the subnet of the remote network to `/etc/openvpn/server.conf` and restart openvpn. Example: `push "route 192.168.1.0 255.255.255.0"` if the server's LAN is `192.168.1.0/24`
+**A:** Add a route with the subnet of the remote network to `/etc/openvpn/server.conf` and restart OpenVPN. Example: `push "route 192.168.1.0 255.255.255.0"` if the server's LAN is `192.168.1.0/24`
 
 ---
 
 **Q:** How can I add multiple users in one go?
 
-**A:** Here is a sample bash script to achieve this:
+**A:** Here is a sample Bash script to achieve this:
 
 ```sh
 userlist=(user1 user2 user3)
@@ -158,7 +158,7 @@ route-nopull
 route 10.0.0.0 255.0.0.0
 ```
 
-So for example - here it would route all traffic of `10.0.0.0/8` to the vpn. And the rest through the internet.
+So for example - here it would route all traffic of `10.0.0.0/8` to the VPN. And the rest through the internet.
 
 ---
 

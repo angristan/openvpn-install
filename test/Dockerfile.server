@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install basic dependencies based on the OS
 RUN if command -v apt-get >/dev/null; then \
-        apt-get update && apt-get install -y \
+        apt-get update && apt-get install -y --no-install-recommends \
             iproute2 iptables curl procps systemd systemd-sysv \
         && rm -rf /var/lib/apt/lists/*; \
     elif command -v dnf >/dev/null; then \

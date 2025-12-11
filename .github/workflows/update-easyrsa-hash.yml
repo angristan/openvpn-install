@@ -25,6 +25,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.PAT }}
+          persist-credentials: false
 
       - name: Extract version and update SHA256
         run: |
