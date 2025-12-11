@@ -196,17 +196,13 @@ function checkOS() {
 		fi
 		if [[ $ID == "centos" || $ID == "rocky" || $ID == "almalinux" ]]; then
 			OS="centos"
-			if [[ ${VERSION_ID%.*} -lt 8 ]]; then
-				log_info "The script only supports CentOS Stream 8+ / Rocky Linux 8+ / AlmaLinux 8+."
-				log_fatal "Your version of CentOS is not supported."
-			fi
 		fi
 		if [[ $ID == "ol" ]]; then
 			OS="oracle"
-			if [[ ! $VERSION_ID =~ ^(8|9) ]]; then
-				log_info "The script only supports Oracle Linux 8 and 9."
-				log_fatal "Your version of Oracle Linux is not supported."
-			fi
+		fi
+		if [[ $OS =~ (centos|oracle) ]] && [[ ${VERSION_ID%.*} -lt 8 ]]; then
+			log_info "The script only supports CentOS Stream / Rocky Linux / AlmaLinux / Oracle Linux version 8+."
+			log_fatal "Your version is not supported."
 		fi
 		if [[ $ID == "amzn" ]]; then
 			if [[ "$(echo "$PRETTY_NAME" | cut -c 1-18)" == "Amazon Linux 2023." ]] && [[ "$(echo "$PRETTY_NAME" | cut -c 19)" -ge 6 ]]; then
@@ -220,7 +216,7 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		log_fatal "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2023, Oracle Linux or Arch Linux system."
+		log_fatal "It looks like you aren't running this installer on a Debian, Ubuntu, Fedora, CentOS, Amazon Linux 2023, Oracle Linux, Arch Linux, Rocky Linux or AlmaLinux system."
 	fi
 }
 
@@ -324,14 +320,21 @@ function installOpenVPNRepo() {
 		# EPEL is required for pkcs11-helper dependency
 		log_info "Configuring OpenVPN Copr repository for RHEL-based system..."
 
-		if ! command -v dnf &>/dev/null; then
-			run_cmd "Installing EPEL repository" yum install -y epel-release
-			run_cmd "Installing yum-plugin-copr" yum install -y yum-plugin-copr
-			run_cmd "Enabling OpenVPN Copr repo" yum copr enable -y @OpenVPN/openvpn-release-2.6
+		# Oracle Linux uses oracle-epel-release-el* instead of epel-release
+		if [[ $OS == "oracle" ]]; then
+			EPEL_PACKAGE="oracle-epel-release-el${VERSION_ID%.*}"
 		else
-			run_cmd "Installing EPEL repository" dnf install -y epel-release
-			run_cmd "Installing dnf-plugins-core" dnf install -y dnf-plugins-core
-			run_cmd "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6
+			EPEL_PACKAGE="epel-release"
+		fi
+
+		if ! command -v dnf &>/dev/null; then
+			run_cmd "Installing EPEL repository" yum install -y "$EPEL_PACKAGE" || log_fatal "Failed to install EPEL repository"
+			run_cmd "Installing yum-plugin-copr" yum install -y yum-plugin-copr || log_fatal "Failed to install yum-plugin-copr"
+			run_cmd "Enabling OpenVPN Copr repo" yum copr enable -y @OpenVPN/openvpn-release-2.6 || log_fatal "Failed to enable OpenVPN Copr repo"
+		else
+			run_cmd "Installing EPEL repository" dnf install -y "$EPEL_PACKAGE" || log_fatal "Failed to install EPEL repository"
+			run_cmd "Installing dnf-plugins-core" dnf install -y dnf-plugins-core || log_fatal "Failed to install dnf-plugins-core"
+			run_cmd "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6 || log_fatal "Failed to enable OpenVPN Copr repo"
 		fi
 
 		log_info "OpenVPN Copr repository configured"
@@ -1002,7 +1005,7 @@ function installOpenVPN() {
 
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
-		run_cmd "Downloading Easy-RSA v${EASYRSA_VERSION}" curl -fL --retry 3 -o ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
+		run_cmd "Downloading Easy-RSA v${EASYRSA_VERSION}" curl -fL --retry 5 -o ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
 		log_info "Verifying Easy-RSA checksum..."
 		CHECKSUM_OUTPUT=$(echo "${EASYRSA_SHA256}  $HOME/easy-rsa.tgz" | sha256sum -c 2>&1) || {
 			_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
