@@ -357,13 +357,17 @@ function installUnbound() {
 		if [[ $OS =~ (debian|ubuntu) ]]; then
 			run_cmd "Installing Unbound" apt-get install -y unbound
 
-			# Configuration
-			echo 'interface: 10.8.0.1
-access-control: 10.8.0.1/24 allow
-hide-identity: yes
-hide-version: yes
-use-caps-for-id: yes
-prefetch: yes' >>/etc/unbound/unbound.conf
+			# Configuration - use conf.d directory for modern Unbound versions
+			# that use include-toplevel directive
+			run_cmd "Creating Unbound config directory" mkdir -p /etc/unbound/unbound.conf.d
+			echo 'server:
+	interface: 10.8.0.1
+	access-control: 10.8.0.1/24 allow
+	hide-identity: yes
+	hide-version: yes
+	use-caps-for-id: yes
+	prefetch: yes
+	ip-freebind: yes' >/etc/unbound/unbound.conf.d/openvpn.conf
 
 		elif [[ $OS =~ (centos|oracle) ]]; then
 			run_cmd "Installing Unbound" yum install -y unbound
@@ -421,13 +425,29 @@ prefetch: yes' >>/etc/unbound/unbound.conf
 
 		# IPv6 DNS for all OS
 		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'interface: fd42:42:42:42::1
+			if [[ $OS =~ (debian|ubuntu) ]]; then
+				echo '	interface: fd42:42:42:42::1
+	access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/unbound.conf.d/openvpn.conf
+			else
+				echo 'interface: fd42:42:42:42::1
 access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/unbound.conf
+			fi
 		fi
 
 		if [[ ! $OS =~ (fedora|centos|oracle|amzn2023) ]]; then
 			# DNS Rebinding fix
-			echo "private-address: 10.0.0.0/8
+			if [[ $OS =~ (debian|ubuntu) ]]; then
+				echo "	private-address: 10.0.0.0/8
+	private-address: fd42:42:42:42::/112
+	private-address: 172.16.0.0/12
+	private-address: 192.168.0.0/16
+	private-address: 169.254.0.0/16
+	private-address: fd00::/8
+	private-address: fe80::/10
+	private-address: 127.0.0.0/8
+	private-address: ::ffff:0:0/96" >>/etc/unbound/unbound.conf.d/openvpn.conf
+			else
+				echo "private-address: 10.0.0.0/8
 private-address: fd42:42:42:42::/112
 private-address: 172.16.0.0/12
 private-address: 192.168.0.0/16
@@ -436,12 +456,40 @@ private-address: fd00::/8
 private-address: fe80::/10
 private-address: 127.0.0.0/8
 private-address: ::ffff:0:0/96" >>/etc/unbound/unbound.conf
+			fi
 		fi
 	else # Unbound is already installed
-		echo 'include: /etc/unbound/openvpn.conf' >>/etc/unbound/unbound.conf
+		# Check if using modern include-toplevel (Debian/Ubuntu 24.04+)
+		if [[ $OS =~ (debian|ubuntu) ]] && grep -q "include-toplevel:" /etc/unbound/unbound.conf; then
+			# Use conf.d directory for modern Unbound
+			run_cmd "Creating Unbound config directory" mkdir -p /etc/unbound/unbound.conf.d
+			echo 'server:
+	interface: 10.8.0.1
+	access-control: 10.8.0.1/24 allow
+	hide-identity: yes
+	hide-version: yes
+	use-caps-for-id: yes
+	prefetch: yes
+	ip-freebind: yes
+	private-address: 10.0.0.0/8
+	private-address: fd42:42:42:42::/112
+	private-address: 172.16.0.0/12
+	private-address: 192.168.0.0/16
+	private-address: 169.254.0.0/16
+	private-address: fd00::/8
+	private-address: fe80::/10
+	private-address: 127.0.0.0/8
+	private-address: ::ffff:0:0/96' >/etc/unbound/unbound.conf.d/openvpn.conf
+			if [[ $IPV6_SUPPORT == 'y' ]]; then
+				echo '	interface: fd42:42:42:42::1
+	access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/unbound.conf.d/openvpn.conf
+			fi
+		else
+			# Legacy configuration with include directive
+			echo 'include: /etc/unbound/openvpn.conf' >>/etc/unbound/unbound.conf
 
-		# Add Unbound 'server' for the OpenVPN subnet
-		echo 'server:
+			# Add Unbound 'server' for the OpenVPN subnet
+			echo 'server:
 interface: 10.8.0.1
 access-control: 10.8.0.1/24 allow
 hide-identity: yes
@@ -457,9 +505,10 @@ private-address: fd00::/8
 private-address: fe80::/10
 private-address: 127.0.0.0/8
 private-address: ::ffff:0:0/96' >/etc/unbound/openvpn.conf
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'interface: fd42:42:42:42::1
+			if [[ $IPV6_SUPPORT == 'y' ]]; then
+				echo 'interface: fd42:42:42:42::1
 access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/openvpn.conf
+			fi
 		fi
 	fi
 
@@ -1775,9 +1824,14 @@ function renewMenu() {
 }
 
 function removeUnbound() {
-	# Remove OpenVPN-related config
-	run_cmd "Removing Unbound include" sed -i '/include: \/etc\/unbound\/openvpn.conf/d' /etc/unbound/unbound.conf
-	run_cmd "Removing OpenVPN Unbound config" rm /etc/unbound/openvpn.conf
+	# Remove OpenVPN-related config (handle both legacy and modern locations)
+	if [[ -f /etc/unbound/unbound.conf.d/openvpn.conf ]]; then
+		run_cmd "Removing OpenVPN Unbound config" rm -f /etc/unbound/unbound.conf.d/openvpn.conf
+	fi
+	if [[ -f /etc/unbound/openvpn.conf ]]; then
+		run_cmd "Removing Unbound include" sed -i '/include: \/etc\/unbound\/openvpn.conf/d' /etc/unbound/unbound.conf
+		run_cmd "Removing OpenVPN Unbound config" rm -f /etc/unbound/openvpn.conf
+	fi
 
 	until [[ $REMOVE_UNBOUND =~ (y|n) ]]; do
 		log_info "If you were already using Unbound before installing OpenVPN, I removed the configuration related to OpenVPN."
@@ -1886,8 +1940,8 @@ function removeOpenVPN() {
 		run_cmd "Removing sysctl config" rm -f /etc/sysctl.d/99-openvpn.conf
 		run_cmd "Removing OpenVPN logs" rm -rf /var/log/openvpn
 
-		# Unbound
-		if [[ -e /etc/unbound/openvpn.conf ]]; then
+		# Unbound (check both legacy and modern config locations)
+		if [[ -e /etc/unbound/openvpn.conf ]] || [[ -e /etc/unbound/unbound.conf.d/openvpn.conf ]]; then
 			removeUnbound
 		fi
 		log_success "OpenVPN removed!"
