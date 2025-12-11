@@ -451,9 +451,14 @@ echo "Client disconnected"
 # Now revoke the certificate
 echo "Revoking certificate for '$REVOKE_CLIENT'..."
 REVOKE_OUTPUT="/tmp/revoke-output.log"
-# MENU_OPTION=2 is revoke, CLIENTNUMBER=1 selects the only client (revoketest)
+# MENU_OPTION=2 is revoke, CLIENTNUMBER is dynamically determined from index.txt
 # We need to find the client number for revoketest
 REVOKE_CLIENT_NUM=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | grep -n "CN=$REVOKE_CLIENT\$" | cut -d: -f1)
+if [ -z "$REVOKE_CLIENT_NUM" ]; then
+	echo "ERROR: Could not find client number for '$REVOKE_CLIENT'"
+	cat /etc/openvpn/easy-rsa/pki/index.txt
+	exit 1
+fi
 echo "Revoke client number: $REVOKE_CLIENT_NUM"
 (MENU_OPTION=2 CLIENTNUMBER=$REVOKE_CLIENT_NUM bash /tmp/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
 

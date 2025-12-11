@@ -198,7 +198,14 @@ fi
 # Disconnect
 echo "Disconnecting revoke test client..."
 pkill openvpn || true
-sleep 2
+
+# Wait for openvpn to fully exit and tun0 to be released
+WAITED=0
+MAX_WAIT_DISCONNECT=10
+while (pgrep openvpn >/dev/null || ip addr show tun0 2>/dev/null | grep -q "inet ") && [ $WAITED -lt $MAX_WAIT_DISCONNECT ]; do
+	sleep 1
+	WAITED=$((WAITED + 1))
+done
 
 # Verify disconnected
 if ip addr show tun0 2>/dev/null | grep -q "inet "; then
@@ -357,4 +364,4 @@ echo "  ALL TESTS PASSED!"
 echo "=========================================="
 
 # Keep container running for debugging if needed
-exec tail -f /var/log/openvpn-new.log
+exec tail -f /var/log/openvpn-new.log 2>/dev/null || tail -f /var/log/openvpn.log 2>/dev/null || sleep infinity
