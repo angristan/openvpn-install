@@ -32,8 +32,8 @@ export ENDPOINT=openvpn-server
 # - Skip Unbound startup validation (we start Unbound manually later)
 # This ensures the script won't fail silently on systemctl commands
 sed -e 's/\bsystemctl /echo "[SKIPPED] systemctl " # /g' \
-    -e 's/log_fatal "Unbound failed to start/return 0 # [SKIPPED] /g' \
-    /opt/openvpn-install.sh >/tmp/openvpn-install.sh
+	-e 's/log_fatal "Unbound failed to start/return 0 # [SKIPPED] /g' \
+	/opt/openvpn-install.sh >/tmp/openvpn-install.sh
 chmod +x /tmp/openvpn-install.sh
 
 echo "Running OpenVPN install script..."
