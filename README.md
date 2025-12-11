@@ -8,8 +8,6 @@ OpenVPN installer for Debian, Ubuntu, Fedora, CentOS, Arch Linux, Oracle Linux, 
 
 This script will let you setup your own secure VPN server in just a few seconds.
 
-You can also check out [wireguard-install](https://github.com/angristan/wireguard-install), a simple installer for a simpler, safer, faster and more modern VPN protocol.
-
 ## What is this?
 
 This script is meant to be run on your own server, whether it's a VPS or a dedicated server, or even a computer at home.
@@ -28,6 +26,16 @@ graph LR
 
   VPN --> I[Internet]
 ```
+
+## Why OpenVPN?
+
+OpenVPN was the de facto standard for open-source VPNs when this script was created. WireGuard came later and is simpler and faster for most use cases. Check out [wireguard-install](https://github.com/angristan/wireguard-install).
+
+That said, OpenVPN still makes sense when you need:
+
+- **TCP support**: works in restrictive environments where UDP is blocked (corporate networks, airports, hotels, etc.)
+- **Password-protected profiles**: WireGuard configs store the private key in plain text
+- **Legacy compatibility**: clients exist for pretty much every platform, including older systems
 
 ## Usage
 
