@@ -160,6 +160,12 @@ jobs:
         if: always()
         run: docker logs openvpn-server 2>&1 || true
 
+      - name: Show install script log
+        if: always()
+        run: |
+          docker cp openvpn-server:/opt/openvpn-install.log /tmp/openvpn-install.log 2>/dev/null && \
+            cat /tmp/openvpn-install.log || echo "No install log found"
+
       - name: Show client logs
         if: always()
         run: docker logs openvpn-client 2>&1 || true
