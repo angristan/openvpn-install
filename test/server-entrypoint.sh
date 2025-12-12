@@ -599,13 +599,7 @@ echo "=== Reuse of Revoked Client Name Tests PASSED ==="
 echo ""
 echo "=== All Revocation Tests PASSED ==="
 
-# Keep server running for any remaining client tests
-# With systemd as init, the container stays running after this script exits
+# Server tests complete - systemd keeps the container running via /sbin/init
+# OpenVPN service (openvpn-server@server) continues independently
 echo "Server tests complete. Container will remain running via systemd."
 echo "OpenVPN is managed by: systemctl status openvpn-server@server"
-
-# Wait indefinitely - systemd will keep container alive
-# Client will signal when all tests are done
-while true; do
-	sleep 60
-done

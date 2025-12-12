@@ -101,8 +101,6 @@ jobs:
             --hostname openvpn-server \
             --privileged \
             --cgroupns=host \
-            --cap-add=NET_ADMIN \
-            --cap-add=SYS_ADMIN \
             --device=/dev/net/tun:/dev/net/tun \
             --sysctl net.ipv4.ip_forward=1 \
             --network vpn-test \

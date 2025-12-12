@@ -9,10 +9,7 @@ services:
     container_name: openvpn-server
     hostname: openvpn-server
     privileged: true
-    cgroup: host
-    cap_add:
-      - NET_ADMIN
-      - SYS_ADMIN
+    cgroupns: host
     devices:
       - /dev/net/tun:/dev/net/tun
     sysctls:
