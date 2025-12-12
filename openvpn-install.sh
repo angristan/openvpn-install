@@ -1017,6 +1017,9 @@ function installOpenVPN() {
 
 		# Create the server directory (OpenVPN 2.4+ directory structure)
 		run_cmd "Creating server directory" mkdir -p /etc/openvpn/server
+		# Ensure directory is readable after OpenVPN drops privileges to nobody
+		# (some distros like Arch create /etc/openvpn/server with 750 openvpn:network)
+		run_cmd "Setting server directory permissions" chmod 755 /etc/openvpn/server
 
 		# An old version of easy-rsa was available by default in some openvpn packages
 		if [[ -d /etc/openvpn/server/easy-rsa/ ]]; then
@@ -1892,6 +1895,12 @@ function removeOpenVPN() {
 
 function manageMenu() {
 	local menu_option
+
+	# Ensure server directory is readable by OpenVPN after it drops privileges to nobody
+	# (some distros like Arch create /etc/openvpn/server with 750 openvpn:network)
+	if [[ -d /etc/openvpn/server ]] && [[ "$(stat -c %a /etc/openvpn/server 2>/dev/null || stat -f %Lp /etc/openvpn/server 2>/dev/null)" != "755" ]]; then
+		chmod 755 /etc/openvpn/server
+	fi
 
 	log_header "OpenVPN Management"
 	log_prompt "The git repository is available at: https://github.com/angristan/openvpn-install"
