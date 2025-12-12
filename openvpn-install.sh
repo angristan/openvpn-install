@@ -233,6 +233,52 @@ function checkOS() {
 	fi
 }
 
+function checkArchPendingKernelUpgrade() {
+	if [[ $OS != "arch" ]]; then
+		return 0
+	fi
+
+	# Check if running kernel's modules are available
+	# (detects if kernel was upgraded but system not rebooted)
+	local running_kernel
+	running_kernel=$(uname -r)
+	if [[ ! -d "/lib/modules/${running_kernel}" ]]; then
+		log_error "Kernel modules for running kernel ($running_kernel) not found!"
+		log_info "This usually means the kernel was upgraded but the system wasn't rebooted."
+		log_fatal "Please reboot your system and run this script again."
+	fi
+
+	log_info "Checking for pending kernel upgrades on Arch Linux..."
+
+	# Sync package database to check for updates
+	if ! pacman -Sy &>/dev/null; then
+		log_warn "Failed to sync package database, skipping kernel upgrade check"
+		return 0
+	fi
+
+	# Check for pending linux kernel upgrades (linux, linux-lts, linux-zen, linux-hardened)
+	local pending_kernels
+	pending_kernels=$(pacman -Qu 2>/dev/null | grep -E '^linux(-lts|-zen|-hardened)?[[:space:]]' || true)
+
+	if [[ -n "$pending_kernels" ]]; then
+		log_error "Linux kernel upgrade(s) pending:"
+		echo "$pending_kernels" | while read -r line; do
+			log_info "  $line"
+		done
+		echo ""
+		log_info "This script uses 'pacman -Syu' which will upgrade your kernel."
+		log_info "After a kernel upgrade, the TUN module won't be available until you reboot."
+		echo ""
+		log_info "Please upgrade your system and reboot first:"
+		log_info "  sudo pacman -Syu"
+		log_info "  sudo reboot"
+		echo ""
+		log_fatal "Then run this script again."
+	fi
+
+	log_success "No pending kernel upgrades"
+}
+
 function initialCheck() {
 	log_debug "Checking root privileges..."
 	if ! isRoot; then
@@ -249,6 +295,7 @@ function initialCheck() {
 	log_debug "Detecting operating system..."
 	checkOS
 	log_info "Detected OS: $OS (${PRETTY_NAME:-unknown})"
+	checkArchPendingKernelUpgrade
 }
 
 # Check if OpenVPN version is at least the specified version
