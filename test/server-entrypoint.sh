@@ -404,8 +404,9 @@ if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "1" ]; then
 fi
 
 # Start OpenVPN in background (run from /etc/openvpn/server so relative paths work)
-# On most distros, config has user/group so OpenVPN drops privileges after startup.
-# On Arch, systemd handles user switching so config has no user/group - runs as root here.
+# We always start as root. On most distros, config has user/group so OpenVPN drops
+# privileges after startup. On Arch, systemd handles it so config has no user/group
+# and OpenVPN stays root (in production systemd runs it as openvpn user directly).
 cd /etc/openvpn/server
 openvpn --config /etc/openvpn/server/server.conf --log /var/log/openvpn-server.log &
 OPENVPN_PID=$!
