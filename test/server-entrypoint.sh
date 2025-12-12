@@ -85,6 +85,63 @@ if [ $MISSING_FILES -gt 0 ]; then
 fi
 
 echo "All required files present"
+
+# =====================================================
+# Verify systemd service file configuration
+# =====================================================
+echo ""
+echo "=== Verifying systemd service configuration ==="
+
+# Check that the correct service file was created
+SERVICE_FILE="/etc/systemd/system/openvpn-server@.service"
+if [ -f "$SERVICE_FILE" ]; then
+	echo "PASS: openvpn-server@.service exists at $SERVICE_FILE"
+else
+	echo "FAIL: openvpn-server@.service not found at $SERVICE_FILE"
+	echo "Contents of /etc/systemd/system/:"
+	ls -la /etc/systemd/system/ | grep -i openvpn || echo "No openvpn service files found"
+	exit 1
+fi
+
+# Verify the service file points to /etc/openvpn/server/ (not patched back to /etc/openvpn/)
+if grep -q "/etc/openvpn/server" "$SERVICE_FILE"; then
+	echo "PASS: Service file uses correct path /etc/openvpn/server/"
+else
+	echo "FAIL: Service file does not reference /etc/openvpn/server/"
+	echo "Service file contents:"
+	cat "$SERVICE_FILE"
+	exit 1
+fi
+
+# Verify the service file syntax is valid (if systemd-analyze is available)
+if command -v systemd-analyze >/dev/null 2>&1; then
+	echo "Validating service file syntax..."
+	if systemd-analyze verify "$SERVICE_FILE" 2>&1 | tee /tmp/service-verify.log; then
+		echo "PASS: Service file syntax is valid"
+	else
+		# systemd-analyze verify may return non-zero for warnings, check for actual errors
+		if grep -qi "error" /tmp/service-verify.log; then
+			echo "FAIL: Service file has syntax errors"
+			cat /tmp/service-verify.log
+			exit 1
+		else
+			echo "PASS: Service file syntax is valid (warnings only)"
+		fi
+	fi
+else
+	echo "SKIP: systemd-analyze not available, skipping syntax validation"
+fi
+
+# Verify the old service file pattern (openvpn@.service) was NOT created
+OLD_SERVICE_FILE="/etc/systemd/system/openvpn@.service"
+if [ -f "$OLD_SERVICE_FILE" ]; then
+	echo "FAIL: Legacy openvpn@.service was created (should use openvpn-server@.service)"
+	exit 1
+else
+	echo "PASS: Legacy openvpn@.service not present (correct)"
+fi
+
+echo "=== systemd service configuration verified ==="
 echo ""
 echo "Server config:"
 cat /etc/openvpn/server/server.conf
