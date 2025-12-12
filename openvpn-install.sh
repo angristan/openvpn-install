@@ -1680,8 +1680,8 @@ function renewServer() {
 
 	log_header "Renew Server Certificate"
 
-	# Get the server name from the config (extract basename since path may be absolute)
-	server_name=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//' | xargs basename)
+	# Get the server name from the config (extract basename since path may be relative)
+	server_name=$(basename "$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2)" .crt)
 	if [[ -z "$server_name" ]]; then
 		log_fatal "Could not determine server certificate name from /etc/openvpn/server/server.conf"
 	fi
@@ -1772,8 +1772,8 @@ function renewMenu() {
 
 	log_header "Certificate Renewal"
 
-	# Get server certificate expiry for menu display (extract basename since path may be absolute)
-	server_name=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//' | xargs basename)
+	# Get server certificate expiry for menu display (extract basename since path may be relative)
+	server_name=$(basename "$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2)" .crt)
 	if [[ -z "$server_name" ]]; then
 		server_expiry="(unknown expiry)"
 	else
