@@ -970,7 +970,7 @@ function installOpenVPN() {
 	# If OpenVPN isn't installed yet, install it. This script is more-or-less
 	# idempotent on multiple runs, but will only install OpenVPN from upstream
 	# the first time.
-	if [[ ! -e /etc/openvpn/server.conf ]]; then
+	if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 		log_header "Installing OpenVPN"
 
 		# Setup official OpenVPN repository for latest versions
@@ -1015,21 +1015,45 @@ function installOpenVPN() {
 			log_info "Data Channel Offload (DCO) is not available (requires OpenVPN 2.6+ and kernel support)"
 		fi
 
+		# Create the server directory (OpenVPN 2.4+ directory structure)
+		run_cmd "Creating server directory" mkdir -p /etc/openvpn/server
+
 		# An old version of easy-rsa was available by default in some openvpn packages
-		if [[ -d /etc/openvpn/easy-rsa/ ]]; then
-			run_cmd "Removing old Easy-RSA" rm -rf /etc/openvpn/easy-rsa/
+		if [[ -d /etc/openvpn/server/easy-rsa/ ]]; then
+			run_cmd "Removing old Easy-RSA" rm -rf /etc/openvpn/server/easy-rsa/
 		fi
 	fi
 
-	# Find out if the machine uses nogroup or nobody for the permissionless group
-	if grep -qs "^nogroup:" /etc/group; then
-		NOGROUP=nogroup
+	# Determine which user/group OpenVPN should run as
+	# - Fedora/RHEL/Amazon create 'openvpn' user with 'openvpn' group
+	# - Arch creates 'openvpn' user with 'network' group
+	# - Debian/Ubuntu/openSUSE don't create a dedicated user, use 'nobody'
+	#
+	# Also check if the systemd service file already handles user/group switching.
+	# If so, we shouldn't add user/group to config (would cause double privilege drop).
+	SYSTEMD_HANDLES_USER=false
+	for service_file in /usr/lib/systemd/system/openvpn-server@.service /lib/systemd/system/openvpn-server@.service; do
+		if [[ -f "$service_file" ]] && grep -q "^User=" "$service_file"; then
+			SYSTEMD_HANDLES_USER=true
+			break
+		fi
+	done
+
+	if id openvpn &>/dev/null; then
+		OPENVPN_USER=openvpn
+		# Get the openvpn user's primary group (e.g., 'openvpn' on Fedora, 'network' on Arch)
+		OPENVPN_GROUP=$(id -gn openvpn 2>/dev/null || echo openvpn)
 	else
-		NOGROUP=nobody
+		OPENVPN_USER=nobody
+		if grep -qs "^nogroup:" /etc/group; then
+			OPENVPN_GROUP=nogroup
+		else
+			OPENVPN_GROUP=nobody
+		fi
 	fi
 
 	# Install the latest version of easy-rsa from source, if not already installed.
-	if [[ ! -d /etc/openvpn/easy-rsa/ ]]; then
+	if [[ ! -d /etc/openvpn/server/easy-rsa/ ]]; then
 		run_cmd "Downloading Easy-RSA v${EASYRSA_VERSION}" curl -fL --retry 5 -o ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
 		log_info "Verifying Easy-RSA checksum..."
 		CHECKSUM_OUTPUT=$(echo "${EASYRSA_SHA256}  $HOME/easy-rsa.tgz" | sha256sum -c 2>&1) || {
@@ -1038,11 +1062,11 @@ function installOpenVPN() {
 			log_fatal "SHA256 checksum verification failed for easy-rsa download!"
 		}
 		_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
-		run_cmd "Creating Easy-RSA directory" mkdir -p /etc/openvpn/easy-rsa
-		run_cmd "Extracting Easy-RSA" tar xzf ~/easy-rsa.tgz --strip-components=1 --no-same-owner --directory /etc/openvpn/easy-rsa
+		run_cmd "Creating Easy-RSA directory" mkdir -p /etc/openvpn/server/easy-rsa
+		run_cmd "Extracting Easy-RSA" tar xzf ~/easy-rsa.tgz --strip-components=1 --no-same-owner --directory /etc/openvpn/server/easy-rsa
 		run_cmd "Cleaning up archive" rm -f ~/easy-rsa.tgz
 
-		cd /etc/openvpn/easy-rsa/ || return
+		cd /etc/openvpn/server/easy-rsa/ || return
 		case $CERT_TYPE in
 		1)
 			echo "set_var EASYRSA_ALGO ec" >vars
@@ -1081,55 +1105,58 @@ function installOpenVPN() {
 		case $TLS_SIG in
 		1)
 			# Generate tls-crypt key
-			run_cmd "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/tls-crypt.key
+			run_cmd "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/server/tls-crypt.key
 			;;
 		2)
 			# Generate tls-auth key
-			run_cmd "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/tls-auth.key
+			run_cmd "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/server/tls-auth.key
 			;;
 		esac
 	else
 		# If easy-rsa is already installed, grab the generated SERVER_NAME
 		# for client configs
-		cd /etc/openvpn/easy-rsa/ || return
+		cd /etc/openvpn/server/easy-rsa/ || return
 		SERVER_NAME=$(cat SERVER_NAME_GENERATED)
 	fi
 
 	# Move all the generated files
 	log_info "Copying certificates..."
-	run_cmd "Copying certificates to /etc/openvpn" cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
+	run_cmd "Copying certificates to /etc/openvpn/server" cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server
 	if [[ $DH_TYPE == "2" ]]; then
-		run_cmd "Copying DH parameters" cp dh.pem /etc/openvpn
+		run_cmd "Copying DH parameters" cp dh.pem /etc/openvpn/server
 	fi
 
 	# Make cert revocation list readable for non-root
-	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/crl.pem
+	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/server/crl.pem
 
 	# Generate server.conf
 	log_info "Generating server configuration..."
-	echo "port $PORT" >/etc/openvpn/server.conf
+	echo "port $PORT" >/etc/openvpn/server/server.conf
 	if [[ $IPV6_SUPPORT == 'n' ]]; then
-		echo "proto $PROTOCOL" >>/etc/openvpn/server.conf
+		echo "proto $PROTOCOL" >>/etc/openvpn/server/server.conf
 	elif [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server.conf
+		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ $MULTI_CLIENT == "y" ]]; then
-		echo "duplicate-cn" >>/etc/openvpn/server.conf
+		echo "duplicate-cn" >>/etc/openvpn/server/server.conf
 	fi
 
-	echo "dev tun
-user nobody
-group $NOGROUP
-persist-key
+	echo "dev tun" >>/etc/openvpn/server/server.conf
+	# Only add user/group if systemd doesn't handle it (avoids double privilege drop)
+	if [[ $SYSTEMD_HANDLES_USER == "false" ]]; then
+		echo "user $OPENVPN_USER
+group $OPENVPN_GROUP" >>/etc/openvpn/server/server.conf
+	fi
+	echo "persist-key
 persist-tun
 keepalive 10 120
 topology subnet
-server 10.8.0.0 255.255.255.0" >>/etc/openvpn/server.conf
+server 10.8.0.0 255.255.255.0" >>/etc/openvpn/server/server.conf
 
 	# ifconfig-pool-persist is incompatible with duplicate-cn
 	if [[ $MULTI_CLIENT != "y" ]]; then
-		echo "ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server.conf
+		echo "ifconfig-pool-persist ipp.txt" >>/etc/openvpn/server/server.conf
 	fi
 
 	# DNS resolvers
@@ -1146,64 +1173,64 @@ server 10.8.0.0 255.255.255.0" >>/etc/openvpn/server.conf
 		sed -ne 's/^nameserver[[:space:]]\+\([^[:space:]]\+\).*$/\1/p' $RESOLVCONF | while read -r line; do
 			# Copy, if it's a IPv4 |or| if IPv6 is enabled, IPv4/IPv6 does not matter
 			if [[ $line =~ ^[0-9.]*$ ]] || [[ $IPV6_SUPPORT == 'y' ]]; then
-				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server.conf
+				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server/server.conf
 			fi
 		done
 		;;
 	2) # Self-hosted DNS resolver (Unbound)
-		echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server/server.conf
 		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server.conf
+			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
 	3) # Cloudflare
-		echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server/server.conf
 		;;
 	4) # Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server/server.conf
 		;;
 	5) # Quad9 uncensored
-		echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server/server.conf
 		;;
 	6) # FDN
-		echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server/server.conf
 		;;
 	7) # DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server/server.conf
 		;;
 	8) # OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server/server.conf
 		;;
 	9) # Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server/server.conf
 		;;
 	10) # Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server/server.conf
 		;;
 	11) # AdGuard DNS
-		echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server/server.conf
 		;;
 	12) # NextDNS
-		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server.conf
-		echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server.conf
+		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server/server.conf
+		echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server/server.conf
 		;;
 	13) # Custom DNS
-		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server.conf
+		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server/server.conf
 		if [[ $DNS2 != "" ]]; then
-			echo "push \"dhcp-option DNS $DNS2\"" >>/etc/openvpn/server.conf
+			echo "push \"dhcp-option DNS $DNS2\"" >>/etc/openvpn/server/server.conf
 		fi
 		;;
 	esac
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server.conf
+	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server/server.conf
 
 	# IPv6 network settings if needed
 	if [[ $IPV6_SUPPORT == 'y' ]]; then
@@ -1211,26 +1238,26 @@ server 10.8.0.0 255.255.255.0" >>/etc/openvpn/server.conf
 tun-ipv6
 push tun-ipv6
 push "route-ipv6 2000::/3"
-push "redirect-gateway ipv6"' >>/etc/openvpn/server.conf
+push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
-		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server.conf
+		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ $DH_TYPE == "1" ]]; then
-		echo "dh none" >>/etc/openvpn/server.conf
-		echo "ecdh-curve $DH_CURVE" >>/etc/openvpn/server.conf
+		echo "dh none" >>/etc/openvpn/server/server.conf
+		echo "ecdh-curve $DH_CURVE" >>/etc/openvpn/server/server.conf
 	elif [[ $DH_TYPE == "2" ]]; then
-		echo "dh dh.pem" >>/etc/openvpn/server.conf
+		echo "dh dh.pem" >>/etc/openvpn/server/server.conf
 	fi
 
 	case $TLS_SIG in
 	1)
-		echo "tls-crypt tls-crypt.key" >>/etc/openvpn/server.conf
+		echo "tls-crypt tls-crypt.key" >>/etc/openvpn/server/server.conf
 		;;
 	2)
-		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server.conf
+		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server/server.conf
 		;;
 	esac
 
@@ -1247,14 +1274,22 @@ tls-server
 tls-version-min 1.2
 remote-cert-tls client
 tls-cipher $CC_CIPHER
-client-config-dir /etc/openvpn/ccd
+client-config-dir ccd
 status /var/log/openvpn/status.log
-verb 3" >>/etc/openvpn/server.conf
+verb 3" >>/etc/openvpn/server/server.conf
 
 	# Create client-config-dir dir
-	run_cmd "Creating client config directory" mkdir -p /etc/openvpn/ccd
+	run_cmd "Creating client config directory" mkdir -p /etc/openvpn/server/ccd
 	# Create log dir
 	run_cmd "Creating log directory" mkdir -p /var/log/openvpn
+
+	# On distros that use a dedicated OpenVPN user (not "nobody"), e.g., Fedora, RHEL, Arch,
+	# set ownership so OpenVPN can read config/certs and write to log directory
+	if [[ $OPENVPN_USER != "nobody" ]]; then
+		log_info "Setting ownership for OpenVPN user..."
+		chown -R "$OPENVPN_USER:$OPENVPN_GROUP" /etc/openvpn/server
+		chown "$OPENVPN_USER:$OPENVPN_GROUP" /var/log/openvpn
+	fi
 
 	# Enable routing
 	log_info "Enabling IP forwarding..."
@@ -1276,32 +1311,40 @@ verb 3" >>/etc/openvpn/server.conf
 	fi
 
 	# Finally, restart and enable OpenVPN
+	# OpenVPN 2.4+ uses openvpn-server@.service with config in /etc/openvpn/server/
 	log_info "Configuring OpenVPN service..."
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' || $OS == 'amzn2023' ]]; then
-		# Don't modify package-provided service
-		run_cmd "Copying OpenVPN service file" cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
-		# Workaround to fix OpenVPN service on OpenVZ
-		run_cmd "Patching service file (LimitNPROC)" sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
-		# Another workaround to keep using /etc/openvpn/
-		run_cmd "Patching service file (paths)" sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn-server@.service
-
-		run_cmd "Reloading systemd" systemctl daemon-reload
-		run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
-		run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+	# Find the service file (location and name vary by distro)
+	# Modern distros: openvpn-server@.service in /usr/lib/systemd/system/ or /lib/systemd/system/
+	# openSUSE: openvpn@.service (old-style) that we need to adapt
+	if [[ -f /usr/lib/systemd/system/openvpn-server@.service ]]; then
+		SERVICE_SOURCE="/usr/lib/systemd/system/openvpn-server@.service"
+	elif [[ -f /lib/systemd/system/openvpn-server@.service ]]; then
+		SERVICE_SOURCE="/lib/systemd/system/openvpn-server@.service"
+	elif [[ -f /usr/lib/systemd/system/openvpn@.service ]]; then
+		# openSUSE uses old-style service, we'll create our own openvpn-server@.service
+		SERVICE_SOURCE="/usr/lib/systemd/system/openvpn@.service"
+	elif [[ -f /lib/systemd/system/openvpn@.service ]]; then
+		SERVICE_SOURCE="/lib/systemd/system/openvpn@.service"
 	else
-		# Don't modify package-provided service
-		run_cmd "Copying OpenVPN service file" cp /lib/systemd/system/openvpn\@.service /etc/systemd/system/openvpn\@.service
-
-		# Workaround to fix OpenVPN service on OpenVZ
-		run_cmd "Patching service file (LimitNPROC)" sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn\@.service
-		# Another workaround to keep using /etc/openvpn/
-		run_cmd "Patching service file (paths)" sed -i 's|/etc/openvpn/server|/etc/openvpn|' /etc/systemd/system/openvpn\@.service
-
-		run_cmd "Reloading systemd" systemctl daemon-reload
-		run_cmd "Enabling OpenVPN service" systemctl enable openvpn@server
-		run_cmd "Starting OpenVPN service" systemctl restart openvpn@server
+		log_fatal "Could not find openvpn-server@.service or openvpn@.service file"
 	fi
+
+	# Don't modify package-provided service, copy to /etc/systemd/system/
+	run_cmd "Copying OpenVPN service file" cp "$SERVICE_SOURCE" /etc/systemd/system/openvpn-server@.service
+
+	# Workaround to fix OpenVPN service on OpenVZ
+	run_cmd "Patching service file (LimitNPROC)" sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
+
+	# Ensure the service uses /etc/openvpn/server/ as working directory
+	# This is needed for openSUSE which uses old-style paths by default
+	if grep -q "cd /etc/openvpn/" /etc/systemd/system/openvpn-server@.service; then
+		run_cmd "Patching service file (paths)" sed -i 's|/etc/openvpn/|/etc/openvpn/server/|g' /etc/systemd/system/openvpn-server@.service
+	fi
+
+	run_cmd "Reloading systemd" systemctl daemon-reload
+	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
+	run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
 
 	if [[ $DNS == 2 ]]; then
 		installUnbound
@@ -1373,12 +1416,12 @@ WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 
 	# client-template.txt is created so we have a template to add further users later
 	log_info "Creating client template..."
-	echo "client" >/etc/openvpn/client-template.txt
+	echo "client" >/etc/openvpn/server/client-template.txt
 	if [[ $PROTOCOL == 'udp' ]]; then
-		echo "proto udp" >>/etc/openvpn/client-template.txt
-		echo "explicit-exit-notify" >>/etc/openvpn/client-template.txt
+		echo "proto udp" >>/etc/openvpn/server/client-template.txt
+		echo "explicit-exit-notify" >>/etc/openvpn/server/client-template.txt
 	elif [[ $PROTOCOL == 'tcp' ]]; then
-		echo "proto tcp-client" >>/etc/openvpn/client-template.txt
+		echo "proto tcp-client" >>/etc/openvpn/server/client-template.txt
 	fi
 	echo "remote $IP $PORT
 dev tun
@@ -1399,10 +1442,10 @@ tls-version-min 1.2
 tls-cipher $CC_CIPHER
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
-verb 3" >>/etc/openvpn/client-template.txt
+verb 3" >>/etc/openvpn/server/client-template.txt
 
 	if [[ $COMPRESSION_ENABLED == "y" ]]; then
-		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/client-template.txt
+		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server/client-template.txt
 	fi
 
 	# Generate the custom client.ovpn
@@ -1431,9 +1474,9 @@ function getHomeDir() {
 function regenerateCRL() {
 	export EASYRSA_CRL_DAYS=$DEFAULT_CRL_VALIDITY_DURATION_DAYS
 	run_cmd "Regenerating CRL" ./easyrsa gen-crl
-	run_cmd "Removing old CRL" rm -f /etc/openvpn/crl.pem
-	run_cmd "Copying new CRL" cp /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/crl.pem
-	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/crl.pem
+	run_cmd "Removing old CRL" rm -f /etc/openvpn/server/crl.pem
+	run_cmd "Copying new CRL" cp /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server/crl.pem
+	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/server/crl.pem
 }
 
 # Helper function to generate .ovpn client config file
@@ -1443,37 +1486,37 @@ function generateClientConfig() {
 
 	# Determine if we use tls-auth or tls-crypt
 	local tls_sig=""
-	if grep -qs "^tls-crypt" /etc/openvpn/server.conf; then
+	if grep -qs "^tls-crypt" /etc/openvpn/server/server.conf; then
 		tls_sig="1"
-	elif grep -qs "^tls-auth" /etc/openvpn/server.conf; then
+	elif grep -qs "^tls-auth" /etc/openvpn/server/server.conf; then
 		tls_sig="2"
 	fi
 
 	# Generate the custom client.ovpn
-	run_cmd "Creating client config" cp /etc/openvpn/client-template.txt "$home_dir/$client.ovpn"
+	run_cmd "Creating client config" cp /etc/openvpn/server/client-template.txt "$home_dir/$client.ovpn"
 	{
 		echo "<ca>"
-		cat "/etc/openvpn/easy-rsa/pki/ca.crt"
+		cat "/etc/openvpn/server/easy-rsa/pki/ca.crt"
 		echo "</ca>"
 
 		echo "<cert>"
-		awk '/BEGIN/,/END CERTIFICATE/' "/etc/openvpn/easy-rsa/pki/issued/$client.crt"
+		awk '/BEGIN/,/END CERTIFICATE/' "/etc/openvpn/server/easy-rsa/pki/issued/$client.crt"
 		echo "</cert>"
 
 		echo "<key>"
-		cat "/etc/openvpn/easy-rsa/pki/private/$client.key"
+		cat "/etc/openvpn/server/easy-rsa/pki/private/$client.key"
 		echo "</key>"
 
 		case $tls_sig in
 		1)
 			echo "<tls-crypt>"
-			cat /etc/openvpn/tls-crypt.key
+			cat /etc/openvpn/server/tls-crypt.key
 			echo "</tls-crypt>"
 			;;
 		2)
 			echo "key-direction 1"
 			echo "<tls-auth>"
-			cat /etc/openvpn/tls-auth.key
+			cat /etc/openvpn/server/tls-auth.key
 			echo "</tls-auth>"
 			;;
 		esac
@@ -1490,7 +1533,7 @@ function selectClient() {
 	local show_expiry="${1:-false}"
 	local client_number
 
-	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V")
+	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V")
 	if [[ $NUMBEROFCLIENTS == '0' ]]; then
 		log_fatal "You have no existing clients!"
 	fi
@@ -1498,16 +1541,16 @@ function selectClient() {
 	if [[ $show_expiry == "true" ]]; then
 		local i=1
 		while read -r client; do
-			local client_cert="/etc/openvpn/easy-rsa/pki/issued/$client.crt"
+			local client_cert="/etc/openvpn/server/easy-rsa/pki/issued/$client.crt"
 			local days
 			days=$(getDaysUntilExpiry "$client_cert")
 			local expiry
 			expiry=$(formatExpiry "$days")
 			echo "     $i) $client $expiry"
 			((i++))
-		done < <(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2)
+		done < <(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2)
 	else
-		tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+		tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
 	fi
 
 	until [[ ${CLIENTNUMBER:-$client_number} -ge 1 && ${CLIENTNUMBER:-$client_number} -le $NUMBEROFCLIENTS ]]; do
@@ -1518,7 +1561,7 @@ function selectClient() {
 		fi
 	done
 	CLIENTNUMBER="${CLIENTNUMBER:-$client_number}"
-	CLIENT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	CLIENT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 }
 
 function newClient() {
@@ -1548,12 +1591,12 @@ function newClient() {
 		read -rp "Select an option [1-2]: " -e -i 1 PASS
 	done
 
-	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
+	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
 	if [[ $CLIENTEXISTS != '0' ]]; then
 		log_error "The specified client CN was already found in easy-rsa, please choose another name."
 		exit
 	else
-		cd /etc/openvpn/easy-rsa/ || return
+		cd /etc/openvpn/server/easy-rsa/ || return
 		log_info "Generating client certificate..."
 		export EASYRSA_CERT_EXPIRE=$CLIENT_CERT_DURATION_DAYS
 		case $PASS in
@@ -1584,14 +1627,14 @@ function revokeClient() {
 	log_prompt "Select the existing client certificate you want to revoke"
 	selectClient
 
-	cd /etc/openvpn/easy-rsa/ || return
+	cd /etc/openvpn/server/easy-rsa/ || return
 	log_info "Revoking certificate for $CLIENT..."
 	run_cmd "Revoking certificate" ./easyrsa --batch revoke-issued "$CLIENT"
 	regenerateCRL
 	run_cmd "Removing client config from /home" find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	run_cmd "Removing client config from /root" rm -f "/root/$CLIENT.ovpn"
-	run_cmd "Removing IP assignment" sed -i "/^$CLIENT,.*/d" /etc/openvpn/ipp.txt
-	run_cmd "Backing up index" cp /etc/openvpn/easy-rsa/pki/index.txt{,.bk}
+	run_cmd "Removing IP assignment" sed -i "/^$CLIENT,.*/d" /etc/openvpn/server/ipp.txt
+	run_cmd "Backing up index" cp /etc/openvpn/server/easy-rsa/pki/index.txt{,.bk}
 
 	log_success "Certificate for client $CLIENT revoked."
 }
@@ -1614,11 +1657,11 @@ function renewClient() {
 		client_cert_duration_days=$CLIENT_CERT_DURATION_DAYS
 	fi
 
-	cd /etc/openvpn/easy-rsa/ || return
+	cd /etc/openvpn/server/easy-rsa/ || return
 	log_info "Renewing certificate for $CLIENT..."
 
 	# Backup the old certificate before renewal
-	run_cmd "Backing up old certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt" "/etc/openvpn/easy-rsa/pki/issued/$CLIENT.crt.bak"
+	run_cmd "Backing up old certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$CLIENT.crt" "/etc/openvpn/server/easy-rsa/pki/issued/$CLIENT.crt.bak"
 
 	# Renew the certificate (keeps the same private key)
 	export EASYRSA_CERT_EXPIRE=$client_cert_duration_days
@@ -1645,10 +1688,10 @@ function renewServer() {
 
 	log_header "Renew Server Certificate"
 
-	# Get the server name from the config
-	server_name=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	# Get the server name from the config (extract basename since path may be relative)
+	server_name=$(basename "$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2)" .crt)
 	if [[ -z "$server_name" ]]; then
-		log_fatal "Could not determine server certificate name from /etc/openvpn/server.conf"
+		log_fatal "Could not determine server certificate name from /etc/openvpn/server/server.conf"
 	fi
 
 	log_prompt "This will renew the server certificate: $server_name"
@@ -1672,11 +1715,11 @@ function renewServer() {
 		server_cert_duration_days=$SERVER_CERT_DURATION_DAYS
 	fi
 
-	cd /etc/openvpn/easy-rsa/ || return
+	cd /etc/openvpn/server/easy-rsa/ || return
 	log_info "Renewing server certificate..."
 
 	# Backup the old certificate before renewal
-	run_cmd "Backing up old certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt" "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt.bak"
+	run_cmd "Backing up old certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt" "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt.bak"
 
 	# Renew the certificate (keeps the same private key)
 	export EASYRSA_CERT_EXPIRE=$server_cert_duration_days
@@ -1688,18 +1731,12 @@ function renewServer() {
 	# Regenerate the CRL
 	regenerateCRL
 
-	# Copy the new certificate to /etc/openvpn/
-	run_cmd "Copying new certificate" cp "/etc/openvpn/easy-rsa/pki/issued/$server_name.crt" /etc/openvpn/
+	# Copy the new certificate to /etc/openvpn/server/
+	run_cmd "Copying new certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt" /etc/openvpn/server/
 
 	# Restart OpenVPN
 	log_info "Restarting OpenVPN service..."
-	if [[ $OS =~ (fedora|arch|centos|oracle) ]]; then
-		run_cmd "Restarting OpenVPN" systemctl restart openvpn-server@server
-	elif [[ $OS == "ubuntu" ]] && [[ $VERSION_ID == "16.04" ]]; then
-		run_cmd "Restarting OpenVPN" systemctl restart openvpn
-	else
-		run_cmd "Restarting OpenVPN" systemctl restart openvpn@server
-	fi
+	run_cmd "Restarting OpenVPN" systemctl restart openvpn-server@server
 
 	log_success "Server certificate renewed successfully and is valid for $server_cert_duration_days days."
 }
@@ -1743,12 +1780,12 @@ function renewMenu() {
 
 	log_header "Certificate Renewal"
 
-	# Get server certificate expiry for menu display
-	server_name=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	# Get server certificate expiry for menu display (extract basename since path may be relative)
+	server_name=$(basename "$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2)" .crt)
 	if [[ -z "$server_name" ]]; then
 		server_expiry="(unknown expiry)"
 	else
-		server_cert="/etc/openvpn/easy-rsa/pki/issued/$server_name.crt"
+		server_cert="/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt"
 		server_days=$(getDaysUntilExpiry "$server_cert")
 		server_expiry=$(formatExpiry "$server_days")
 	fi
@@ -1819,23 +1856,15 @@ function removeOpenVPN() {
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ $REMOVE == 'y' ]]; then
 		# Get OpenVPN port from the configuration
-		PORT=$(grep '^port ' /etc/openvpn/server.conf | cut -d " " -f 2)
-		PROTOCOL=$(grep '^proto ' /etc/openvpn/server.conf | cut -d " " -f 2)
+		PORT=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
+		PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
 		log_info "Stopping OpenVPN service..."
-		if [[ $OS =~ (fedora|arch|centos|oracle) ]]; then
-			run_cmd "Disabling OpenVPN service" systemctl disable openvpn-server@server
-			run_cmd "Stopping OpenVPN service" systemctl stop openvpn-server@server
-			# Remove customised service
-			run_cmd "Removing service file" rm /etc/systemd/system/openvpn-server@.service
-		else
-			# Debian, Ubuntu, openSUSE use openvpn@server
-			run_cmd "Disabling OpenVPN service" systemctl disable openvpn@server
-			run_cmd "Stopping OpenVPN service" systemctl stop openvpn@server
-			# Remove customised service
-			run_cmd "Removing service file" rm /etc/systemd/system/openvpn\@.service
-		fi
+		run_cmd "Disabling OpenVPN service" systemctl disable openvpn-server@server
+		run_cmd "Stopping OpenVPN service" systemctl stop openvpn-server@server
+		# Remove customised service
+		run_cmd "Removing service file" rm -f /etc/systemd/system/openvpn-server@.service
 
 		# Remove the iptables rules related to the script
 		log_info "Removing iptables rules..."
@@ -1946,7 +1975,7 @@ function manageMenu() {
 initialCheck
 
 # Check if OpenVPN is already installed
-if [[ -e /etc/openvpn/server.conf ]]; then
+if [[ -e /etc/openvpn/server/server.conf ]]; then
 	manageMenu
 else
 	installOpenVPN

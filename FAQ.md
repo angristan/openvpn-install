@@ -71,7 +71,7 @@ down /usr/share/openvpn/contrib/pull-resolv-conf/client.down
 - AES CBC
 - tls-auth
 
-If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/server.conf` and `.ovpn` files.
+If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/server/server.conf` and `.ovpn` files.
 
 ---
 
@@ -117,7 +117,7 @@ Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
 
 **Q:** How can I access computers the OpenVPN server's remote LAN?
 
-**A:** Add a route with the subnet of the remote network to `/etc/openvpn/server.conf` and restart OpenVPN. Example: `push "route 192.168.1.0 255.255.255.0"` if the server's LAN is `192.168.1.0/24`
+**A:** Add a route with the subnet of the remote network to `/etc/openvpn/server/server.conf` and restart OpenVPN. Example: `push "route 192.168.1.0 255.255.255.0"` if the server's LAN is `192.168.1.0/24`
 
 ---
 
@@ -145,13 +145,13 @@ done < users.txt
 
 **Q:** How do I change the default `.ovpn` file created for future clients?
 
-**A:** You can edit the template out of which `.ovpn` files are created by editing `/etc/openvpn/client-template.txt`
+**A:** You can edit the template out of which `.ovpn` files are created by editing `/etc/openvpn/server/client-template.txt`
 
 ---
 
 **Q:** For my clients - I want to set my internal network to pass through the VPN and the rest to go through my internet?
 
-**A:** You would need to edit the `.ovpn` file. You can edit the template out of which those files are created by editing `/etc/openvpn/client-template.txt` file and adding
+**A:** You would need to edit the `.ovpn` file. You can edit the template out of which those files are created by editing `/etc/openvpn/server/client-template.txt` file and adding
 
 ```sh
 route-nopull
