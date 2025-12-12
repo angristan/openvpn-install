@@ -99,7 +99,7 @@ if [ -f "$SERVICE_FILE" ]; then
 else
 	echo "FAIL: openvpn-server@.service not found at $SERVICE_FILE"
 	echo "Contents of /etc/systemd/system/:"
-	ls -la /etc/systemd/system/ | grep -i openvpn || echo "No openvpn service files found"
+	find /etc/systemd/system/ -maxdepth 1 -name '*openvpn*' -ls 2>/dev/null || echo "No openvpn service files found"
 	exit 1
 fi
 
