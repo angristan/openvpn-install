@@ -1225,22 +1225,22 @@ push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
 		echo "dh none" >>/etc/openvpn/server/server.conf
 		echo "ecdh-curve $DH_CURVE" >>/etc/openvpn/server/server.conf
 	elif [[ $DH_TYPE == "2" ]]; then
-		echo "dh dh.pem" >>/etc/openvpn/server/server.conf
+		echo "dh /etc/openvpn/server/dh.pem" >>/etc/openvpn/server/server.conf
 	fi
 
 	case $TLS_SIG in
 	1)
-		echo "tls-crypt tls-crypt.key" >>/etc/openvpn/server/server.conf
+		echo "tls-crypt /etc/openvpn/server/tls-crypt.key" >>/etc/openvpn/server/server.conf
 		;;
 	2)
-		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server/server.conf
+		echo "tls-auth /etc/openvpn/server/tls-auth.key 0" >>/etc/openvpn/server/server.conf
 		;;
 	esac
 
-	echo "crl-verify crl.pem
-ca ca.crt
-cert $SERVER_NAME.crt
-key $SERVER_NAME.key
+	echo "crl-verify /etc/openvpn/server/crl.pem
+ca /etc/openvpn/server/ca.crt
+cert /etc/openvpn/server/$SERVER_NAME.crt
+key /etc/openvpn/server/$SERVER_NAME.key
 auth $HMAC_ALG
 cipher $CIPHER
 ignore-unknown-option data-ciphers
