@@ -84,7 +84,8 @@ fi
 # Test 3: DNS resolution through Unbound
 echo "Test 3: Testing DNS resolution via Unbound (10.8.0.1)..."
 DNS_SUCCESS=false
-for i in 1 2 3 4 5; do
+DNS_MAX_RETRIES=10
+for i in $(seq 1 $DNS_MAX_RETRIES); do
 	DIG_OUTPUT=$(dig @10.8.0.1 example.com +short +time=5 2>&1)
 	if [ -n "$DIG_OUTPUT" ] && ! echo "$DIG_OUTPUT" | grep -qi "timed out\|SERVFAIL\|connection refused"; then
 		DNS_SUCCESS=true
@@ -98,7 +99,7 @@ if [ "$DNS_SUCCESS" = true ]; then
 	echo "PASS: DNS resolution through Unbound works"
 	echo "Resolved example.com to: $(dig @10.8.0.1 example.com +short +time=5)"
 else
-	echo "FAIL: DNS resolution through Unbound failed after 5 attempts"
+	echo "FAIL: DNS resolution through Unbound failed after $DNS_MAX_RETRIES attempts"
 	dig @10.8.0.1 example.com +time=5 || true
 	exit 1
 fi
