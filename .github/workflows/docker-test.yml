@@ -181,6 +181,18 @@ jobs:
         if: always()
         run: docker logs openvpn-server 2>&1 || true
 
+      - name: Show systemd journal logs
+        if: always()
+        run: |
+          echo "=== openvpn-test.service status ==="
+          docker exec openvpn-server systemctl status openvpn-test.service 2>&1 || true
+          echo ""
+          echo "=== openvpn-test.service journal ==="
+          docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
+          echo ""
+          echo "=== openvpn-server@server.service journal ==="
+          docker exec openvpn-server journalctl -u openvpn-server@server.service --no-pager -n 50 2>&1 || true
+
       - name: Show install script log
         if: always()
         run: |

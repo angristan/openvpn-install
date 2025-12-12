@@ -78,6 +78,16 @@ fi
 echo "All required files present"
 
 # =====================================================
+# Copy client config to shared volume EARLY
+# This must happen BEFORE verification steps to avoid race condition
+# where the workflow detects OpenVPN running but client config isn't ready yet
+# =====================================================
+cp /root/testclient.ovpn /shared/client.ovpn
+# Modify remote address to use container hostname
+sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
+echo "Client config copied to /shared/client.ovpn (early)"
+
+# =====================================================
 # Verify systemd service file configuration
 # =====================================================
 echo ""
@@ -137,11 +147,8 @@ echo ""
 echo "Server config:"
 cat /etc/openvpn/server/server.conf
 
-# Copy client config to shared volume
-cp /root/testclient.ovpn /shared/client.ovpn
-# Modify remote address to use container hostname
-sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
-echo "Client config copied to /shared/client.ovpn"
+# Note: Client config was already copied to /shared/client.ovpn earlier
+# (right after verifying installation) to avoid race conditions
 
 # =====================================================
 # Test certificate renewal functionality
