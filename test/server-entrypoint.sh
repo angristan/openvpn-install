@@ -404,6 +404,8 @@ if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "1" ]; then
 fi
 
 # Start OpenVPN in background (run from /etc/openvpn/server so relative paths work)
+# OpenVPN starts as root to create TUN device, then drops to user/group from config
+# This matches systemd behavior - permission issues are caught after privilege drop
 cd /etc/openvpn/server
 openvpn --config /etc/openvpn/server/server.conf --log /var/log/openvpn-server.log &
 OPENVPN_PID=$!

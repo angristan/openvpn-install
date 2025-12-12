@@ -1273,6 +1273,14 @@ verb 3" >>/etc/openvpn/server/server.conf
 	# Create log dir
 	run_cmd "Creating log directory" mkdir -p /var/log/openvpn
 
+	# On distros that run OpenVPN as non-root (Fedora, RHEL, Arch), set ownership
+	# so OpenVPN can read config/certs and write to log directory
+	if [[ $OPENVPN_USER != "nobody" ]]; then
+		log_info "Setting ownership for OpenVPN user..."
+		chown -R "$OPENVPN_USER:$OPENVPN_GROUP" /etc/openvpn/server
+		chown "$OPENVPN_USER:$OPENVPN_GROUP" /var/log/openvpn
+	fi
+
 	# Enable routing
 	log_info "Enabling IP forwarding..."
 	run_cmd "Creating sysctl.d directory" mkdir -p /etc/sysctl.d
