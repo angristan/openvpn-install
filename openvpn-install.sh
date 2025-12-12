@@ -1240,6 +1240,8 @@ cert $SERVER_NAME.crt
 key $SERVER_NAME.key
 auth $HMAC_ALG
 cipher $CIPHER
+ignore-unknown-option data-ciphers
+data-ciphers $CIPHER
 ncp-ciphers $CIPHER
 tls-server
 tls-version-min 1.2
@@ -1389,6 +1391,9 @@ verify-x509-name $SERVER_NAME name
 auth $HMAC_ALG
 auth-nocache
 cipher $CIPHER
+ignore-unknown-option data-ciphers
+data-ciphers $CIPHER
+ncp-ciphers $CIPHER
 tls-client
 tls-version-min 1.2
 tls-cipher $CC_CIPHER
