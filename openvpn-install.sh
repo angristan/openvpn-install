@@ -157,11 +157,6 @@ function tunAvailable() {
 	if [ ! -e /dev/net/tun ]; then
 		return 1
 	fi
-	# Device file can exist even if kernel module isn't loaded
-	# Check if TUN actually works by trying to read from it
-	if cat /dev/net/tun 2>&1 | grep -q "No such device"; then
-		return 1
-	fi
 }
 
 function checkOS() {
@@ -243,11 +238,7 @@ function initialCheck() {
 		log_fatal "Sorry, you need to run this script as root."
 	fi
 	if ! tunAvailable; then
-		if [ ! -e /dev/net/tun ]; then
-			log_fatal "TUN is not available. /dev/net/tun does not exist."
-		else
-			log_fatal "TUN device exists but is not functional. The kernel module may not be loaded, or you may need to reboot after a kernel update."
-		fi
+		log_fatal "TUN is not available."
 	fi
 	checkOS
 }
