@@ -1318,14 +1318,20 @@ verb 3" >>/etc/openvpn/server/server.conf
 	# OpenVPN 2.4+ uses openvpn-server@.service with config in /etc/openvpn/server/
 	log_info "Configuring OpenVPN service..."
 
-	# Find the openvpn-server@.service file (location varies by distro)
-	# Modern distros use /usr/lib/systemd/system/, older ones may use /lib/systemd/system/
+	# Find the service file (location and name vary by distro)
+	# Modern distros: openvpn-server@.service in /usr/lib/systemd/system/ or /lib/systemd/system/
+	# openSUSE: openvpn@.service (old-style) that we need to adapt
 	if [[ -f /usr/lib/systemd/system/openvpn-server@.service ]]; then
 		SERVICE_SOURCE="/usr/lib/systemd/system/openvpn-server@.service"
 	elif [[ -f /lib/systemd/system/openvpn-server@.service ]]; then
 		SERVICE_SOURCE="/lib/systemd/system/openvpn-server@.service"
+	elif [[ -f /usr/lib/systemd/system/openvpn@.service ]]; then
+		# openSUSE uses old-style service, we'll create our own openvpn-server@.service
+		SERVICE_SOURCE="/usr/lib/systemd/system/openvpn@.service"
+	elif [[ -f /lib/systemd/system/openvpn@.service ]]; then
+		SERVICE_SOURCE="/lib/systemd/system/openvpn@.service"
 	else
-		log_fatal "Could not find openvpn-server@.service file"
+		log_fatal "Could not find openvpn-server@.service or openvpn@.service file"
 	fi
 
 	# Don't modify package-provided service, copy to /etc/systemd/system/
@@ -1333,6 +1339,12 @@ verb 3" >>/etc/openvpn/server/server.conf
 
 	# Workaround to fix OpenVPN service on OpenVZ
 	run_cmd "Patching service file (LimitNPROC)" sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
+
+	# Ensure the service uses /etc/openvpn/server/ as working directory
+	# This is needed for openSUSE which uses old-style paths by default
+	if grep -q "cd /etc/openvpn/" /etc/systemd/system/openvpn-server@.service; then
+		run_cmd "Patching service file (paths)" sed -i 's|/etc/openvpn/|/etc/openvpn/server/|g' /etc/systemd/system/openvpn-server@.service
+	fi
 
 	run_cmd "Reloading systemd" systemctl daemon-reload
 	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
