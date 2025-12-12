@@ -544,6 +544,8 @@ echo "CRL contents (serial numbers of revoked certs):"
 openssl crl -in /etc/openvpn/server/crl.pem -noout -text 2>&1 | grep -A 100 "Revoked Certificates" | head -20 || echo "ERROR: Cannot read CRL"
 echo "server.conf crl-verify line:"
 grep "crl-verify" /etc/openvpn/server/server.conf || echo "ERROR: No crl-verify in config"
+echo "Full server.conf paths:"
+grep -E "^(crl-verify|ca|cert|key|tls-crypt|tls-auth|dh|client-config-dir) " /etc/openvpn/server/server.conf || true
 echo "=== End CRL Debug Info ==="
 
 # Signal client to try reconnecting (should fail)
