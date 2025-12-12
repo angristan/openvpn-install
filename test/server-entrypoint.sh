@@ -536,6 +536,16 @@ else
 	exit 1
 fi
 
+# Debug: Verify CRL file was updated
+echo "=== CRL Debug Info ==="
+echo "CRL file location: /etc/openvpn/server/crl.pem"
+ls -la /etc/openvpn/server/crl.pem 2>&1 || echo "ERROR: CRL file not found!"
+echo "CRL contents (serial numbers of revoked certs):"
+openssl crl -in /etc/openvpn/server/crl.pem -noout -text 2>&1 | grep -A 100 "Revoked Certificates" | head -20 || echo "ERROR: Cannot read CRL"
+echo "server.conf crl-verify line:"
+grep "crl-verify" /etc/openvpn/server/server.conf || echo "ERROR: No crl-verify in config"
+echo "=== End CRL Debug Info ==="
+
 # Signal client to try reconnecting (should fail)
 touch /shared/revoke-try-reconnect
 
