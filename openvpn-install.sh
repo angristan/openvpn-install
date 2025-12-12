@@ -234,13 +234,21 @@ function checkOS() {
 }
 
 function initialCheck() {
+	log_debug "Checking root privileges..."
 	if ! isRoot; then
 		log_fatal "Sorry, you need to run this script as root."
 	fi
+	log_debug "Root check passed"
+
+	log_debug "Checking TUN device availability..."
 	if ! tunAvailable; then
 		log_fatal "TUN is not available."
 	fi
+	log_debug "TUN device available at /dev/net/tun"
+
+	log_debug "Detecting operating system..."
 	checkOS
+	log_info "Detected OS: $OS (${PRETTY_NAME:-unknown})"
 }
 
 # Check if OpenVPN version is at least the specified version
