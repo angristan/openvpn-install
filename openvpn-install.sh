@@ -157,6 +157,11 @@ function tunAvailable() {
 	if [ ! -e /dev/net/tun ]; then
 		return 1
 	fi
+	# Device file can exist even if kernel module isn't loaded
+	# Check if TUN actually works by trying to read from it
+	if cat /dev/net/tun 2>&1 | grep -q "No such device"; then
+		return 1
+	fi
 }
 
 function checkOS() {
@@ -238,7 +243,11 @@ function initialCheck() {
 		log_fatal "Sorry, you need to run this script as root."
 	fi
 	if ! tunAvailable; then
-		log_fatal "TUN is not available."
+		if [ ! -e /dev/net/tun ]; then
+			log_fatal "TUN is not available. /dev/net/tun does not exist."
+		else
+			log_fatal "TUN device exists but is not functional. The kernel module may not be loaded, or you may need to reboot after a kernel update."
+		fi
 	fi
 	checkOS
 }
@@ -1028,6 +1037,17 @@ function installOpenVPN() {
 	# - Fedora/RHEL/Amazon create 'openvpn' user with 'openvpn' group
 	# - Arch creates 'openvpn' user with 'network' group
 	# - Debian/Ubuntu/openSUSE don't create a dedicated user, use 'nobody'
+	#
+	# Also check if the systemd service file already handles user/group switching.
+	# If so, we shouldn't add user/group to config (would cause double privilege drop).
+	SYSTEMD_HANDLES_USER=false
+	for service_file in /usr/lib/systemd/system/openvpn-server@.service /lib/systemd/system/openvpn-server@.service; do
+		if [[ -f "$service_file" ]] && grep -q "^User=" "$service_file"; then
+			SYSTEMD_HANDLES_USER=true
+			break
+		fi
+	done
+
 	if id openvpn &>/dev/null; then
 		OPENVPN_USER=openvpn
 		# Arch uses 'network' group, others use 'openvpn' group
@@ -1135,10 +1155,13 @@ function installOpenVPN() {
 		echo "duplicate-cn" >>/etc/openvpn/server/server.conf
 	fi
 
-	echo "dev tun
-user $OPENVPN_USER
-group $OPENVPN_GROUP
-persist-key
+	echo "dev tun" >>/etc/openvpn/server/server.conf
+	# Only add user/group if systemd doesn't handle it (avoids double privilege drop)
+	if [[ $SYSTEMD_HANDLES_USER == "false" ]]; then
+		echo "user $OPENVPN_USER
+group $OPENVPN_GROUP" >>/etc/openvpn/server/server.conf
+	fi
+	echo "persist-key
 persist-tun
 keepalive 10 120
 topology subnet
