@@ -1041,12 +1041,8 @@ function installOpenVPN() {
 
 	if id openvpn &>/dev/null; then
 		OPENVPN_USER=openvpn
-		# Arch uses 'network' group, others use 'openvpn' group
-		if grep -qs "^network:" /etc/group; then
-			OPENVPN_GROUP=network
-		else
-			OPENVPN_GROUP=openvpn
-		fi
+		# Get the openvpn user's primary group (e.g., 'openvpn' on Fedora, 'network' on Arch)
+		OPENVPN_GROUP=$(id -gn openvpn 2>/dev/null || echo openvpn)
 	else
 		OPENVPN_USER=nobody
 		if grep -qs "^nogroup:" /etc/group; then
@@ -1287,8 +1283,8 @@ verb 3" >>/etc/openvpn/server/server.conf
 	# Create log dir
 	run_cmd "Creating log directory" mkdir -p /var/log/openvpn
 
-	# On distros that run OpenVPN as non-root (Fedora, RHEL, Arch), set ownership
-	# so OpenVPN can read config/certs and write to log directory
+	# On distros that use a dedicated OpenVPN user (not "nobody"), e.g., Fedora, RHEL, Arch,
+	# set ownership so OpenVPN can read config/certs and write to log directory
 	if [[ $OPENVPN_USER != "nobody" ]]; then
 		log_info "Setting ownership for OpenVPN user..."
 		chown -R "$OPENVPN_USER:$OPENVPN_GROUP" /etc/openvpn/server
