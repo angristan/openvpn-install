@@ -379,7 +379,7 @@ function installUnbound() {
 		elif [[ $OS == "opensuse" ]]; then
 			run_cmd "Installing Unbound" zypper install -y unbound
 		elif [[ $OS == "arch" ]]; then
-			run_cmd "Installing Unbound" pacman -Syu --noconfirm unbound
+			run_cmd "Installing Unbound" pacman -S --noconfirm unbound
 		fi
 	fi
 
@@ -990,7 +990,7 @@ function installOpenVPN() {
 		elif [[ $OS == 'opensuse' ]]; then
 			run_cmd "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl
 		elif [[ $OS == 'arch' ]]; then
-			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl
+			run_cmd "Installing OpenVPN" pacman -S --needed --noconfirm openvpn iptables openssl ca-certificates curl
 		fi
 
 		# Verify ChaCha20-Poly1305 compatibility if selected
