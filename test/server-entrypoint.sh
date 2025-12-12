@@ -236,8 +236,8 @@ echo "=== Client Certificate Renewal Tests PASSED ==="
 echo ""
 echo "=== Testing Server Certificate Renewal ==="
 
-# Get server certificate name and original serial
-SERVER_NAME=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+# Get server certificate name and original serial (extract basename since path may be absolute)
+SERVER_NAME=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//' | xargs basename)
 ORIG_SERVER_SERIAL=$(openssl x509 -in "/etc/openvpn/server/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
 echo "Server certificate: $SERVER_NAME"
 echo "Original server certificate serial: $ORIG_SERVER_SERIAL"

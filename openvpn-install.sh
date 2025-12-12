@@ -1281,27 +1281,26 @@ verb 3" >>/etc/openvpn/server/server.conf
 	# Finally, restart and enable OpenVPN
 	# OpenVPN 2.4+ uses openvpn-server@.service with config in /etc/openvpn/server/
 	log_info "Configuring OpenVPN service..."
-	if [[ $OS == 'arch' || $OS == 'fedora' || $OS == 'centos' || $OS == 'oracle' || $OS == 'amzn2023' ]]; then
-		# Don't modify package-provided service
-		run_cmd "Copying OpenVPN service file" cp /usr/lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
 
-		# Workaround to fix OpenVPN service on OpenVZ
-		run_cmd "Patching service file (LimitNPROC)" sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
-
-		run_cmd "Reloading systemd" systemctl daemon-reload
-		run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
-		run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+	# Find the openvpn-server@.service file (location varies by distro)
+	# Modern distros use /usr/lib/systemd/system/, older ones may use /lib/systemd/system/
+	if [[ -f /usr/lib/systemd/system/openvpn-server@.service ]]; then
+		SERVICE_SOURCE="/usr/lib/systemd/system/openvpn-server@.service"
+	elif [[ -f /lib/systemd/system/openvpn-server@.service ]]; then
+		SERVICE_SOURCE="/lib/systemd/system/openvpn-server@.service"
 	else
-		# Debian/Ubuntu/openSUSE: use openvpn-server@.service (OpenVPN 2.4+ standard)
-		run_cmd "Copying OpenVPN service file" cp /lib/systemd/system/openvpn-server@.service /etc/systemd/system/openvpn-server@.service
-
-		# Workaround to fix OpenVPN service on OpenVZ
-		run_cmd "Patching service file (LimitNPROC)" sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
-
-		run_cmd "Reloading systemd" systemctl daemon-reload
-		run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
-		run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+		log_fatal "Could not find openvpn-server@.service file"
 	fi
+
+	# Don't modify package-provided service, copy to /etc/systemd/system/
+	run_cmd "Copying OpenVPN service file" cp "$SERVICE_SOURCE" /etc/systemd/system/openvpn-server@.service
+
+	# Workaround to fix OpenVPN service on OpenVZ
+	run_cmd "Patching service file (LimitNPROC)" sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
+
+	run_cmd "Reloading systemd" systemctl daemon-reload
+	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
+	run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
 
 	if [[ $DNS == 2 ]]; then
 		installUnbound
@@ -1645,8 +1644,8 @@ function renewServer() {
 
 	log_header "Renew Server Certificate"
 
-	# Get the server name from the config
-	server_name=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	# Get the server name from the config (extract basename since path may be absolute)
+	server_name=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//' | xargs basename)
 	if [[ -z "$server_name" ]]; then
 		log_fatal "Could not determine server certificate name from /etc/openvpn/server/server.conf"
 	fi
@@ -1737,8 +1736,8 @@ function renewMenu() {
 
 	log_header "Certificate Renewal"
 
-	# Get server certificate expiry for menu display
-	server_name=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+	# Get server certificate expiry for menu display (extract basename since path may be absolute)
+	server_name=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//' | xargs basename)
 	if [[ -z "$server_name" ]]; then
 		server_expiry="(unknown expiry)"
 	else
