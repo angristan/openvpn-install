@@ -43,6 +43,27 @@ COPY test/server-entrypoint.sh /entrypoint.sh
 COPY test/validate-output.sh /opt/test/validate-output.sh
 RUN chmod +x /entrypoint.sh /opt/test/validate-output.sh
 
+# Create systemd service for the test script
+RUN printf '%s\n' \
+    '[Unit]' \
+    'Description=OpenVPN Installation Test' \
+    'After=network.target' \
+    '' \
+    '[Service]' \
+    'Type=oneshot' \
+    'Environment=HOME=/root' \
+    'WorkingDirectory=/root' \
+    'ExecStart=/entrypoint.sh' \
+    'RemainAfterExit=yes' \
+    'StandardOutput=journal+console' \
+    'StandardError=journal+console' \
+    '' \
+    '[Install]' \
+    'WantedBy=multi-user.target' \
+    > /etc/systemd/system/openvpn-test.service \
+    && systemctl enable openvpn-test.service
+
 WORKDIR /opt
 
-ENTRYPOINT ["/entrypoint.sh"]
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
