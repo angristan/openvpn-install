@@ -65,12 +65,12 @@ fi
 echo "Verifying installation..."
 MISSING_FILES=0
 for f in \
-	/etc/openvpn/server.conf \
-	/etc/openvpn/ca.crt \
-	/etc/openvpn/ca.key \
-	/etc/openvpn/tls-crypt.key \
-	/etc/openvpn/crl.pem \
-	/etc/openvpn/easy-rsa/pki/ca.crt \
+	/etc/openvpn/server/server.conf \
+	/etc/openvpn/server/ca.crt \
+	/etc/openvpn/server/ca.key \
+	/etc/openvpn/server/tls-crypt.key \
+	/etc/openvpn/server/crl.pem \
+	/etc/openvpn/server/easy-rsa/pki/ca.crt \
 	/etc/iptables/add-openvpn-rules.sh \
 	/root/testclient.ovpn; do
 	if [ ! -f "$f" ]; then
@@ -87,7 +87,7 @@ fi
 echo "All required files present"
 echo ""
 echo "Server config:"
-cat /etc/openvpn/server.conf
+cat /etc/openvpn/server/server.conf
 
 # Copy client config to shared volume
 cp /root/testclient.ovpn /shared/client.ovpn
@@ -102,7 +102,7 @@ echo ""
 echo "=== Testing Certificate Renewal ==="
 
 # Get the original certificate serial number for comparison
-ORIG_CERT_SERIAL=$(openssl x509 -in /etc/openvpn/easy-rsa/pki/issued/testclient.crt -noout -serial | cut -d= -f2)
+ORIG_CERT_SERIAL=$(openssl x509 -in /etc/openvpn/server/easy-rsa/pki/issued/testclient.crt -noout -serial | cut -d= -f2)
 echo "Original client certificate serial: $ORIG_CERT_SERIAL"
 
 # Test client certificate renewal using the script
@@ -120,7 +120,7 @@ else
 fi
 
 # Verify new certificate has different serial
-NEW_CERT_SERIAL=$(openssl x509 -in /etc/openvpn/easy-rsa/pki/issued/testclient.crt -noout -serial | cut -d= -f2)
+NEW_CERT_SERIAL=$(openssl x509 -in /etc/openvpn/server/easy-rsa/pki/issued/testclient.crt -noout -serial | cut -d= -f2)
 echo "New client certificate serial: $NEW_CERT_SERIAL"
 if [ "$ORIG_CERT_SERIAL" != "$NEW_CERT_SERIAL" ]; then
 	echo "PASS: Certificate serial changed (renewal created new cert)"
@@ -131,8 +131,8 @@ fi
 
 # Verify renewed certificate has correct validity period
 # The default is 3650 days, so the cert should be valid for ~10 years from now
-CLIENT_CERT_NOT_AFTER=$(openssl x509 -in /etc/openvpn/easy-rsa/pki/issued/testclient.crt -noout -enddate | cut -d= -f2)
-CLIENT_CERT_NOT_BEFORE=$(openssl x509 -in /etc/openvpn/easy-rsa/pki/issued/testclient.crt -noout -startdate | cut -d= -f2)
+CLIENT_CERT_NOT_AFTER=$(openssl x509 -in /etc/openvpn/server/easy-rsa/pki/issued/testclient.crt -noout -enddate | cut -d= -f2)
+CLIENT_CERT_NOT_BEFORE=$(openssl x509 -in /etc/openvpn/server/easy-rsa/pki/issued/testclient.crt -noout -startdate | cut -d= -f2)
 echo "Client certificate valid from: $CLIENT_CERT_NOT_BEFORE"
 echo "Client certificate valid until: $CLIENT_CERT_NOT_AFTER"
 
@@ -159,7 +159,7 @@ else
 fi
 
 # Verify CRL was updated
-if [ -f /etc/openvpn/crl.pem ]; then
+if [ -f /etc/openvpn/server/crl.pem ]; then
 	echo "PASS: CRL file exists"
 else
 	echo "FAIL: CRL file missing after renewal"
@@ -180,8 +180,8 @@ echo ""
 echo "=== Testing Server Certificate Renewal ==="
 
 # Get server certificate name and original serial
-SERVER_NAME=$(grep '^cert ' /etc/openvpn/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
-ORIG_SERVER_SERIAL=$(openssl x509 -in "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
+SERVER_NAME=$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2 | sed 's/\.crt$//')
+ORIG_SERVER_SERIAL=$(openssl x509 -in "/etc/openvpn/server/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
 echo "Server certificate: $SERVER_NAME"
 echo "Original server certificate serial: $ORIG_SERVER_SERIAL"
 
@@ -200,7 +200,7 @@ else
 fi
 
 # Verify new certificate has different serial
-NEW_SERVER_SERIAL=$(openssl x509 -in "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
+NEW_SERVER_SERIAL=$(openssl x509 -in "/etc/openvpn/server/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
 echo "New server certificate serial: $NEW_SERVER_SERIAL"
 if [ "$ORIG_SERVER_SERIAL" != "$NEW_SERVER_SERIAL" ]; then
 	echo "PASS: Server certificate serial changed (renewal created new cert)"
@@ -210,8 +210,8 @@ else
 fi
 
 # Verify renewed server certificate has correct validity period
-SERVER_CERT_NOT_AFTER=$(openssl x509 -in "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -enddate | cut -d= -f2)
-SERVER_CERT_NOT_BEFORE=$(openssl x509 -in "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -startdate | cut -d= -f2)
+SERVER_CERT_NOT_AFTER=$(openssl x509 -in "/etc/openvpn/server/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -enddate | cut -d= -f2)
+SERVER_CERT_NOT_BEFORE=$(openssl x509 -in "/etc/openvpn/server/easy-rsa/pki/issued/$SERVER_NAME.crt" -noout -startdate | cut -d= -f2)
 echo "Server certificate valid from: $SERVER_CERT_NOT_BEFORE"
 echo "Server certificate valid until: $SERVER_CERT_NOT_AFTER"
 
@@ -227,17 +227,17 @@ else
 	exit 1
 fi
 
-# Verify the new certificate was copied to /etc/openvpn/
-if [ -f "/etc/openvpn/$SERVER_NAME.crt" ]; then
-	DEPLOYED_SERIAL=$(openssl x509 -in "/etc/openvpn/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
+# Verify the new certificate was copied to /etc/openvpn/server/
+if [ -f "/etc/openvpn/server/$SERVER_NAME.crt" ]; then
+	DEPLOYED_SERIAL=$(openssl x509 -in "/etc/openvpn/server/$SERVER_NAME.crt" -noout -serial | cut -d= -f2)
 	if [ "$NEW_SERVER_SERIAL" = "$DEPLOYED_SERIAL" ]; then
-		echo "PASS: New server certificate deployed to /etc/openvpn/"
+		echo "PASS: New server certificate deployed to /etc/openvpn/server/"
 	else
 		echo "FAIL: Deployed certificate doesn't match renewed certificate"
 		exit 1
 	fi
 else
-	echo "FAIL: Server certificate not found in /etc/openvpn/"
+	echo "FAIL: Server certificate not found in /etc/openvpn/server/"
 	exit 1
 fi
 
@@ -309,11 +309,11 @@ else
 fi
 
 # Verify OpenVPN pushes correct DNS
-if grep -q 'push "dhcp-option DNS 10.8.0.1"' /etc/openvpn/server.conf; then
+if grep -q 'push "dhcp-option DNS 10.8.0.1"' /etc/openvpn/server/server.conf; then
 	echo "PASS: OpenVPN configured to push Unbound DNS"
 else
 	echo "FAIL: OpenVPN not configured to push Unbound DNS"
-	grep "dhcp-option DNS" /etc/openvpn/server.conf || echo "No DNS push found"
+	grep "dhcp-option DNS" /etc/openvpn/server/server.conf || echo "No DNS push found"
 	exit 1
 fi
 
@@ -346,9 +346,9 @@ if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "1" ]; then
 	}
 fi
 
-# Start OpenVPN in background (run from /etc/openvpn so relative paths work)
-cd /etc/openvpn
-openvpn --config /etc/openvpn/server.conf --log /var/log/openvpn-server.log &
+# Start OpenVPN in background (run from /etc/openvpn/server so relative paths work)
+cd /etc/openvpn/server
+openvpn --config /etc/openvpn/server/server.conf --log /var/log/openvpn-server.log &
 OPENVPN_PID=$!
 
 # Wait for OpenVPN to start
@@ -453,10 +453,10 @@ echo "Revoking certificate for '$REVOKE_CLIENT'..."
 REVOKE_OUTPUT="/tmp/revoke-output.log"
 # MENU_OPTION=2 is revoke, CLIENTNUMBER is dynamically determined from index.txt
 # We need to find the client number for revoketest
-REVOKE_CLIENT_NUM=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep "^V" | grep -n "CN=$REVOKE_CLIENT\$" | cut -d: -f1)
+REVOKE_CLIENT_NUM=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | grep -n "CN=$REVOKE_CLIENT\$" | cut -d: -f1)
 if [ -z "$REVOKE_CLIENT_NUM" ]; then
 	echo "ERROR: Could not find client number for '$REVOKE_CLIENT'"
-	cat /etc/openvpn/easy-rsa/pki/index.txt
+	cat /etc/openvpn/server/easy-rsa/pki/index.txt
 	exit 1
 fi
 echo "Revoke client number: $REVOKE_CLIENT_NUM"
@@ -471,11 +471,11 @@ else
 fi
 
 # Verify certificate is marked as revoked in index.txt
-if tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -q "^R.*CN=$REVOKE_CLIENT\$"; then
+if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -q "^R.*CN=$REVOKE_CLIENT\$"; then
 	echo "PASS: Certificate marked as revoked in index.txt"
 else
 	echo "FAIL: Certificate not marked as revoked"
-	cat /etc/openvpn/easy-rsa/pki/index.txt
+	cat /etc/openvpn/server/easy-rsa/pki/index.txt
 	exit 1
 fi
 
@@ -520,23 +520,23 @@ else
 fi
 
 # Verify the new certificate is valid (V) in index.txt
-if tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -q "^V.*CN=$REVOKE_CLIENT\$"; then
+if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -q "^V.*CN=$REVOKE_CLIENT\$"; then
 	echo "PASS: New certificate is valid in index.txt"
 else
 	echo "FAIL: New certificate not marked as valid"
-	cat /etc/openvpn/easy-rsa/pki/index.txt
+	cat /etc/openvpn/server/easy-rsa/pki/index.txt
 	exit 1
 fi
 
 # Verify there's also a revoked entry (both should exist)
-REVOKED_COUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^R.*CN=$REVOKE_CLIENT\$")
-VALID_COUNT=$(tail -n +2 /etc/openvpn/easy-rsa/pki/index.txt | grep -c "^V.*CN=$REVOKE_CLIENT\$")
+REVOKED_COUNT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^R.*CN=$REVOKE_CLIENT\$")
+VALID_COUNT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V.*CN=$REVOKE_CLIENT\$")
 echo "Certificates for '$REVOKE_CLIENT': $REVOKED_COUNT revoked, $VALID_COUNT valid"
 if [ "$REVOKED_COUNT" -ge 1 ] && [ "$VALID_COUNT" -eq 1 ]; then
 	echo "PASS: Both revoked and new valid certificate entries exist"
 else
 	echo "FAIL: Unexpected certificate state"
-	cat /etc/openvpn/easy-rsa/pki/index.txt
+	cat /etc/openvpn/server/easy-rsa/pki/index.txt
 	exit 1
 fi
 
