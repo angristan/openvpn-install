@@ -978,19 +978,19 @@ function installOpenVPN() {
 
 		log_info "Installing OpenVPN and dependencies..."
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			run_cmd "Installing OpenVPN" apt-get install -y openvpn iptables openssl curl ca-certificates
+			run_cmd "Installing OpenVPN" apt-get install -y openvpn iptables openssl curl ca-certificates tar dnsutils
 		elif [[ $OS == 'centos' ]]; then
-			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar 'policycoreutils-python*'
+			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar policycoreutils-python-utils
+			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils policycoreutils-python-utils
 		elif [[ $OS == 'amzn2023' ]]; then
-			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl
+			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils
 		elif [[ $OS == 'fedora' ]]; then
-			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl policycoreutils-python-utils
+			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils policycoreutils-python-utils
 		elif [[ $OS == 'opensuse' ]]; then
-			run_cmd "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl
+			run_cmd "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl tar bind-utils
 		elif [[ $OS == 'arch' ]]; then
-			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl
+			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl tar bind
 		fi
 
 		# Verify ChaCha20-Poly1305 compatibility if selected
