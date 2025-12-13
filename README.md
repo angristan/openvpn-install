@@ -122,6 +122,7 @@ The following Bash script adds a new user `foo` to an existing OpenVPN configura
 export MENU_OPTION="1"
 export CLIENT="foo"
 export PASS="1" # set to "2" for a password-protected client, and set PASSPHRASE
+export CLIENT_FILEPATH="" # optional, custom path for .ovpn file
 ./openvpn-install.sh
 ```
 
