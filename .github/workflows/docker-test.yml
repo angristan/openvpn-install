@@ -98,6 +98,15 @@ jobs:
               name: tls-crypt-v2
               sig: "1"
               key_file: tls-crypt-v2.key
+          # Test nftables support on Debian
+          - os:
+              name: debian-12-nftables
+              image: debian:12
+              enable_nftables: true
+            tls:
+              name: tls-crypt-v2
+              sig: "1"
+              key_file: tls-crypt-v2.key
 
     name: ${{ matrix.os.name }}
     steps:
@@ -113,6 +122,7 @@ jobs:
           docker build \
             --build-arg BASE_IMAGE=${{ matrix.os.image }} \
             --build-arg ENABLE_FIREWALLD=${{ matrix.os.enable_firewalld && 'y' || 'n' }} \
+            --build-arg ENABLE_NFTABLES=${{ matrix.os.enable_nftables && 'y' || 'n' }} \
             -t openvpn-server \
             -f test/Dockerfile.server .
 

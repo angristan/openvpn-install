@@ -87,9 +87,11 @@ REQUIRED_FILES=(
 	/etc/openvpn/server/easy-rsa/pki/ca.crt
 	/root/testclient.ovpn
 )
-# Only check for iptables script if firewalld is not active
-if ! systemctl is-active --quiet firewalld; then
+# Only check for iptables script if firewalld and nftables are not active
+if ! systemctl is-active --quiet firewalld && ! systemctl is-active --quiet nftables; then
 	REQUIRED_FILES+=(/etc/iptables/add-openvpn-rules.sh)
+elif systemctl is-active --quiet nftables; then
+	REQUIRED_FILES+=(/etc/nftables/openvpn.nft)
 fi
 
 for f in "${REQUIRED_FILES[@]}"; do
@@ -420,6 +422,46 @@ if systemctl is-active --quiet firewalld; then
 		echo "FAIL: VPN subnet rich rule not found in firewalld"
 		echo "Current rich rules:"
 		firewall-cmd --list-rich-rules
+		exit 1
+	fi
+elif systemctl is-active --quiet nftables; then
+	# nftables mode - verify OpenVPN tables exist
+	echo "nftables detected, checking OpenVPN tables..."
+	for _ in $(seq 1 10); do
+		if nft list table inet openvpn >/dev/null 2>&1; then
+			echo "PASS: nftables 'inet openvpn' table exists"
+			break
+		fi
+		sleep 1
+	done
+	if ! nft list table inet openvpn >/dev/null 2>&1; then
+		echo "FAIL: nftables 'inet openvpn' table not found"
+		echo "Current nftables ruleset:"
+		nft list ruleset 2>&1 || true
+		exit 1
+	fi
+	# Verify NAT table exists
+	if nft list table ip openvpn-nat >/dev/null 2>&1; then
+		echo "PASS: nftables 'ip openvpn-nat' table exists"
+	else
+		echo "FAIL: nftables 'ip openvpn-nat' table not found"
+		nft list ruleset 2>&1 || true
+		exit 1
+	fi
+	# Verify masquerade rule exists
+	if nft list table ip openvpn-nat | grep -q "masquerade"; then
+		echo "PASS: nftables masquerade rule exists"
+	else
+		echo "FAIL: nftables masquerade rule not found"
+		nft list table ip openvpn-nat 2>&1 || true
+		exit 1
+	fi
+	# Verify include in nftables.conf
+	if grep -q 'include.*/etc/nftables/openvpn.nft' /etc/nftables.conf; then
+		echo "PASS: OpenVPN rules included in nftables.conf"
+	else
+		echo "FAIL: OpenVPN rules not included in nftables.conf"
+		cat /etc/nftables.conf 2>&1 || true
 		exit 1
 	fi
 else
