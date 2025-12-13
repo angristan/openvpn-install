@@ -1549,7 +1549,7 @@ verb 3" >>/etc/openvpn/server/client-template.txt
 # Helper function to get the home directory for storing client configs
 function getHomeDir() {
 	local client="$1"
-	if [ -e "/home/${client}" ]; then
+	if [ -d "/home/${client}" ]; then
 		echo "/home/${client}"
 	elif [ "${SUDO_USER}" ]; then
 		if [ "${SUDO_USER}" == "root" ]; then
@@ -1589,7 +1589,7 @@ function setClientConfigPermissions() {
 # Helper function to write client config file with proper path and permissions
 # Usage: writeClientConfig <client_name>
 # Uses CLIENT_FILEPATH env var if set, otherwise defaults to home directory
-# Returns: sets GENERATED_CONFIG_PATH variable with the final path
+# Side effects: sets GENERATED_CONFIG_PATH global variable with the final path
 function writeClientConfig() {
 	local client="$1"
 	local clientFilePath
@@ -1601,7 +1601,7 @@ function writeClientConfig() {
 		local parentDir
 		parentDir=$(dirname "$clientFilePath")
 		if [[ ! -d "$parentDir" ]]; then
-			run_cmd "Creating directory $parentDir" mkdir -p "$parentDir"
+			run_cmd_fatal "Creating directory $parentDir" mkdir -p "$parentDir"
 		fi
 	else
 		local homeDir
