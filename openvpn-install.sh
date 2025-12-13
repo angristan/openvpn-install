@@ -1584,13 +1584,18 @@ function generateClientConfig() {
 
 		case $tls_sig in
 		1)
-			# Generate per-client tls-crypt-v2 key
-			openvpn --tls-crypt-v2 /etc/openvpn/server/tls-crypt-v2.key \
-				--genkey tls-crypt-v2-client /tmp/"$client"-tls-crypt-v2.key
+			# Generate per-client tls-crypt-v2 key using secure temp file
+			tls_crypt_v2_tmpfile=$(mktemp)
+			if ! openvpn --tls-crypt-v2 /etc/openvpn/server/tls-crypt-v2.key \
+				--genkey tls-crypt-v2-client "$tls_crypt_v2_tmpfile"; then
+				rm -f "$tls_crypt_v2_tmpfile"
+				log_error "Failed to generate tls-crypt-v2 client key"
+				exit 1
+			fi
 			echo "<tls-crypt-v2>"
-			cat /tmp/"$client"-tls-crypt-v2.key
+			cat "$tls_crypt_v2_tmpfile"
 			echo "</tls-crypt-v2>"
-			rm -f /tmp/"$client"-tls-crypt-v2.key
+			rm -f "$tls_crypt_v2_tmpfile"
 			;;
 		2)
 			echo "<tls-crypt>"

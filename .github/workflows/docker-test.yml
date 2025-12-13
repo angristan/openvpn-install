@@ -174,8 +174,18 @@ jobs:
             sleep 5
           done
 
-          # Final verification
-          if ! docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
+          # Final verification with retry (handles race condition during cert renewal restart)
+          OPENVPN_STARTED=false
+          for retry in {1..5}; do
+            if docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
+              OPENVPN_STARTED=true
+              break
+            fi
+            echo "Waiting for OpenVPN process... (retry $retry/5)"
+            sleep 2
+          done
+
+          if [ "$OPENVPN_STARTED" = false ]; then
             echo "ERROR: OpenVPN server failed to start"
             docker exec openvpn-server systemctl status openvpn-server@server 2>&1 || true
             docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
