@@ -1170,11 +1170,11 @@ function installOpenVPN() {
 			;;
 		2)
 			# Generate tls-crypt key
-			run_cmd_fatal "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/server/tls-crypt.key
+			run_cmd_fatal "Generating tls-crypt key" openvpn --genkey secret /etc/openvpn/server/tls-crypt.key
 			;;
 		3)
 			# Generate tls-auth key
-			run_cmd_fatal "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/server/tls-auth.key
+			run_cmd_fatal "Generating tls-auth key" openvpn --genkey secret /etc/openvpn/server/tls-auth.key
 			;;
 		esac
 	else
