@@ -1436,8 +1436,52 @@ verb 3" >>/etc/openvpn/server/server.conf
 		fi
 
 		run_cmd "Reloading firewalld" firewall-cmd --reload
+	elif systemctl is-active --quiet nftables; then
+		# Use nftables native rules for systems with nftables active
+		log_info "nftables detected, configuring nftables rules..."
+		run_cmd_fatal "Creating nftables directory" mkdir -p /etc/nftables
+
+		# Create nftables rules file
+		echo "table inet openvpn {
+	chain input {
+		type filter hook input priority 0; policy accept;
+		iifname \"tun0\" accept
+		iifname \"$NIC\" $PROTOCOL dport $PORT accept
+	}
+
+	chain forward {
+		type filter hook forward priority 0; policy accept;
+		iifname \"$NIC\" oifname \"tun0\" accept
+		iifname \"tun0\" oifname \"$NIC\" accept
+	}
+}
+
+table ip openvpn-nat {
+	chain postrouting {
+		type nat hook postrouting priority 100; policy accept;
+		ip saddr 10.8.0.0/24 oifname \"$NIC\" masquerade
+	}
+}" >/etc/nftables/openvpn.nft
+
+		if [[ $IPV6_SUPPORT == 'y' ]]; then
+			echo "
+table ip6 openvpn-nat {
+	chain postrouting {
+		type nat hook postrouting priority 100; policy accept;
+		ip6 saddr fd42:42:42:42::/112 oifname \"$NIC\" masquerade
+	}
+}" >>/etc/nftables/openvpn.nft
+		fi
+
+		# Add include to nftables.conf if not already present
+		if ! grep -q 'include.*/etc/nftables/openvpn.nft' /etc/nftables.conf; then
+			run_cmd "Adding include to nftables.conf" sh -c 'echo "include \"/etc/nftables/openvpn.nft\"" >> /etc/nftables.conf'
+		fi
+
+		# Reload nftables to apply rules
+		run_cmd "Reloading nftables" systemctl reload nftables
 	else
-		# Use iptables for systems without firewalld
+		# Use iptables for systems without firewalld or nftables
 		run_cmd_fatal "Creating iptables directory" mkdir -p /etc/iptables
 
 		# Script to add rules
@@ -2143,6 +2187,14 @@ function removeOpenVPN() {
 			run_cmd "Removing VPN subnet rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept' 2>/dev/null || true
 			run_cmd "Removing IPv6 source rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept' 2>/dev/null || true
 			run_cmd "Reloading firewalld" firewall-cmd --reload
+		elif [[ -f /etc/nftables/openvpn.nft ]]; then
+			# nftables was used
+			# Delete tables (suppress errors in case tables don't exist)
+			nft delete table inet openvpn 2>/dev/null || true
+			nft delete table ip openvpn-nat 2>/dev/null || true
+			nft delete table ip6 openvpn-nat 2>/dev/null || true
+			run_cmd "Removing include from nftables.conf" sed -i '/include.*openvpn\.nft/d' /etc/nftables.conf
+			run_cmd "Removing nftables rules file" rm -f /etc/nftables/openvpn.nft
 		elif [[ -f /etc/systemd/system/iptables-openvpn.service ]]; then
 			# iptables was used
 			run_cmd "Stopping iptables service" systemctl stop iptables-openvpn

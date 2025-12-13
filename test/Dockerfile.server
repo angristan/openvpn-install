@@ -7,38 +7,54 @@ FROM ${BASE_IMAGE}
 ARG BASE_IMAGE
 # Set to "y" to install and enable firewalld for testing
 ARG ENABLE_FIREWALLD=n
+# Set to "y" to install and enable nftables for testing
+ARG ENABLE_NFTABLES=n
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ENABLE_FIREWALLD=${ENABLE_FIREWALLD}
+ENV ENABLE_NFTABLES=${ENABLE_NFTABLES}
 
 # Install basic dependencies based on the OS
 # dnsutils/bind-utils provides dig for DNS testing with Unbound
 RUN if command -v apt-get >/dev/null; then \
         apt-get update && apt-get install -y --no-install-recommends \
             iproute2 iptables curl procps systemd systemd-sysv dnsutils \
+        && if [ "$ENABLE_NFTABLES" = "y" ]; then apt-get install -y --no-install-recommends nftables; fi \
         && rm -rf /var/lib/apt/lists/*; \
     elif command -v dnf >/dev/null; then \
         dnf install -y --allowerasing \
             iproute iptables curl procps-ng systemd tar gzip bind-utils \
         && if [ "$ENABLE_FIREWALLD" = "y" ]; then dnf install -y firewalld; fi \
+        && if [ "$ENABLE_NFTABLES" = "y" ]; then dnf install -y nftables; fi \
         && dnf clean all; \
     elif command -v yum >/dev/null; then \
         yum install -y \
             iproute iptables curl procps-ng systemd tar gzip bind-utils \
         && if [ "$ENABLE_FIREWALLD" = "y" ]; then yum install -y firewalld; fi \
+        && if [ "$ENABLE_NFTABLES" = "y" ]; then yum install -y nftables; fi \
         && yum clean all; \
     elif command -v pacman >/dev/null; then \
         pacman -Syu --noconfirm \
             iproute2 iptables curl procps-ng bind \
+        && if [ "$ENABLE_NFTABLES" = "y" ]; then pacman -S --noconfirm nftables; fi \
         && pacman -Scc --noconfirm; \
     elif command -v zypper >/dev/null; then \
         zypper install -y \
             iproute2 iptables curl procps systemd tar gzip bind-utils gawk \
+        && if [ "$ENABLE_NFTABLES" = "y" ]; then zypper install -y nftables; fi \
         && zypper clean -a; \
     fi
 
 # Enable firewalld if requested (must be done after systemd is available)
 RUN if [ "$ENABLE_FIREWALLD" = "y" ] && command -v firewall-cmd >/dev/null; then \
         systemctl enable firewalld; \
+    fi
+
+# Enable nftables if requested (must be done after systemd is available)
+# Use empty nftables.conf - do NOT flush ruleset as it removes Docker's networking rules
+RUN if [ "$ENABLE_NFTABLES" = "y" ] && command -v nft >/dev/null; then \
+        systemctl enable nftables; \
+        mkdir -p /etc/nftables; \
+        echo '#!/usr/sbin/nft -f' > /etc/nftables.conf; \
     fi
 
 # Create TUN device (will be mounted at runtime)
