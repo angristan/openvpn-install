@@ -22,10 +22,32 @@ export PORT_CHOICE=1
 export PROTOCOL_CHOICE=1
 export DNS=2 # Self-hosted Unbound DNS resolver
 export COMPRESSION_ENABLED=n
-export CUSTOMIZE_ENC=n
 export CLIENT=testclient
 export PASS=1
 export ENDPOINT=openvpn-server
+
+# TLS key type configuration (default: tls-crypt-v2)
+# TLS_SIG: 1=tls-crypt-v2, 2=tls-crypt, 3=tls-auth
+# TLS_KEY_FILE: the expected key file name for verification
+TLS_SIG="${TLS_SIG:-1}"
+TLS_KEY_FILE="${TLS_KEY_FILE:-tls-crypt-v2.key}"
+export TLS_SIG
+
+# If using non-default TLS settings, enable encryption customization
+if [ "$TLS_SIG" != "1" ]; then
+	export CUSTOMIZE_ENC=y
+	# Set other encryption defaults when customizing
+	export CIPHER_CHOICE=1     # AES-128-GCM
+	export CERT_TYPE=1         # ECDSA
+	export CERT_CURVE_CHOICE=1 # prime256v1
+	export CC_CIPHER_CHOICE=1  # ECDHE-ECDSA-AES-128-GCM-SHA256
+	export DH_TYPE=1           # ECDH
+	export DH_CURVE_CHOICE=1   # prime256v1
+	export HMAC_ALG_CHOICE=1   # SHA-256
+	echo "Testing TLS key type: $TLS_SIG (key file: $TLS_KEY_FILE)"
+else
+	export CUSTOMIZE_ENC=n
+fi
 
 echo "Running OpenVPN install script..."
 # Run in subshell because the script calls 'exit 0' after generating client config
@@ -59,7 +81,7 @@ for f in \
 	/etc/openvpn/server/server.conf \
 	/etc/openvpn/server/ca.crt \
 	/etc/openvpn/server/ca.key \
-	/etc/openvpn/server/tls-crypt.key \
+	"/etc/openvpn/server/$TLS_KEY_FILE" \
 	/etc/openvpn/server/crl.pem \
 	/etc/openvpn/server/easy-rsa/pki/ca.crt \
 	/etc/iptables/add-openvpn-rules.sh \

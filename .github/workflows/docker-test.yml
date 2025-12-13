@@ -68,6 +68,27 @@ jobs:
             image: oraclelinux:10
           - name: amazonlinux-2023
             image: amazonlinux:2023
+        # Default TLS settings (tls-crypt-v2)
+        tls:
+          - name: tls-crypt-v2
+            sig: "1"
+            key_file: tls-crypt-v2.key
+        # Additional TLS types tested on Ubuntu 24.04 only
+        include:
+          - os:
+              name: ubuntu-24.04-tls-crypt
+              image: ubuntu:24.04
+            tls:
+              name: tls-crypt
+              sig: "2"
+              key_file: tls-crypt.key
+          - os:
+              name: ubuntu-24.04-tls-auth
+              image: ubuntu:24.04
+            tls:
+              name: tls-auth
+              sig: "3"
+              key_file: tls-auth.key
 
     name: ${{ matrix.os.name }}
     steps:
@@ -110,6 +131,8 @@ jobs:
             --tmpfs /run \
             --tmpfs /run/lock \
             --stop-signal SIGRTMIN+3 \
+            -e TLS_SIG=${{ matrix.tls.sig }} \
+            -e TLS_KEY_FILE=${{ matrix.tls.key_file }} \
             openvpn-server
 
       - name: Wait for server installation and startup
@@ -151,8 +174,18 @@ jobs:
             sleep 5
           done
 
-          # Final verification
-          if ! docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
+          # Final verification with retry (handles race condition during cert renewal restart)
+          OPENVPN_STARTED=false
+          for retry in {1..5}; do
+            if docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
+              OPENVPN_STARTED=true
+              break
+            fi
+            echo "Waiting for OpenVPN process... (retry $retry/5)"
+            sleep 2
+          done
+
+          if [ "$OPENVPN_STARTED" = false ]; then
             echo "ERROR: OpenVPN server failed to start"
             docker exec openvpn-server systemctl status openvpn-server@server 2>&1 || true
             docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true

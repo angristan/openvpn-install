@@ -749,7 +749,7 @@ function installQuestions() {
 		DH_TYPE="1" # ECDH
 		DH_CURVE="prime256v1"
 		HMAC_ALG="SHA256"
-		TLS_SIG="1" # tls-crypt
+		TLS_SIG="1" # tls-crypt-v2
 	else
 		log_menu ""
 		log_prompt "Choose which cipher you want to use for the data channel:"
@@ -956,12 +956,12 @@ function installQuestions() {
 			;;
 		esac
 		log_menu ""
-		log_prompt "You can add an additional layer of security to the control channel with tls-auth and tls-crypt"
-		log_prompt "tls-auth authenticates the packets, while tls-crypt authenticate and encrypt them."
-		log_menu "   1) tls-crypt (recommended)"
-		log_menu "   2) tls-auth"
-		until [[ $TLS_SIG =~ [1-2] ]]; do
-			read -rp "Control channel additional security mechanism [1-2]: " -e -i 1 TLS_SIG
+		log_prompt "You can add an additional layer of security to the control channel."
+		log_menu "   1) tls-crypt-v2 (recommended): Encrypts control channel, unique key per client"
+		log_menu "   2) tls-crypt: Encrypts control channel, shared key for all clients"
+		log_menu "   3) tls-auth: Authenticates control channel, no encryption"
+		until [[ $TLS_SIG =~ ^[1-3]$ ]]; do
+			read -rp "Control channel additional security mechanism [1-3]: " -e -i 1 TLS_SIG
 		done
 	fi
 	log_menu ""
@@ -1170,10 +1170,14 @@ function installOpenVPN() {
 		log_info "Generating TLS key..."
 		case $TLS_SIG in
 		1)
+			# Generate tls-crypt-v2 server key
+			run_cmd_fatal "Generating tls-crypt-v2 server key" openvpn --genkey tls-crypt-v2-server /etc/openvpn/server/tls-crypt-v2.key
+			;;
+		2)
 			# Generate tls-crypt key
 			run_cmd_fatal "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/server/tls-crypt.key
 			;;
-		2)
+		3)
 			# Generate tls-auth key
 			run_cmd_fatal "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/server/tls-auth.key
 			;;
@@ -1320,9 +1324,12 @@ push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
 
 	case $TLS_SIG in
 	1)
-		echo "tls-crypt tls-crypt.key" >>/etc/openvpn/server/server.conf
+		echo "tls-crypt-v2 tls-crypt-v2.key" >>/etc/openvpn/server/server.conf
 		;;
 	2)
+		echo "tls-crypt tls-crypt.key" >>/etc/openvpn/server/server.conf
+		;;
+	3)
 		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server/server.conf
 		;;
 	esac
@@ -1550,12 +1557,14 @@ function generateClientConfig() {
 	local client="$1"
 	local home_dir="$2"
 
-	# Determine if we use tls-auth or tls-crypt
+	# Determine if we use tls-crypt-v2, tls-crypt, or tls-auth
 	local tls_sig=""
-	if grep -qs "^tls-crypt" /etc/openvpn/server/server.conf; then
+	if grep -qs "^tls-crypt-v2" /etc/openvpn/server/server.conf; then
 		tls_sig="1"
-	elif grep -qs "^tls-auth" /etc/openvpn/server/server.conf; then
+	elif grep -qs "^tls-crypt" /etc/openvpn/server/server.conf; then
 		tls_sig="2"
+	elif grep -qs "^tls-auth" /etc/openvpn/server/server.conf; then
+		tls_sig="3"
 	fi
 
 	# Generate the custom client.ovpn
@@ -1575,11 +1584,25 @@ function generateClientConfig() {
 
 		case $tls_sig in
 		1)
+			# Generate per-client tls-crypt-v2 key using secure temp file
+			tls_crypt_v2_tmpfile=$(mktemp)
+			if ! openvpn --tls-crypt-v2 /etc/openvpn/server/tls-crypt-v2.key \
+				--genkey tls-crypt-v2-client "$tls_crypt_v2_tmpfile"; then
+				rm -f "$tls_crypt_v2_tmpfile"
+				log_error "Failed to generate tls-crypt-v2 client key"
+				exit 1
+			fi
+			echo "<tls-crypt-v2>"
+			cat "$tls_crypt_v2_tmpfile"
+			echo "</tls-crypt-v2>"
+			rm -f "$tls_crypt_v2_tmpfile"
+			;;
+		2)
 			echo "<tls-crypt>"
 			cat /etc/openvpn/server/tls-crypt.key
 			echo "</tls-crypt>"
 			;;
-		2)
+		3)
 			echo "key-direction 1"
 			echo "<tls-auth>"
 			cat /etc/openvpn/server/tls-auth.key
