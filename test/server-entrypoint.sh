@@ -77,15 +77,22 @@ fi
 # Verify all expected files were created
 echo "Verifying installation..."
 MISSING_FILES=0
-for f in \
-	/etc/openvpn/server/server.conf \
-	/etc/openvpn/server/ca.crt \
-	/etc/openvpn/server/ca.key \
-	"/etc/openvpn/server/$TLS_KEY_FILE" \
-	/etc/openvpn/server/crl.pem \
-	/etc/openvpn/server/easy-rsa/pki/ca.crt \
-	/etc/iptables/add-openvpn-rules.sh \
-	/root/testclient.ovpn; do
+# Build list of required files
+REQUIRED_FILES=(
+	/etc/openvpn/server/server.conf
+	/etc/openvpn/server/ca.crt
+	/etc/openvpn/server/ca.key
+	"/etc/openvpn/server/$TLS_KEY_FILE"
+	/etc/openvpn/server/crl.pem
+	/etc/openvpn/server/easy-rsa/pki/ca.crt
+	/root/testclient.ovpn
+)
+# Only check for iptables script if firewalld is not active
+if ! systemctl is-active --quiet firewalld; then
+	REQUIRED_FILES+=(/etc/iptables/add-openvpn-rules.sh)
+fi
+
+for f in "${REQUIRED_FILES[@]}"; do
 	if [ ! -f "$f" ]; then
 		echo "ERROR: Missing file: $f"
 		MISSING_FILES=$((MISSING_FILES + 1))
@@ -177,7 +184,7 @@ echo "Original client certificate serial: $ORIG_CERT_SERIAL"
 # Test client certificate renewal using the script
 echo "Testing client certificate renewal..."
 RENEW_OUTPUT="/tmp/renew-client-output.log"
-(MENU_OPTION=3 RENEW_OPTION=1 CLIENTNUMBER=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
+(MENU_OPTION=4 RENEW_OPTION=1 CLIENTNUMBER=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Certificate for client testclient renewed" "$RENEW_OUTPUT"; then
@@ -257,7 +264,7 @@ echo "Original server certificate serial: $ORIG_SERVER_SERIAL"
 # Test server certificate renewal
 echo "Testing server certificate renewal..."
 RENEW_SERVER_OUTPUT="/tmp/renew-server-output.log"
-(MENU_OPTION=3 RENEW_OPTION=2 CONTINUE=y SERVER_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
+(MENU_OPTION=4 RENEW_OPTION=2 CONTINUE=y SERVER_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Server certificate renewed successfully" "$RENEW_SERVER_OUTPUT"; then
@@ -380,21 +387,58 @@ echo ""
 # Verify OpenVPN server (started by systemd via install script)
 echo "Verifying OpenVPN server..."
 
-# Verify iptables NAT rules exist (applied by iptables-openvpn service)
-echo "Verifying iptables NAT rules..."
-for _ in $(seq 1 10); do
-	if iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
-		echo "PASS: NAT POSTROUTING rule for 10.8.0.0/24 exists"
-		break
+# Verify firewall rules exist
+echo "Verifying firewall rules..."
+if systemctl is-active --quiet firewalld; then
+	# firewalld is active - verify masquerade is enabled
+	echo "firewalld detected, checking masquerade..."
+	for _ in $(seq 1 10); do
+		if firewall-cmd --query-masquerade 2>/dev/null; then
+			echo "PASS: firewalld masquerade is enabled"
+			break
+		fi
+		sleep 1
+	done
+	if ! firewall-cmd --query-masquerade 2>/dev/null; then
+		echo "FAIL: firewalld masquerade is not enabled"
+		echo "Current firewalld config:"
+		firewall-cmd --list-all 2>&1 || true
+		exit 1
 	fi
-	sleep 1
-done
-if ! iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
-	echo "FAIL: NAT POSTROUTING rule for 10.8.0.0/24 not found"
-	echo "Current NAT rules:"
-	iptables -t nat -L POSTROUTING -n -v
-	systemctl status iptables-openvpn 2>&1 || true
-	exit 1
+	# Verify port is open
+	if firewall-cmd --list-ports | grep -q "1194/udp"; then
+		echo "PASS: OpenVPN port is open in firewalld"
+	else
+		echo "FAIL: OpenVPN port not found in firewalld"
+		firewall-cmd --list-ports
+		exit 1
+	fi
+	# Verify VPN subnet rich rule exists
+	if firewall-cmd --list-rich-rules | grep -q 'source address="10.8.0.0/24"'; then
+		echo "PASS: VPN subnet rich rule is configured"
+	else
+		echo "FAIL: VPN subnet rich rule not found in firewalld"
+		echo "Current rich rules:"
+		firewall-cmd --list-rich-rules
+		exit 1
+	fi
+else
+	# iptables mode - verify NAT rules
+	echo "iptables mode, checking NAT rules..."
+	for _ in $(seq 1 10); do
+		if iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
+			echo "PASS: NAT POSTROUTING rule for 10.8.0.0/24 exists"
+			break
+		fi
+		sleep 1
+	done
+	if ! iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
+		echo "FAIL: NAT POSTROUTING rule for 10.8.0.0/24 not found"
+		echo "Current NAT rules:"
+		iptables -t nat -L POSTROUTING -n -v
+		systemctl status iptables-openvpn 2>&1 || true
+		exit 1
+	fi
 fi
 
 # Verify IP forwarding is enabled
@@ -501,19 +545,11 @@ if [ ! -f /shared/revoke-client-disconnected ]; then
 fi
 echo "Client disconnected"
 
-# Now revoke the certificate
+# Now revoke the certificate using the new CLIENT name feature
 echo "Revoking certificate for '$REVOKE_CLIENT'..."
 REVOKE_OUTPUT="/tmp/revoke-output.log"
-# MENU_OPTION=2 is revoke, CLIENTNUMBER is dynamically determined from index.txt
-# We need to find the client number for revoketest
-REVOKE_CLIENT_NUM=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | grep -n "CN=$REVOKE_CLIENT\$" | cut -d: -f1)
-if [ -z "$REVOKE_CLIENT_NUM" ]; then
-	echo "ERROR: Could not find client number for '$REVOKE_CLIENT'"
-	cat /etc/openvpn/server/easy-rsa/pki/index.txt
-	exit 1
-fi
-echo "Revoke client number: $REVOKE_CLIENT_NUM"
-(MENU_OPTION=2 CLIENTNUMBER=$REVOKE_CLIENT_NUM bash /opt/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
+# MENU_OPTION=3 is revoke, CLIENT specifies the client name directly
+(MENU_OPTION=3 CLIENT=$REVOKE_CLIENT bash /opt/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
 
 if grep -q "Certificate for client $REVOKE_CLIENT revoked" "$REVOKE_OUTPUT"; then
 	echo "PASS: Certificate for '$REVOKE_CLIENT' revoked successfully"
@@ -552,6 +588,47 @@ fi
 echo "PASS: Connection with revoked certificate correctly rejected"
 
 echo "=== Certificate Revocation Tests PASSED ==="
+
+# =====================================================
+# Test listing client certificates
+# =====================================================
+echo ""
+echo "=== Testing List Client Certificates ==="
+
+# At this point we have 3 client certificates:
+# - testclient (Valid) - the renewed certificate
+# - testclient (Revoked) - the old certificate revoked during renewal
+# - revoketest (Revoked) - the revoked certificate
+LIST_OUTPUT="/tmp/list-clients-output.log"
+(MENU_OPTION=2 bash /opt/openvpn-install.sh) 2>&1 | tee "$LIST_OUTPUT" || true
+
+# Verify list output contains expected clients
+if grep -q "testclient" "$LIST_OUTPUT" && grep -q "Valid" "$LIST_OUTPUT"; then
+	echo "PASS: List shows testclient as Valid"
+else
+	echo "FAIL: List does not show testclient correctly"
+	cat "$LIST_OUTPUT"
+	exit 1
+fi
+
+if grep -q "$REVOKE_CLIENT" "$LIST_OUTPUT" && grep -q "Revoked" "$LIST_OUTPUT"; then
+	echo "PASS: List shows $REVOKE_CLIENT as Revoked"
+else
+	echo "FAIL: List does not show $REVOKE_CLIENT correctly"
+	cat "$LIST_OUTPUT"
+	exit 1
+fi
+
+# Verify certificate count (3 certs: testclient valid, testclient revoked from renewal, revoketest revoked)
+if grep -q "Found 3 client certificate(s)" "$LIST_OUTPUT"; then
+	echo "PASS: List shows correct certificate count"
+else
+	echo "FAIL: List does not show correct certificate count"
+	cat "$LIST_OUTPUT"
+	exit 1
+fi
+
+echo "=== List Client Certificates Tests PASSED ==="
 
 # =====================================================
 # Test reusing revoked client name
@@ -618,6 +695,85 @@ fi
 echo "PASS: Client connected with new '$REVOKE_CLIENT' certificate"
 
 echo "=== Reuse of Revoked Client Name Tests PASSED ==="
+
+# =====================================================
+# Test PASSPHRASE support for headless client creation
+# =====================================================
+echo ""
+echo "=== Testing PASSPHRASE Support ==="
+
+PASSPHRASE_CLIENT="passphrasetest"
+TEST_PASSPHRASE="TestP@ssw0rd#123"
+echo "Creating client '$PASSPHRASE_CLIENT' with passphrase in headless mode..."
+PASSPHRASE_OUTPUT="/tmp/passphrase-output.log"
+(MENU_OPTION=1 CLIENT=$PASSPHRASE_CLIENT PASS=2 PASSPHRASE="$TEST_PASSPHRASE" CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$PASSPHRASE_OUTPUT" || true
+
+# Verify client was created
+if [ -f "/root/$PASSPHRASE_CLIENT.ovpn" ]; then
+	echo "PASS: Client '$PASSPHRASE_CLIENT' with passphrase created successfully"
+else
+	echo "FAIL: Failed to create client '$PASSPHRASE_CLIENT' with passphrase"
+	cat "$PASSPHRASE_OUTPUT"
+	exit 1
+fi
+
+# Verify the passphrase is NOT leaked in the output
+if grep -q "$TEST_PASSPHRASE" "$PASSPHRASE_OUTPUT"; then
+	echo "FAIL: Passphrase was leaked in command output!"
+	exit 1
+else
+	echo "PASS: Passphrase not leaked in command output"
+fi
+
+# Verify the log file doesn't contain the passphrase
+if [ -f /opt/openvpn-install.log ] && grep -q "$TEST_PASSPHRASE" /opt/openvpn-install.log; then
+	echo "FAIL: Passphrase was leaked in log file!"
+	exit 1
+else
+	echo "PASS: Passphrase not leaked in log file"
+fi
+
+# Verify certificate was created with encryption (key should be encrypted)
+CLIENT_KEY="/etc/openvpn/server/easy-rsa/pki/private/$PASSPHRASE_CLIENT.key"
+if [ -f "$CLIENT_KEY" ]; then
+	if grep -q "ENCRYPTED" "$CLIENT_KEY"; then
+		echo "PASS: Client key is encrypted"
+	else
+		echo "FAIL: Client key is not encrypted"
+		exit 1
+	fi
+else
+	echo "FAIL: Client key not found at $CLIENT_KEY"
+	exit 1
+fi
+
+# Copy config for passphrase client connectivity test
+cp "/root/$PASSPHRASE_CLIENT.ovpn" "/shared/$PASSPHRASE_CLIENT.ovpn"
+sed -i 's/^remote .*/remote openvpn-server 1194/' "/shared/$PASSPHRASE_CLIENT.ovpn"
+# Write passphrase to a file for client to use with --askpass
+echo "$TEST_PASSPHRASE" >"/shared/$PASSPHRASE_CLIENT.pass"
+echo "Copied $PASSPHRASE_CLIENT config and passphrase to /shared/"
+
+# Signal client that passphrase test config is ready
+touch /shared/passphrase-client-config-ready
+
+# Wait for client to confirm connection with passphrase client
+echo "Waiting for client to connect with '$PASSPHRASE_CLIENT' certificate..."
+MAX_WAIT=60
+WAITED=0
+while [ ! -f /shared/passphrase-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for passphrase client connection... ($WAITED/$MAX_WAIT seconds)"
+done
+
+if [ ! -f /shared/passphrase-client-connected ]; then
+	echo "FAIL: Client did not connect with passphrase-protected certificate"
+	exit 1
+fi
+echo "PASS: Client connected with passphrase-protected certificate"
+
+echo "=== PASSPHRASE Support Tests PASSED ==="
 echo ""
 echo "=== All Revocation Tests PASSED ==="
 

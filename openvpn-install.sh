@@ -9,8 +9,8 @@
 # Configuration constants
 readonly DEFAULT_CERT_VALIDITY_DURATION_DAYS=3650 # 10 years
 readonly DEFAULT_CRL_VALIDITY_DURATION_DAYS=5475  # 15 years
-readonly EASYRSA_VERSION="3.2.4"
-readonly EASYRSA_SHA256="ed65e88cea892268efa71eb1161ce13af3beded6754301e1e713e36ff3613cac"
+readonly EASYRSA_VERSION="3.2.5"
+readonly EASYRSA_SHA256="662ee3b453155aeb1dff7096ec052cd83176c460cfa82ac130ef8568ec4df490"
 
 # =============================================================================
 # Logging Configuration
@@ -671,7 +671,7 @@ function installQuestions() {
 	log_menu "   12) NextDNS (Anycast: worldwide)"
 	log_menu "   13) Custom"
 	until [[ $DNS =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 13 ]; do
-		read -rp "DNS [1-13]: " -e -i 11 DNS
+		read -rp "DNS [1-13]: " -e -i 3 DNS
 		if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
 			log_menu ""
 			log_prompt "Unbound is already installed."
@@ -981,7 +981,7 @@ function installOpenVPN() {
 		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
-		DNS=${DNS:-1}
+		DNS=${DNS:-3}
 		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
@@ -990,6 +990,7 @@ function installOpenVPN() {
 		CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		CONTINUE=${CONTINUE:-y}
+		NEW_CLIENT=${NEW_CLIENT:-y}
 
 		if [[ -z $ENDPOINT ]]; then
 			ENDPOINT=$(resolvePublicIP)
@@ -1083,11 +1084,6 @@ function installOpenVPN() {
 
 		# Create the server directory (OpenVPN 2.4+ directory structure)
 		run_cmd_fatal "Creating server directory" mkdir -p /etc/openvpn/server
-
-		# An old version of easy-rsa was available by default in some openvpn packages
-		if [[ -d /etc/openvpn/server/easy-rsa/ ]]; then
-			run_cmd "Removing old Easy-RSA" rm -rf /etc/openvpn/server/easy-rsa/
-		fi
 	fi
 
 	# Determine which user/group OpenVPN should run as
@@ -1175,11 +1171,11 @@ function installOpenVPN() {
 			;;
 		2)
 			# Generate tls-crypt key
-			run_cmd_fatal "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/server/tls-crypt.key
+			run_cmd_fatal "Generating tls-crypt key" openvpn --genkey secret /etc/openvpn/server/tls-crypt.key
 			;;
 		3)
 			# Generate tls-auth key
-			run_cmd_fatal "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/server/tls-auth.key
+			run_cmd_fatal "Generating tls-auth key" openvpn --genkey secret /etc/openvpn/server/tls-auth.key
 			;;
 		esac
 	else
@@ -1423,48 +1419,66 @@ verb 3" >>/etc/openvpn/server/server.conf
 		installUnbound
 	fi
 
-	# Add iptables rules in two scripts
+	# Configure firewall rules
 	log_info "Configuring firewall rules..."
-	run_cmd_fatal "Creating iptables directory" mkdir -p /etc/iptables
 
-	# Script to add rules
-	echo "#!/bin/sh
+	if systemctl is-active --quiet firewalld; then
+		# Use firewalld native commands for systems with firewalld active
+		log_info "firewalld detected, using firewall-cmd..."
+		run_cmd "Adding OpenVPN port to firewalld" firewall-cmd --permanent --add-port="$PORT/$PROTOCOL"
+		run_cmd "Adding masquerade to firewalld" firewall-cmd --permanent --add-masquerade
+
+		# Add rich rules for VPN traffic (source-based rules work reliably with dynamic tun0 interface)
+		run_cmd "Adding VPN subnet rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept'
+
+		if [[ $IPV6_SUPPORT == 'y' ]]; then
+			run_cmd "Adding IPv6 source rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept'
+		fi
+
+		run_cmd "Reloading firewalld" firewall-cmd --reload
+	else
+		# Use iptables for systems without firewalld
+		run_cmd_fatal "Creating iptables directory" mkdir -p /etc/iptables
+
+		# Script to add rules
+		echo "#!/bin/sh
 iptables -t nat -I POSTROUTING 1 -s 10.8.0.0/24 -o $NIC -j MASQUERADE
 iptables -I INPUT 1 -i tun0 -j ACCEPT
 iptables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 iptables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
 iptables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >/etc/iptables/add-openvpn-rules.sh
 
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo "ip6tables -t nat -I POSTROUTING 1 -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
+		if [[ $IPV6_SUPPORT == 'y' ]]; then
+			echo "ip6tables -t nat -I POSTROUTING 1 -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
 ip6tables -I INPUT 1 -i tun0 -j ACCEPT
 ip6tables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 ip6tables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
 ip6tables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/add-openvpn-rules.sh
-	fi
+		fi
 
-	# Script to remove rules
-	echo "#!/bin/sh
+		# Script to remove rules
+		echo "#!/bin/sh
 iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
 iptables -D INPUT -i tun0 -j ACCEPT
 iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT
 iptables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >/etc/iptables/rm-openvpn-rules.sh
 
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
+		if [[ $IPV6_SUPPORT == 'y' ]]; then
+			echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
 ip6tables -D INPUT -i tun0 -j ACCEPT
 ip6tables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT
 ip6tables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/rm-openvpn-rules.sh
-	fi
+		fi
 
-	run_cmd "Making add-openvpn-rules.sh executable" chmod +x /etc/iptables/add-openvpn-rules.sh
-	run_cmd "Making rm-openvpn-rules.sh executable" chmod +x /etc/iptables/rm-openvpn-rules.sh
+		run_cmd "Making add-openvpn-rules.sh executable" chmod +x /etc/iptables/add-openvpn-rules.sh
+		run_cmd "Making rm-openvpn-rules.sh executable" chmod +x /etc/iptables/rm-openvpn-rules.sh
 
-	# Handle the rules via a systemd script
-	echo "[Unit]
+		# Handle the rules via a systemd script
+		echo "[Unit]
 Description=iptables rules for OpenVPN
+After=firewalld.service
 Before=network-online.target
 Wants=network-online.target
 
@@ -1477,10 +1491,11 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 
-	# Enable service and apply rules
-	run_cmd "Reloading systemd" systemctl daemon-reload
-	run_cmd "Enabling iptables service" systemctl enable iptables-openvpn
-	run_cmd "Starting iptables service" systemctl start iptables-openvpn
+		# Enable service and apply rules
+		run_cmd "Reloading systemd" systemctl daemon-reload
+		run_cmd "Enabling iptables service" systemctl enable iptables-openvpn
+		run_cmd "Starting iptables service" systemctl start iptables-openvpn
+	fi
 
 	# If the server is behind a NAT, use the correct IP address for the clients to connect to
 	if [[ $ENDPOINT != "" ]]; then
@@ -1522,9 +1537,13 @@ verb 3" >>/etc/openvpn/server/client-template.txt
 	fi
 
 	# Generate the custom client.ovpn
-	log_info "Generating first client certificate..."
-	newClient
-	log_success "If you want to add more clients, you simply need to run this script another time!"
+	if [[ $NEW_CLIENT == "n" ]]; then
+		log_info "No clients added. To add clients, simply run the script again."
+	else
+		log_info "Generating first client certificate..."
+		newClient
+		log_success "If you want to add more clients, you simply need to run this script another time!"
+	fi
 }
 
 # Helper function to get the home directory for storing client configs
@@ -1651,6 +1670,15 @@ function selectClient() {
 		log_fatal "You have no existing clients!"
 	fi
 
+	# If CLIENT is set, validate it exists as a valid client
+	if [[ -n $CLIENT ]]; then
+		if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | grep -qx "$CLIENT"; then
+			return
+		else
+			log_fatal "Client '$CLIENT' not found or not valid"
+		fi
+	fi
+
 	if [[ $show_expiry == "true" ]]; then
 		local i=1
 		while read -r client; do
@@ -1675,6 +1703,88 @@ function selectClient() {
 	done
 	CLIENTNUMBER="${CLIENTNUMBER:-$client_number}"
 	CLIENT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+}
+
+function listClients() {
+	log_header "Client Certificates"
+
+	local index_file="/etc/openvpn/server/easy-rsa/pki/index.txt"
+	local number_of_clients
+	# Exclude server certificates (CN starting with server_)
+	number_of_clients=$(tail -n +2 "$index_file" | grep "^[VR]" | grep -cv "/CN=server_")
+
+	if [[ $number_of_clients == '0' ]]; then
+		log_warn "You have no existing client certificates!"
+		return
+	fi
+
+	log_info "Found $number_of_clients client certificate(s)"
+	log_menu ""
+	printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Remaining"
+	printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "---------"
+
+	local cert_dir="/etc/openvpn/server/easy-rsa/pki/issued"
+
+	# Parse index.txt and sort by expiry date (oldest first)
+	# Exclude server certificates (CN starting with server_)
+	{
+		while read -r line; do
+			local status="${line:0:1}"
+			local client_name
+			client_name=$(echo "$line" | sed 's/.*\/CN=//')
+
+			# Format status
+			local status_text
+			if [[ "$status" == "V" ]]; then
+				status_text="Valid"
+			elif [[ "$status" == "R" ]]; then
+				status_text="Revoked"
+			else
+				status_text="Unknown"
+			fi
+
+			# Get expiry date from certificate file
+			local cert_file="$cert_dir/$client_name.crt"
+			local expiry_date="unknown"
+			local relative="unknown"
+
+			if [[ -f "$cert_file" ]]; then
+				# Get expiry from certificate (format: notAfter=Mon DD HH:MM:SS YYYY GMT)
+				local enddate
+				enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+
+				if [[ -n "$enddate" ]]; then
+					# Parse date and convert to epoch
+					local expiry_epoch
+					expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
+
+					if [[ -n "$expiry_epoch" ]]; then
+						# Format as YYYY-MM-DD
+						expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
+
+						# Calculate days remaining
+						local now_epoch days_remaining
+						now_epoch=$(date +%s)
+						days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+
+						if [[ $days_remaining -lt 0 ]]; then
+							relative="$((-days_remaining)) days ago"
+						elif [[ $days_remaining -eq 0 ]]; then
+							relative="today"
+						elif [[ $days_remaining -eq 1 ]]; then
+							relative="1 day"
+						else
+							relative="$days_remaining days"
+						fi
+					fi
+				fi
+			fi
+
+			printf "   %-25s %-10s %-12s %s\n" "$client_name" "$status_text" "$expiry_date" "$relative"
+		done < <(tail -n +2 "$index_file" | grep "^[VR]" | grep -v "/CN=server_" | sort -t$'\t' -k2)
+	}
+
+	log_menu ""
 }
 
 function newClient() {
@@ -1717,10 +1827,18 @@ function newClient() {
 			run_cmd_fatal "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
 			;;
 		2)
-			log_warn "You will be asked for the client password below"
-			# Run directly (not via run_cmd) so password prompt is visible to user
-			if ! ./easyrsa --batch build-client-full "$CLIENT"; then
-				log_fatal "Building client certificate failed"
+			if [[ -z "$PASSPHRASE" ]]; then
+				log_warn "You will be asked for the client password below"
+				# Run directly (not via run_cmd) so password prompt is visible to user
+				if ! ./easyrsa --batch build-client-full "$CLIENT"; then
+					log_fatal "Building client certificate failed"
+				fi
+			else
+				log_info "Using provided passphrase for client certificate"
+				# Use env var to avoid exposing passphrase in install log
+				export EASYRSA_PASSPHRASE="$PASSPHRASE"
+				run_cmd_fatal "Building client certificate" ./easyrsa --batch --passin=env:EASYRSA_PASSPHRASE --passout=env:EASYRSA_PASSPHRASE build-client-full "$CLIENT"
+				unset EASYRSA_PASSPHRASE
 			fi
 			;;
 		esac
@@ -2010,15 +2128,24 @@ function removeOpenVPN() {
 		# Remove customised service
 		run_cmd "Removing service file" rm -f /etc/systemd/system/openvpn-server@.service
 
-		# Remove the iptables rules related to the script
-		log_info "Removing iptables rules..."
-		run_cmd "Stopping iptables service" systemctl stop iptables-openvpn
-		# Cleanup
-		run_cmd "Disabling iptables service" systemctl disable iptables-openvpn
-		run_cmd "Removing iptables service file" rm /etc/systemd/system/iptables-openvpn.service
-		run_cmd "Reloading systemd" systemctl daemon-reload
-		run_cmd "Removing iptables add script" rm /etc/iptables/add-openvpn-rules.sh
-		run_cmd "Removing iptables rm script" rm /etc/iptables/rm-openvpn-rules.sh
+		# Remove firewall rules
+		log_info "Removing firewall rules..."
+		if systemctl is-active --quiet firewalld && firewall-cmd --list-ports | grep -q "$PORT/$PROTOCOL"; then
+			# firewalld was used
+			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL"
+			run_cmd "Removing masquerade from firewalld" firewall-cmd --permanent --remove-masquerade
+			run_cmd "Removing VPN subnet rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept' 2>/dev/null || true
+			run_cmd "Removing IPv6 source rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept' 2>/dev/null || true
+			run_cmd "Reloading firewalld" firewall-cmd --reload
+		elif [[ -f /etc/systemd/system/iptables-openvpn.service ]]; then
+			# iptables was used
+			run_cmd "Stopping iptables service" systemctl stop iptables-openvpn
+			run_cmd "Disabling iptables service" systemctl disable iptables-openvpn
+			run_cmd "Removing iptables service file" rm /etc/systemd/system/iptables-openvpn.service
+			run_cmd "Reloading systemd" systemctl daemon-reload
+			run_cmd "Removing iptables add script" rm -f /etc/iptables/add-openvpn-rules.sh
+			run_cmd "Removing iptables rm script" rm -f /etc/iptables/rm-openvpn-rules.sh
+		fi
 
 		# SELinux
 		if hash sestatus 2>/dev/null; then
@@ -2085,12 +2212,13 @@ function manageMenu() {
 	log_menu ""
 	log_prompt "What do you want to do?"
 	log_menu "   1) Add a new user"
-	log_menu "   2) Revoke existing user"
-	log_menu "   3) Renew certificate"
-	log_menu "   4) Remove OpenVPN"
-	log_menu "   5) Exit"
-	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-5]$ ]]; do
-		read -rp "Select an option [1-5]: " menu_option
+	log_menu "   2) List client certificates"
+	log_menu "   3) Revoke existing user"
+	log_menu "   4) Renew certificate"
+	log_menu "   5) Remove OpenVPN"
+	log_menu "   6) Exit"
+	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-6]$ ]]; do
+		read -rp "Select an option [1-6]: " menu_option
 	done
 	menu_option="${MENU_OPTION:-$menu_option}"
 
@@ -2099,15 +2227,18 @@ function manageMenu() {
 		newClient
 		;;
 	2)
-		revokeClient
+		listClients
 		;;
 	3)
-		renewMenu
+		revokeClient
 		;;
 	4)
-		removeOpenVPN
+		renewMenu
 		;;
 	5)
+		removeOpenVPN
+		;;
+	6)
 		exit 0
 		;;
 	esac

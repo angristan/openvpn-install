@@ -59,7 +59,8 @@ The first time you run it, you'll have to follow the assistant and answer a few 
 When OpenVPN is installed, you can run the script again, and you will get the choice to:
 
 - Add a client
-- Remove a client
+- List client certificates
+- Revoke a client
 - Renew certificates (client or server)
 - Uninstall OpenVPN
 
@@ -95,10 +96,11 @@ If you want to customise your installation, you can export them or specify them 
 - `COMPRESSION_ENABLED=n`
 - `CUSTOMIZE_ENC=n`
 - `CLIENT=clientname`
-- `PASS=1`
+- `PASS=1` (set to `2` for password-protected clients, requires `PASSPHRASE`)
 - `MULTI_CLIENT=n`
 - `CLIENT_CERT_DURATION_DAYS=3650`
 - `SERVER_CERT_DURATION_DAYS=3650`
+- `NEW_CLIENT=y` (set to `n` to skip client creation after installation)
 - `CLIENT_FILEPATH=/custom/path/client.ovpn` (optional, overrides default output path)
 
 The `.ovpn` file is saved to `CLIENT_FILEPATH` if defined, otherwise: the client's home directory if it exists (`/home/$CLIENT`), otherwise `SUDO_USER`'s home, otherwise `/root`.
@@ -106,8 +108,6 @@ The `.ovpn` file is saved to `CLIENT_FILEPATH` if defined, otherwise: the client
 If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
 
 Other variables can be set depending on your choice (encryption, compression). You can search for them in the `installQuestions()` function of the script.
-
-Password-protected clients are not supported by the headless installation method since user input is expected by Easy-RSA.
 
 The headless install is more-or-less idempotent, in that it has been made safe to run multiple times with the same parameters, e.g. by a state provisioner like Ansible/Terraform/Salt/Chef/Puppet. It will only install and regenerate the Easy-RSA PKI if it doesn't already exist, and it will only install OpenVPN and other upstream dependencies if OpenVPN isn't already installed. It will recreate all local config and re-generate the client file on each headless run.
 
@@ -121,20 +121,42 @@ The following Bash script adds a new user `foo` to an existing OpenVPN configura
 #!/bin/bash
 export MENU_OPTION="1"
 export CLIENT="foo"
-export PASS="1"
+export PASS="1" # set to "2" for a password-protected client, and set PASSPHRASE
 # export CLIENT_FILEPATH="/etc/openvpn/clients/foo.ovpn"
 ./openvpn-install.sh
 ```
 
 **Note:** When a client name matches a system user (e.g., `foo` and `/home/foo` exists), the script automatically sets proper ownership and permissions on the `.ovpn` file.
 
+### Headless User Revocation
+
+It's also possible to automate the revocation of an existing user. The key is to provide the `MENU_OPTION` variable set to `3` along with either `CLIENT` (client name) or `CLIENTNUMBER` (1-based index from the client list).
+
+The following Bash script revokes the existing user `foo`:
+
+```bash
+#!/bin/bash
+export MENU_OPTION="3"
+export CLIENT="foo"
+./openvpn-install.sh
+```
+
+Alternatively, you can use the client number:
+
+```bash
+#!/bin/bash
+export MENU_OPTION="3"
+export CLIENTNUMBER="1"  # Revokes the first client in the list
+./openvpn-install.sh
+```
+
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
 - Certificate renewal for both client and server certificates
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
-- Iptables rules and forwarding managed in a seamless way
-- If needed, the script can cleanly remove OpenVPN, including configuration and iptables rules
+- Firewall rules and forwarding managed seamlessly (native firewalld support, iptables fallback)
+- If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
 - OpenVPN 2.4 features, mainly encryption improvements (see [Security and Encryption](#security-and-encryption) below)
 - Variety of DNS resolvers to be pushed to the clients
