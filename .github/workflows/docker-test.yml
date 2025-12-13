@@ -116,9 +116,21 @@ jobs:
         run: |
           echo "Waiting for OpenVPN server to install and client config to be ready..."
           for i in {1..90}; do
-            # Check BOTH conditions:
-            # 1. OpenVPN server process is running
-            # 2. Client config file exists in shared volume
+            # Get service status (properly handle non-zero exit codes)
+            # systemctl is-active returns exit code 3 for "inactive"/"failed", so capture output without checking exit code
+            SERVICE_STATUS="$(docker exec openvpn-server systemctl is-active openvpn-test.service 2>/dev/null)" || true
+            [ -z "$SERVICE_STATUS" ] && SERVICE_STATUS="unknown"
+
+            # Fail fast if service failed
+            if [ "$SERVICE_STATUS" = "failed" ]; then
+              echo "ERROR: openvpn-test.service failed during installation"
+              docker exec openvpn-server systemctl status openvpn-test.service 2>&1 || true
+              docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
+              exit 1
+            fi
+
+            # Check if OpenVPN server is running and client config exists
+            # The service will be "activating" while waiting for client tests - that's expected
             OPENVPN_RUNNING=false
             CONFIG_EXISTS=false
 
@@ -135,22 +147,25 @@ jobs:
               break
             fi
 
-            echo "Waiting... ($i/90) - OpenVPN running: $OPENVPN_RUNNING, Config exists: $CONFIG_EXISTS"
+            echo "Waiting... ($i/90) - Service: $SERVICE_STATUS, OpenVPN running: $OPENVPN_RUNNING, Config exists: $CONFIG_EXISTS"
             sleep 5
           done
 
-          # Final check
+          # Final verification
           if ! docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
             echo "ERROR: OpenVPN server failed to start"
             docker exec openvpn-server systemctl status openvpn-server@server 2>&1 || true
+            docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
             exit 1
           fi
 
           if ! docker exec openvpn-server test -f /shared/client.ovpn 2>/dev/null; then
             echo "ERROR: Client config not generated"
-            docker exec openvpn-server systemctl status openvpn-test.service 2>&1 || true
+            docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
             exit 1
           fi
+
+          echo "Server ready for client connection!"
 
       - name: Verify client config was generated
         run: |
