@@ -1479,7 +1479,7 @@ table ip6 openvpn-nat {
 		fi
 
 		# Reload nftables to apply rules
-		run_cmd "Reloading nftables" systemctl reload nftables || nft -f /etc/nftables/openvpn.nft
+		run_cmd "Reloading nftables" systemctl reload nftables
 	else
 		# Use iptables for systems without firewalld or nftables
 		run_cmd_fatal "Creating iptables directory" mkdir -p /etc/iptables
