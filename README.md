@@ -59,7 +59,8 @@ The first time you run it, you'll have to follow the assistant and answer a few 
 When OpenVPN is installed, you can run the script again, and you will get the choice to:
 
 - Add a client
-- Remove a client
+- List client certificates
+- Revoke a client
 - Renew certificates (client or server)
 - Uninstall OpenVPN
 
