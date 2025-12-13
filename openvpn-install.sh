@@ -1083,11 +1083,6 @@ function installOpenVPN() {
 
 		# Create the server directory (OpenVPN 2.4+ directory structure)
 		run_cmd_fatal "Creating server directory" mkdir -p /etc/openvpn/server
-
-		# An old version of easy-rsa was available by default in some openvpn packages
-		if [[ -d /etc/openvpn/server/easy-rsa/ ]]; then
-			run_cmd "Removing old Easy-RSA" rm -rf /etc/openvpn/server/easy-rsa/
-		fi
 	fi
 
 	# Determine which user/group OpenVPN should run as
