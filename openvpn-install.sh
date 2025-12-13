@@ -1432,9 +1432,8 @@ verb 3" >>/etc/openvpn/server/server.conf
 		run_cmd "Adding OpenVPN port to firewalld" firewall-cmd --permanent --add-port="$PORT/$PROTOCOL"
 		run_cmd "Adding masquerade to firewalld" firewall-cmd --permanent --add-masquerade
 
-		# Add rich rules for tun0 interface
-		run_cmd "Adding tun0 input rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept'
-		run_cmd "Adding tun0 to trusted zone" firewall-cmd --permanent --zone=trusted --add-interface=tun0
+		# Add rich rules for VPN traffic (source-based rules work reliably with dynamic tun0 interface)
+		run_cmd "Adding VPN subnet rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept'
 
 		if [[ $IPV6_SUPPORT == 'y' ]]; then
 			run_cmd "Adding IPv6 source rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept'
@@ -1984,8 +1983,7 @@ function removeOpenVPN() {
 			# firewalld was used
 			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL"
 			run_cmd "Removing masquerade from firewalld" firewall-cmd --permanent --remove-masquerade
-			run_cmd "Removing tun0 input rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept' 2>/dev/null || true
-			run_cmd "Removing tun0 from trusted zone" firewall-cmd --permanent --zone=trusted --remove-interface=tun0 2>/dev/null || true
+			run_cmd "Removing VPN subnet rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept' 2>/dev/null || true
 			run_cmd "Removing IPv6 source rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept' 2>/dev/null || true
 			run_cmd "Reloading firewalld" firewall-cmd --reload
 		elif [[ -f /etc/systemd/system/iptables-openvpn.service ]]; then

@@ -413,6 +413,15 @@ if systemctl is-active --quiet firewalld; then
 		firewall-cmd --list-ports
 		exit 1
 	fi
+	# Verify VPN subnet rich rule exists
+	if firewall-cmd --list-rich-rules | grep -q 'source address="10.8.0.0/24"'; then
+		echo "PASS: VPN subnet rich rule is configured"
+	else
+		echo "FAIL: VPN subnet rich rule not found in firewalld"
+		echo "Current rich rules:"
+		firewall-cmd --list-rich-rules
+		exit 1
+	fi
 else
 	# iptables mode - verify NAT rules
 	echo "iptables mode, checking NAT rules..."
