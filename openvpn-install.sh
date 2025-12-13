@@ -1652,8 +1652,39 @@ function listClients() {
 	log_header "Existing Clients"
 
 	local index_file="/etc/openvpn/server/easy-rsa/pki/index.txt"
-	local number_of_clients
-	number_of_clients=$(tail -n +2 "$index_file" | grep -c "^[VR]")
+
+	# Build list of unique client names with their best status
+	# A client is "Valid" if they have any valid cert, "Revoked" if all certs are revoked
+	# Exclude server certificates (CN starting with server_)
+	declare -A client_status
+	declare -A client_expiry
+	declare -A client_expiry_ts
+
+	while read -r line; do
+		local status="${line:0:1}"
+		local expiry_ts
+		expiry_ts=$(echo "$line" | awk '{print $2}')
+		local client_name
+		client_name=$(echo "$line" | sed 's/.*\/CN=//')
+
+		# Skip server certificates
+		if [[ "$client_name" == server_* ]]; then
+			continue
+		fi
+
+		# If client already has a Valid status, keep it; otherwise update
+		if [[ "${client_status[$client_name]}" != "V" ]]; then
+			client_status[$client_name]="$status"
+			client_expiry_ts[$client_name]="$expiry_ts"
+		fi
+		# If this is a valid cert, always use its expiry (prefer valid cert's expiry)
+		if [[ "$status" == "V" ]]; then
+			client_status[$client_name]="V"
+			client_expiry_ts[$client_name]="$expiry_ts"
+		fi
+	done < <(tail -n +2 "$index_file" | grep "^[VR]")
+
+	local number_of_clients=${#client_status[@]}
 
 	if [[ $number_of_clients == '0' ]]; then
 		log_warn "You have no existing clients!"
@@ -1665,56 +1696,50 @@ function listClients() {
 	printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Days"
 	printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "----"
 
-	# Parse index.txt and sort by expiry date (oldest first)
-	{
-		while read -r line; do
-			local status="${line:0:1}"
-			local expiry_ts
-			expiry_ts=$(echo "$line" | awk '{print $2}')
-			local client_name
-			client_name=$(echo "$line" | sed 's/.*\/CN=//')
+	local now_epoch
+	now_epoch=$(date +%s)
 
-			# Parse expiry: format is YYMMDDHHMMSSZ
-			local year="20${expiry_ts:0:2}"
-			local month="${expiry_ts:2:2}"
-			local day="${expiry_ts:4:2}"
-			local expiry_date="${year}-${month}-${day}"
+	# Sort clients by expiry date and display
+	for client_name in "${!client_status[@]}"; do
+		local expiry_ts="${client_expiry_ts[$client_name]}"
+		# Parse expiry: format is YYMMDDHHMMSSZ
+		local year="20${expiry_ts:0:2}"
+		local month="${expiry_ts:2:2}"
+		local day="${expiry_ts:4:2}"
+		local expiry_date="${year}-${month}-${day}"
+		echo "$expiry_ts|$client_name|${client_status[$client_name]}|$expiry_date"
+	done | sort | while IFS='|' read -r _ client_name status expiry_date; do
+		# Format status
+		local status_text
+		if [[ "$status" == "V" ]]; then
+			status_text="Valid"
+		elif [[ "$status" == "R" ]]; then
+			status_text="Revoked"
+		else
+			status_text="Unknown"
+		fi
 
-			# Calculate days until expiry
-			local expiry_epoch now_epoch days_remaining
-			expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$expiry_date" +%s 2>/dev/null)
-			now_epoch=$(date +%s)
+		# Calculate days until expiry
+		local expiry_epoch days_remaining relative
+		expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$expiry_date" +%s 2>/dev/null)
 
-			# Format status
-			local status_text
-			if [[ "$status" == "V" ]]; then
-				status_text="Valid"
-			elif [[ "$status" == "R" ]]; then
-				status_text="Revoked"
+		if [[ -z "$expiry_epoch" ]]; then
+			relative="unknown"
+		else
+			days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+			if [[ $days_remaining -lt 0 ]]; then
+				relative="$((-days_remaining)) days ago"
+			elif [[ $days_remaining -eq 0 ]]; then
+				relative="today"
+			elif [[ $days_remaining -eq 1 ]]; then
+				relative="1 day"
 			else
-				status_text="Unknown"
+				relative="$days_remaining days"
 			fi
+		fi
 
-			# Format relative time (handle date parsing failure)
-			local relative
-			if [[ -z "$expiry_epoch" ]]; then
-				relative="unknown"
-			else
-				days_remaining=$(((expiry_epoch - now_epoch) / 86400))
-				if [[ $days_remaining -lt 0 ]]; then
-					relative="$((-days_remaining)) days ago"
-				elif [[ $days_remaining -eq 0 ]]; then
-					relative="today"
-				elif [[ $days_remaining -eq 1 ]]; then
-					relative="1 day"
-				else
-					relative="$days_remaining days"
-				fi
-			fi
-
-			printf "   %-25s %-10s %-12s %s\n" "$client_name" "$status_text" "$expiry_date" "$relative"
-		done < <(tail -n +2 "$index_file" | grep "^[VR]" | sort -t$'\t' -k2)
-	}
+		printf "   %-25s %-10s %-12s %s\n" "$client_name" "$status_text" "$expiry_date" "$relative"
+	done
 
 	log_menu ""
 }
