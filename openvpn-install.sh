@@ -1661,7 +1661,7 @@ function listClients() {
 		return
 	fi
 
-	log_prompt "Found $number_of_clients client certificate(s), sorted by expiration (oldest first):"
+	log_info "Found $number_of_clients client certificate(s)"
 	log_menu ""
 	printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Days"
 	printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "----"
