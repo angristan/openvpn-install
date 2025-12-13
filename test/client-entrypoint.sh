@@ -359,6 +359,86 @@ touch /shared/new-client-connected
 echo ""
 echo "=== Certificate Revocation E2E Tests PASSED ==="
 
+# =====================================================
+# Test PASSPHRASE-protected client connection
+# =====================================================
+echo ""
+echo "=== Testing PASSPHRASE-protected Client Connection ==="
+
+PASSPHRASE_CLIENT="passphrasetest"
+
+# Wait for passphrase test client config
+echo "Waiting for passphrase test client config..."
+MAX_WAIT=120
+WAITED=0
+while [ ! -f /shared/passphrase-client-config-ready ] && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for passphrase test config... ($WAITED/$MAX_WAIT seconds)"
+done
+
+if [ ! -f /shared/passphrase-client-config-ready ]; then
+	echo "FAIL: Passphrase test client config not ready in time"
+	exit 1
+fi
+
+if [ ! -f "/shared/$PASSPHRASE_CLIENT.ovpn" ]; then
+	echo "FAIL: Passphrase test client config file not found"
+	exit 1
+fi
+
+if [ ! -f "/shared/$PASSPHRASE_CLIENT.pass" ]; then
+	echo "FAIL: Passphrase file not found"
+	exit 1
+fi
+
+echo "Passphrase test client config found!"
+
+# Disconnect current VPN before connecting with passphrase client
+echo "Disconnecting current VPN connection..."
+pkill openvpn || true
+sleep 2
+
+# Connect with passphrase-protected client using --askpass
+echo "Connecting with '$PASSPHRASE_CLIENT' certificate (passphrase-protected)..."
+openvpn --config "/shared/$PASSPHRASE_CLIENT.ovpn" --askpass "/shared/$PASSPHRASE_CLIENT.pass" --daemon --log /var/log/openvpn-passphrase.log
+
+# Wait for connection
+echo "Waiting for VPN connection with passphrase-protected client..."
+MAX_WAIT=60
+WAITED=0
+while ! ip addr show tun0 2>/dev/null | grep -q "inet " && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for tun0... ($WAITED/$MAX_WAIT seconds)"
+	if [ -f /var/log/openvpn-passphrase.log ]; then
+		tail -3 /var/log/openvpn-passphrase.log
+	fi
+done
+
+if ! ip addr show tun0 2>/dev/null | grep -q "inet "; then
+	echo "FAIL: VPN connection with passphrase-protected client failed"
+	cat /var/log/openvpn-passphrase.log || true
+	exit 1
+fi
+
+echo "PASS: Connected with passphrase-protected '$PASSPHRASE_CLIENT' certificate"
+ip addr show tun0
+
+# Verify connectivity
+if ping -c 2 10.8.0.1 >/dev/null 2>&1; then
+	echo "PASS: Can ping VPN gateway with passphrase-protected client"
+else
+	echo "FAIL: Cannot ping VPN gateway with passphrase-protected client"
+	exit 1
+fi
+
+# Signal server that we connected with passphrase client
+touch /shared/passphrase-client-connected
+
+echo ""
+echo "=== PASSPHRASE-protected Client Tests PASSED ==="
+
 echo ""
 echo "=========================================="
 echo "  ALL TESTS PASSED!"

@@ -1083,11 +1083,6 @@ function installOpenVPN() {
 
 		# Create the server directory (OpenVPN 2.4+ directory structure)
 		run_cmd_fatal "Creating server directory" mkdir -p /etc/openvpn/server
-
-		# An old version of easy-rsa was available by default in some openvpn packages
-		if [[ -d /etc/openvpn/server/easy-rsa/ ]]; then
-			run_cmd "Removing old Easy-RSA" rm -rf /etc/openvpn/server/easy-rsa/
-		fi
 	fi
 
 	# Determine which user/group OpenVPN should run as
@@ -1764,10 +1759,18 @@ function newClient() {
 			run_cmd_fatal "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
 			;;
 		2)
-			log_warn "You will be asked for the client password below"
-			# Run directly (not via run_cmd) so password prompt is visible to user
-			if ! ./easyrsa --batch build-client-full "$CLIENT"; then
-				log_fatal "Building client certificate failed"
+			if [[ -z "$PASSPHRASE" ]]; then
+				log_warn "You will be asked for the client password below"
+				# Run directly (not via run_cmd) so password prompt is visible to user
+				if ! ./easyrsa --batch build-client-full "$CLIENT"; then
+					log_fatal "Building client certificate failed"
+				fi
+			else
+				log_info "Using provided passphrase for client certificate"
+				# Use env var to avoid exposing passphrase in install log
+				export EASYRSA_PASSPHRASE="$PASSPHRASE"
+				run_cmd_fatal "Building client certificate" ./easyrsa --batch --passin=env:EASYRSA_PASSPHRASE --passout=env:EASYRSA_PASSPHRASE build-client-full "$CLIENT"
+				unset EASYRSA_PASSPHRASE
 			fi
 			;;
 		esac

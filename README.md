@@ -95,7 +95,7 @@ If you want to customise your installation, you can export them or specify them 
 - `COMPRESSION_ENABLED=n`
 - `CUSTOMIZE_ENC=n`
 - `CLIENT=clientname`
-- `PASS=1`
+- `PASS=1` (set to `2` for password-protected clients, requires `PASSPHRASE`)
 - `MULTI_CLIENT=n`
 - `CLIENT_CERT_DURATION_DAYS=3650`
 - `SERVER_CERT_DURATION_DAYS=3650`
@@ -103,8 +103,6 @@ If you want to customise your installation, you can export them or specify them 
 If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
 
 Other variables can be set depending on your choice (encryption, compression). You can search for them in the `installQuestions()` function of the script.
-
-Password-protected clients are not supported by the headless installation method since user input is expected by Easy-RSA.
 
 The headless install is more-or-less idempotent, in that it has been made safe to run multiple times with the same parameters, e.g. by a state provisioner like Ansible/Terraform/Salt/Chef/Puppet. It will only install and regenerate the Easy-RSA PKI if it doesn't already exist, and it will only install OpenVPN and other upstream dependencies if OpenVPN isn't already installed. It will recreate all local config and re-generate the client file on each headless run.
 
@@ -118,7 +116,7 @@ The following Bash script adds a new user `foo` to an existing OpenVPN configura
 #!/bin/bash
 export MENU_OPTION="1"
 export CLIENT="foo"
-export PASS="1"
+export PASS="1" # set to "2" for a password-protected client, and set PASSPHRASE
 ./openvpn-install.sh
 ```
 
