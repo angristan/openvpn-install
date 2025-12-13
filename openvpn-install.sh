@@ -1661,7 +1661,7 @@ function listClients() {
 	number_of_clients=$(tail -n +2 "$index_file" | grep -c "^[VR]")
 
 	if [[ $number_of_clients == '0' ]]; then
-		log_warning "You have no existing clients!"
+		log_warn "You have no existing clients!"
 		return
 	fi
 
@@ -1685,7 +1685,6 @@ function listClients() {
 			local expiry_epoch now_epoch days_remaining
 			expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$expiry_date" +%s 2>/dev/null)
 			now_epoch=$(date +%s)
-			days_remaining=$(((expiry_epoch - now_epoch) / 86400))
 
 			# Format status
 			local status_text
@@ -1697,16 +1696,21 @@ function listClients() {
 				status_text="Unknown"
 			fi
 
-			# Format relative time
+			# Format relative time (handle date parsing failure)
 			local relative
-			if [[ $days_remaining -lt 0 ]]; then
-				relative="$((-days_remaining)) days ago"
-			elif [[ $days_remaining -eq 0 ]]; then
-				relative="today"
-			elif [[ $days_remaining -eq 1 ]]; then
-				relative="1 day"
+			if [[ -z "$expiry_epoch" ]]; then
+				relative="unknown"
 			else
-				relative="$days_remaining days"
+				days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+				if [[ $days_remaining -lt 0 ]]; then
+					relative="$((-days_remaining)) days ago"
+				elif [[ $days_remaining -eq 0 ]]; then
+					relative="today"
+				elif [[ $days_remaining -eq 1 ]]; then
+					relative="1 day"
+				else
+					relative="$days_remaining days"
+				fi
 			fi
 
 			echo "${client_name}|${status_text}|${expiry_date}|${relative}"
