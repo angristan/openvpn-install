@@ -618,6 +618,85 @@ fi
 echo "PASS: Client connected with new '$REVOKE_CLIENT' certificate"
 
 echo "=== Reuse of Revoked Client Name Tests PASSED ==="
+
+# =====================================================
+# Test PASSPHRASE support for headless client creation
+# =====================================================
+echo ""
+echo "=== Testing PASSPHRASE Support ==="
+
+PASSPHRASE_CLIENT="passphrasetest"
+TEST_PASSPHRASE="TestP@ssw0rd#123"
+echo "Creating client '$PASSPHRASE_CLIENT' with passphrase in headless mode..."
+PASSPHRASE_OUTPUT="/tmp/passphrase-output.log"
+(MENU_OPTION=1 CLIENT=$PASSPHRASE_CLIENT PASS=2 PASSPHRASE="$TEST_PASSPHRASE" CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$PASSPHRASE_OUTPUT" || true
+
+# Verify client was created
+if [ -f "/root/$PASSPHRASE_CLIENT.ovpn" ]; then
+	echo "PASS: Client '$PASSPHRASE_CLIENT' with passphrase created successfully"
+else
+	echo "FAIL: Failed to create client '$PASSPHRASE_CLIENT' with passphrase"
+	cat "$PASSPHRASE_OUTPUT"
+	exit 1
+fi
+
+# Verify the passphrase is NOT leaked in the output
+if grep -q "$TEST_PASSPHRASE" "$PASSPHRASE_OUTPUT"; then
+	echo "FAIL: Passphrase was leaked in command output!"
+	exit 1
+else
+	echo "PASS: Passphrase not leaked in command output"
+fi
+
+# Verify the log file doesn't contain the passphrase
+if [ -f /opt/openvpn-install.log ] && grep -q "$TEST_PASSPHRASE" /opt/openvpn-install.log; then
+	echo "FAIL: Passphrase was leaked in log file!"
+	exit 1
+else
+	echo "PASS: Passphrase not leaked in log file"
+fi
+
+# Verify certificate was created with encryption (key should be encrypted)
+CLIENT_KEY="/etc/openvpn/server/easy-rsa/pki/private/$PASSPHRASE_CLIENT.key"
+if [ -f "$CLIENT_KEY" ]; then
+	if grep -q "ENCRYPTED" "$CLIENT_KEY"; then
+		echo "PASS: Client key is encrypted"
+	else
+		echo "FAIL: Client key is not encrypted"
+		exit 1
+	fi
+else
+	echo "FAIL: Client key not found at $CLIENT_KEY"
+	exit 1
+fi
+
+# Copy config for passphrase client connectivity test
+cp "/root/$PASSPHRASE_CLIENT.ovpn" "/shared/$PASSPHRASE_CLIENT.ovpn"
+sed -i 's/^remote .*/remote openvpn-server 1194/' "/shared/$PASSPHRASE_CLIENT.ovpn"
+# Write passphrase to a file for client to use with --askpass
+echo "$TEST_PASSPHRASE" >"/shared/$PASSPHRASE_CLIENT.pass"
+echo "Copied $PASSPHRASE_CLIENT config and passphrase to /shared/"
+
+# Signal client that passphrase test config is ready
+touch /shared/passphrase-client-config-ready
+
+# Wait for client to confirm connection with passphrase client
+echo "Waiting for client to connect with '$PASSPHRASE_CLIENT' certificate..."
+MAX_WAIT=60
+WAITED=0
+while [ ! -f /shared/passphrase-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+	sleep 2
+	WAITED=$((WAITED + 2))
+	echo "Waiting for passphrase client connection... ($WAITED/$MAX_WAIT seconds)"
+done
+
+if [ ! -f /shared/passphrase-client-connected ]; then
+	echo "FAIL: Client did not connect with passphrase-protected certificate"
+	exit 1
+fi
+echo "PASS: Client connected with passphrase-protected certificate"
+
+echo "=== PASSPHRASE Support Tests PASSED ==="
 echo ""
 echo "=== All Revocation Tests PASSED ==="
 
