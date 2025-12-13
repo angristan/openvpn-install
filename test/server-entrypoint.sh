@@ -177,7 +177,7 @@ echo "Original client certificate serial: $ORIG_CERT_SERIAL"
 # Test client certificate renewal using the script
 echo "Testing client certificate renewal..."
 RENEW_OUTPUT="/tmp/renew-client-output.log"
-(MENU_OPTION=3 RENEW_OPTION=1 CLIENTNUMBER=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
+(MENU_OPTION=4 RENEW_OPTION=1 CLIENTNUMBER=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Certificate for client testclient renewed" "$RENEW_OUTPUT"; then
@@ -257,7 +257,7 @@ echo "Original server certificate serial: $ORIG_SERVER_SERIAL"
 # Test server certificate renewal
 echo "Testing server certificate renewal..."
 RENEW_SERVER_OUTPUT="/tmp/renew-server-output.log"
-(MENU_OPTION=3 RENEW_OPTION=2 CONTINUE=y SERVER_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
+(MENU_OPTION=4 RENEW_OPTION=2 CONTINUE=y SERVER_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Server certificate renewed successfully" "$RENEW_SERVER_OUTPUT"; then
@@ -504,7 +504,7 @@ echo "Client disconnected"
 # Now revoke the certificate
 echo "Revoking certificate for '$REVOKE_CLIENT'..."
 REVOKE_OUTPUT="/tmp/revoke-output.log"
-# MENU_OPTION=2 is revoke, CLIENTNUMBER is dynamically determined from index.txt
+# MENU_OPTION=3 is revoke, CLIENTNUMBER is dynamically determined from index.txt
 # We need to find the client number for revoketest
 REVOKE_CLIENT_NUM=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | grep -n "CN=$REVOKE_CLIENT\$" | cut -d: -f1)
 if [ -z "$REVOKE_CLIENT_NUM" ]; then
@@ -513,7 +513,7 @@ if [ -z "$REVOKE_CLIENT_NUM" ]; then
 	exit 1
 fi
 echo "Revoke client number: $REVOKE_CLIENT_NUM"
-(MENU_OPTION=2 CLIENTNUMBER=$REVOKE_CLIENT_NUM bash /opt/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
+(MENU_OPTION=3 CLIENTNUMBER=$REVOKE_CLIENT_NUM bash /opt/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
 
 if grep -q "Certificate for client $REVOKE_CLIENT revoked" "$REVOKE_OUTPUT"; then
 	echo "PASS: Certificate for '$REVOKE_CLIENT' revoked successfully"

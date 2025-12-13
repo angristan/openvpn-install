@@ -1653,6 +1653,69 @@ function selectClient() {
 	CLIENT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 }
 
+function listClients() {
+	log_header "Existing Clients"
+
+	local index_file="/etc/openvpn/server/easy-rsa/pki/index.txt"
+	local number_of_clients
+	number_of_clients=$(tail -n +2 "$index_file" | grep -c "^[VR]")
+
+	if [[ $number_of_clients == '0' ]]; then
+		log_warning "You have no existing clients!"
+		return
+	fi
+
+	log_prompt "Found $number_of_clients certificate(s), sorted by expiration (oldest first):"
+	log_menu ""
+
+	# Parse index.txt: status, expiry timestamp, [revocation timestamp], serial, unknown, /CN=name
+	# Build output and pipe through column for alignment
+	{
+		# Sort by expiry date (oldest first)
+		while IFS=$'\t' read -r status expiry_ts _ _ _ dn; do
+			local client_name="${dn##*/CN=}"
+
+			# Parse expiry: format is YYMMDDHHMMSSZ
+			local year="20${expiry_ts:0:2}"
+			local month="${expiry_ts:2:2}"
+			local day="${expiry_ts:4:2}"
+			local expiry_date="${year}-${month}-${day}"
+
+			# Calculate days until expiry
+			local expiry_epoch now_epoch days_remaining
+			expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$expiry_date" +%s 2>/dev/null)
+			now_epoch=$(date +%s)
+			days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+
+			# Format status
+			local status_text
+			if [[ "$status" == "V" ]]; then
+				status_text="Valid"
+			elif [[ "$status" == "R" ]]; then
+				status_text="Revoked"
+			else
+				status_text="Unknown"
+			fi
+
+			# Format relative time
+			local relative
+			if [[ $days_remaining -lt 0 ]]; then
+				relative="$((-days_remaining)) days ago"
+			elif [[ $days_remaining -eq 0 ]]; then
+				relative="today"
+			elif [[ $days_remaining -eq 1 ]]; then
+				relative="1 day"
+			else
+				relative="$days_remaining days"
+			fi
+
+			echo "${client_name}|${status_text}|${expiry_date}|${relative}"
+		done < <(tail -n +2 "$index_file" | grep "^[VR]" | sort -t$'\t' -k2)
+	} | column -t -s'|' | sed 's/^/   /'
+
+	log_menu ""
+}
+
 function newClient() {
 	log_header "New Client Setup"
 	log_prompt "Tell me a name for the client."
@@ -2033,12 +2096,13 @@ function manageMenu() {
 	log_menu ""
 	log_prompt "What do you want to do?"
 	log_menu "   1) Add a new user"
-	log_menu "   2) Revoke existing user"
-	log_menu "   3) Renew certificate"
-	log_menu "   4) Remove OpenVPN"
-	log_menu "   5) Exit"
-	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-5]$ ]]; do
-		read -rp "Select an option [1-5]: " menu_option
+	log_menu "   2) List existing users"
+	log_menu "   3) Revoke existing user"
+	log_menu "   4) Renew certificate"
+	log_menu "   5) Remove OpenVPN"
+	log_menu "   6) Exit"
+	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-6]$ ]]; do
+		read -rp "Select an option [1-6]: " menu_option
 	done
 	menu_option="${MENU_OPTION:-$menu_option}"
 
@@ -2047,15 +2111,18 @@ function manageMenu() {
 		newClient
 		;;
 	2)
-		revokeClient
+		listClients
 		;;
 	3)
-		renewMenu
+		revokeClient
 		;;
 	4)
-		removeOpenVPN
+		renewMenu
 		;;
 	5)
+		removeOpenVPN
+		;;
+	6)
 		exit 0
 		;;
 	esac
