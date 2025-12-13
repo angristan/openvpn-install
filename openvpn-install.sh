@@ -1701,7 +1701,7 @@ function newClient() {
 				fi
 			else
 				log_info "Using provided passphrase for client certificate"
-				# Use env var to avoid exposing passphrase in process list
+				# Use env var to avoid exposing passphrase in install log
 				export EASYRSA_PASSPHRASE="$PASSPHRASE"
 				run_cmd_fatal "Building client certificate" ./easyrsa --batch --passin=env:EASYRSA_PASSPHRASE --passout=env:EASYRSA_PASSPHRASE build-client-full "$CLIENT"
 				unset EASYRSA_PASSPHRASE
