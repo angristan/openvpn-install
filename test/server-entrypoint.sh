@@ -554,12 +554,15 @@ echo "PASS: Connection with revoked certificate correctly rejected"
 echo "=== Certificate Revocation Tests PASSED ==="
 
 # =====================================================
-# Test listing clients
+# Test listing client certificates
 # =====================================================
 echo ""
-echo "=== Testing List Clients ==="
+echo "=== Testing List Client Certificates ==="
 
-# At this point we have: testclient (Valid) and revoketest (Revoked)
+# At this point we have 3 client certificates:
+# - testclient (Valid) - the renewed certificate
+# - testclient (Revoked) - the old certificate revoked during renewal
+# - revoketest (Revoked) - the revoked certificate
 LIST_OUTPUT="/tmp/list-clients-output.log"
 (MENU_OPTION=2 bash /opt/openvpn-install.sh) 2>&1 | tee "$LIST_OUTPUT" || true
 
@@ -580,8 +583,8 @@ else
 	exit 1
 fi
 
-# Verify certificate count
-if grep -q "Found 2 certificate(s)" "$LIST_OUTPUT"; then
+# Verify certificate count (3 certs: testclient valid, testclient revoked from renewal, revoketest revoked)
+if grep -q "Found 3 client certificate(s)" "$LIST_OUTPUT"; then
 	echo "PASS: List shows correct certificate count"
 else
 	echo "FAIL: List does not show correct certificate count"
@@ -589,7 +592,7 @@ else
 	exit 1
 fi
 
-echo "=== List Clients Tests PASSED ==="
+echo "=== List Client Certificates Tests PASSED ==="
 
 # =====================================================
 # Test reusing revoked client name
