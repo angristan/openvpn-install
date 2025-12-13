@@ -99,6 +99,9 @@ If you want to customise your installation, you can export them or specify them 
 - `MULTI_CLIENT=n`
 - `CLIENT_CERT_DURATION_DAYS=3650`
 - `SERVER_CERT_DURATION_DAYS=3650`
+- `CLIENT_FILEPATH=/custom/path/client.ovpn` (optional, overrides default output path)
+
+The `.ovpn` file is saved to `CLIENT_FILEPATH` if defined, otherwise: the client's home directory if it exists (`/home/$CLIENT`), otherwise `SUDO_USER`'s home, otherwise `/root`.
 
 If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
 
@@ -119,8 +122,11 @@ The following Bash script adds a new user `foo` to an existing OpenVPN configura
 export MENU_OPTION="1"
 export CLIENT="foo"
 export PASS="1"
+# export CLIENT_FILEPATH="/etc/openvpn/clients/foo.ovpn"
 ./openvpn-install.sh
 ```
+
+**Note:** When a client name matches a system user (e.g., `foo` and `/home/foo` exists), the script automatically sets proper ownership and permissions on the `.ovpn` file.
 
 ## Features
 
