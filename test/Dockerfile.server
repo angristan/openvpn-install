@@ -1,0 +1,69 @@
+# checkov:skip=CKV_DOCKER_2:Test container doesn't need healthcheck
+# checkov:skip=CKV_DOCKER_3:OpenVPN server requires root for NET_ADMIN
+# checkov:skip=CKV_DOCKER_7:Base image is parameterized, some use latest tag
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install basic dependencies based on the OS
+# dnsutils/bind-utils provides dig for DNS testing with Unbound
+RUN if command -v apt-get >/dev/null; then \
+        apt-get update && apt-get install -y --no-install-recommends \
+            iproute2 iptables curl procps systemd systemd-sysv dnsutils \
+        && rm -rf /var/lib/apt/lists/*; \
+    elif command -v dnf >/dev/null; then \
+        dnf install -y --allowerasing \
+            iproute iptables curl procps-ng systemd tar gzip bind-utils \
+        && dnf clean all; \
+    elif command -v yum >/dev/null; then \
+        yum install -y \
+            iproute iptables curl procps-ng systemd tar gzip bind-utils \
+        && yum clean all; \
+    elif command -v pacman >/dev/null; then \
+        pacman -Syu --noconfirm \
+            iproute2 iptables curl procps-ng bind \
+        && pacman -Scc --noconfirm; \
+    elif command -v zypper >/dev/null; then \
+        zypper install -y \
+            iproute2 iptables curl procps systemd tar gzip bind-utils gawk \
+        && zypper clean -a; \
+    fi
+
+# Create TUN device (will be mounted at runtime)
+RUN mkdir -p /dev/net
+
+# Copy the install script
+COPY openvpn-install.sh /opt/openvpn-install.sh
+RUN chmod +x /opt/openvpn-install.sh
+
+# Copy test scripts
+COPY test/server-entrypoint.sh /entrypoint.sh
+COPY test/validate-output.sh /opt/test/validate-output.sh
+RUN chmod +x /entrypoint.sh /opt/test/validate-output.sh
+
+# Create systemd service for the test script
+RUN printf '%s\n' \
+    '[Unit]' \
+    'Description=OpenVPN Installation Test' \
+    'After=network.target' \
+    '' \
+    '[Service]' \
+    'Type=oneshot' \
+    'Environment=HOME=/root' \
+    'WorkingDirectory=/root' \
+    'ExecStart=/entrypoint.sh' \
+    'RemainAfterExit=yes' \
+    'StandardOutput=journal+console' \
+    'StandardError=journal+console' \
+    '' \
+    '[Install]' \
+    'WantedBy=multi-user.target' \
+    > /etc/systemd/system/openvpn-test.service \
+    && systemctl enable openvpn-test.service
+
+WORKDIR /opt
+
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

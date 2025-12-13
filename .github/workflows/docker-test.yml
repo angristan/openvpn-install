@@ -1,0 +1,275 @@
+---
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+name: Docker Test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: ubuntu-18.04
+            image: ubuntu:18.04
+          - name: ubuntu-20.04
+            image: ubuntu:20.04
+          - name: ubuntu-22.04
+            image: ubuntu:22.04
+          - name: ubuntu-24.04
+            image: ubuntu:24.04
+          - name: debian-11
+            image: debian:11
+          - name: debian-12
+            image: debian:12
+          - name: centos-stream-9
+            image: quay.io/centos/centos:stream9
+          - name: centos-stream-10
+            image: quay.io/centos/centos:stream10
+          - name: fedora-42
+            image: fedora:42
+          - name: fedora-43
+            image: fedora:43
+          - name: rocky-8
+            image: rockylinux/rockylinux:8
+          - name: rocky-9
+            image: rockylinux/rockylinux:9
+          - name: rocky-10
+            image: rockylinux/rockylinux:10
+          - name: almalinux-8
+            image: almalinux:8
+          - name: almalinux-9
+            image: almalinux:9
+          - name: almalinux-10
+            image: almalinux:10
+          - name: archlinux
+            image: archlinux:latest
+          - name: opensuse-leap-16.0
+            image: opensuse/leap:16.0
+          - name: opensuse-tumbleweed
+            image: opensuse/tumbleweed
+          - name: oraclelinux-8
+            image: oraclelinux:8
+          - name: oraclelinux-9
+            image: oraclelinux:9
+          - name: oraclelinux-10
+            image: oraclelinux:10
+          - name: amazonlinux-2023
+            image: amazonlinux:2023
+        # Default TLS settings (tls-crypt-v2)
+        tls:
+          - name: tls-crypt-v2
+            sig: "1"
+            key_file: tls-crypt-v2.key
+        # Additional TLS types tested on Ubuntu 24.04 only
+        include:
+          - os:
+              name: ubuntu-24.04-tls-crypt
+              image: ubuntu:24.04
+            tls:
+              name: tls-crypt
+              sig: "2"
+              key_file: tls-crypt.key
+          - os:
+              name: ubuntu-24.04-tls-auth
+              image: ubuntu:24.04
+            tls:
+              name: tls-auth
+              sig: "3"
+              key_file: tls-auth.key
+
+    name: ${{ matrix.os.name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Build server image
+        run: |
+          docker build \
+            --build-arg BASE_IMAGE=${{ matrix.os.image }} \
+            -t openvpn-server \
+            -f test/Dockerfile.server .
+
+      - name: Build client image
+        run: docker build -t openvpn-client -f test/Dockerfile.client .
+
+      - name: Create Docker network
+        run: docker network create --subnet=172.28.0.0/24 vpn-test
+
+      - name: Create shared volume
+        run: docker volume create shared-config
+
+      - name: Start OpenVPN server
+        run: |
+          docker run -d \
+            --name openvpn-server \
+            --hostname openvpn-server \
+            --privileged \
+            --cgroupns=host \
+            --device=/dev/net/tun:/dev/net/tun \
+            --sysctl net.ipv4.ip_forward=1 \
+            --network vpn-test \
+            --ip 172.28.0.10 \
+            -v shared-config:/shared \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            --tmpfs /run \
+            --tmpfs /run/lock \
+            --stop-signal SIGRTMIN+3 \
+            -e TLS_SIG=${{ matrix.tls.sig }} \
+            -e TLS_KEY_FILE=${{ matrix.tls.key_file }} \
+            openvpn-server
+
+      - name: Wait for server installation and startup
+        run: |
+          echo "Waiting for OpenVPN server to install and client config to be ready..."
+          for i in {1..90}; do
+            # Get service status (properly handle non-zero exit codes)
+            # systemctl is-active returns exit code 3 for "inactive"/"failed", so capture output without checking exit code
+            SERVICE_STATUS="$(docker exec openvpn-server systemctl is-active openvpn-test.service 2>/dev/null)" || true
+            [ -z "$SERVICE_STATUS" ] && SERVICE_STATUS="unknown"
+
+            # Fail fast if service failed
+            if [ "$SERVICE_STATUS" = "failed" ]; then
+              echo "ERROR: openvpn-test.service failed during installation"
+              docker exec openvpn-server systemctl status openvpn-test.service 2>&1 || true
+              docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
+              exit 1
+            fi
+
+            # Check if OpenVPN server is running and client config exists
+            # The service will be "activating" while waiting for client tests - that's expected
+            OPENVPN_RUNNING=false
+            CONFIG_EXISTS=false
+
+            if docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
+              OPENVPN_RUNNING=true
+            fi
+
+            if docker exec openvpn-server test -f /shared/client.ovpn 2>/dev/null; then
+              CONFIG_EXISTS=true
+            fi
+
+            if [ "$OPENVPN_RUNNING" = true ] && [ "$CONFIG_EXISTS" = true ]; then
+              echo "OpenVPN server is running and client config is ready!"
+              break
+            fi
+
+            echo "Waiting... ($i/90) - Service: $SERVICE_STATUS, OpenVPN running: $OPENVPN_RUNNING, Config exists: $CONFIG_EXISTS"
+            sleep 5
+          done
+
+          # Final verification with retry (handles race condition during cert renewal restart)
+          OPENVPN_STARTED=false
+          for retry in {1..5}; do
+            if docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
+              OPENVPN_STARTED=true
+              break
+            fi
+            echo "Waiting for OpenVPN process... (retry $retry/5)"
+            sleep 2
+          done
+
+          if [ "$OPENVPN_STARTED" = false ]; then
+            echo "ERROR: OpenVPN server failed to start"
+            docker exec openvpn-server systemctl status openvpn-server@server 2>&1 || true
+            docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
+            exit 1
+          fi
+
+          if ! docker exec openvpn-server test -f /shared/client.ovpn 2>/dev/null; then
+            echo "ERROR: Client config not generated"
+            docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
+            exit 1
+          fi
+
+          echo "Server ready for client connection!"
+
+      - name: Verify client config was generated
+        run: |
+          docker run --rm -v shared-config:/shared alpine \
+            ls -la /shared/
+          docker run --rm -v shared-config:/shared alpine \
+            cat /shared/client.ovpn
+
+      - name: Start OpenVPN client and run tests
+        run: |
+          docker run \
+            --name openvpn-client \
+            --hostname openvpn-client \
+            --cap-add=NET_ADMIN \
+            --device=/dev/net/tun:/dev/net/tun \
+            --network vpn-test \
+            --ip 172.28.0.20 \
+            -v shared-config:/shared \
+            openvpn-client &
+
+          # Wait for tests to complete (look for success message)
+          # Extended timeout for revocation e2e tests
+          for i in {1..180}; do
+            if docker logs openvpn-client 2>&1 | grep -q "ALL TESTS PASSED"
+            then
+              echo "Tests passed!"
+              exit 0
+            fi
+            if docker logs openvpn-client 2>&1 | grep -q "FAIL:"; then
+              echo "Tests failed!"
+              docker logs openvpn-client
+              exit 1
+            fi
+            echo "Waiting for tests... ($i/180)"
+            sleep 2
+          done
+
+          echo "Timeout waiting for tests"
+          docker logs openvpn-client
+          exit 1
+
+      - name: Show server logs
+        if: always()
+        run: docker logs openvpn-server 2>&1 || true
+
+      - name: Show systemd journal logs
+        if: always()
+        run: |
+          echo "=== openvpn-test.service status ==="
+          docker exec openvpn-server systemctl status openvpn-test.service 2>&1 || true
+          echo ""
+          echo "=== openvpn-test.service journal ==="
+          docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
+          echo ""
+          echo "=== openvpn-server@server.service journal ==="
+          docker exec openvpn-server journalctl -u openvpn-server@server.service --no-pager -n 50 2>&1 || true
+
+      - name: Show install script log
+        if: always()
+        run: |
+          docker cp openvpn-server:/opt/openvpn-install.log /tmp/openvpn-install.log 2>/dev/null && \
+            cat /tmp/openvpn-install.log || echo "No install log found"
+
+      - name: Show client logs
+        if: always()
+        run: docker logs openvpn-client 2>&1 || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop openvpn-server openvpn-client 2>/dev/null || true
+          docker rm openvpn-server openvpn-client 2>/dev/null || true
+          docker network rm vpn-test 2>/dev/null || true
+          docker volume rm shared-config 2>/dev/null || true

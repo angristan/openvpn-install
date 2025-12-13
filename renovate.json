@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "ignorePaths": [".github/workflows/do-test.yml"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^openvpn-install\\.sh$/"],
+      "matchStrings": [
+        "readonly\\s+EASYRSA_VERSION=\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "OpenVPN/easy-rsa",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    }
+  ]
+}

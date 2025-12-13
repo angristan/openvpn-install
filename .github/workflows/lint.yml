@@ -1,14 +1,28 @@
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
 
 name: Lint
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   super-linter:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Lint Code Base
-        uses: github/super-linter@v4.1.0
+        uses: super-linter/super-linter@502f4fe48a81a392756e173e39a861f8c8efe056 # v8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

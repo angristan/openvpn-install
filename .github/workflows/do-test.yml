@@ -1,0 +1,104 @@
+# DigitalOcean E2E tests (manual trigger only)
+# Primary CI testing is now done via Docker in docker-test.yml
+# This workflow is kept for real-world VM testing when needed
+on:
+  workflow_dispatch:
+
+name: Test
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    if: github.repository == 'angristan/openvpn-install' && github.actor == 'angristan'
+    strategy:
+      matrix:
+        os-image:
+          - debian-12-x64
+          - debian-13-x64
+          - ubuntu-22-04-x64
+          - ubuntu-24-04-x64
+          - fedora-42-x64
+          # - centos-stream-9-x64 # yum oomkill
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup doctl
+        uses: digitalocean/action-doctl@135ac0aa0eed4437d547c6f12c364d3006b42824 # v2.5.1
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Create server
+        run: doctl compute droplet create "openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}" --size s-1vcpu-1gb --image "${{ matrix.os-image }}" --region lon1 --enable-ipv6 --ssh-keys be:66:76:61:a8:71:93:aa:e3:19:ba:d8:0d:d2:2d:d4 --wait
+
+      - name: Get server ID
+        run: echo "value=$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'"openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}"'").id')" >> "$GITHUB_OUTPUT"
+        id: server_id
+
+      - name: Move server to dedicated project
+        run: doctl projects resources assign "$DIGITALOCEAN_PROJECT_ID" --resource=do:droplet:"$SERVER_ID"
+        env:
+          DIGITALOCEAN_PROJECT_ID: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}
+          SERVER_ID: ${{ steps.server_id.outputs.value }}
+
+      - name: Wait for server to boot
+        run: sleep 90
+
+      - name: Get server IP
+        run: echo "value=$(doctl compute droplet list -o json | jq -r '.[] | select(.name == "'"openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}"'").networks.v4 | .[] | select(.type == "'"public"'").ip_address')" >> "$GITHUB_OUTPUT"
+        id: server_ip
+
+      - name: Get server OS
+        run: echo "value=$(echo "${{ matrix.os-image }}" | cut -d '-' -f1)" >> "$GITHUB_OUTPUT"
+        id: server_os
+
+      - name: Setup remote server (Debian/Ubuntu)
+        if: steps.server_os.outputs.value == 'debian' || steps.server_os.outputs.value == 'ubuntu'
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ steps.server_ip.outputs.value }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          script: set -x && apt-get update && apt-get -o DPkg::Lock::Timeout=120 install -y git
+
+      - name: Setup remote server (Fedora)
+        if: steps.server_os.outputs.value == 'fedora'
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ steps.server_ip.outputs.value }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          script: set -x && dnf install -y git
+
+      - name: Setup remote server (CentOS)
+        if: steps.server_os.outputs.value == 'centos'
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ steps.server_ip.outputs.value }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          script: set -x && yum install -y git
+
+      - name: Download repo and checkout current commit
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ steps.server_ip.outputs.value }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          script: set -x && git clone https://github.com/angristan/openvpn-install.git && cd openvpn-install && git checkout ${{ github.sha }}
+
+      - name: Run openvpn-install.sh in headless mode
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
+        with:
+          host: ${{ steps.server_ip.outputs.value }}
+          username: root
+          key: ${{ secrets.SSH_KEY }}
+          script: 'set -x && AUTO_INSTALL=y bash -x ~/openvpn-install/openvpn-install.sh && ps aux | grep openvpn | grep -v grep > /dev/null 2>&1 && echo "Success: OpenVPN is running" && exit 0 || echo "Failure: OpenVPN is not running" && exit 1'
+
+      - name: Delete server
+        run: doctl compute droplet delete -f "openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}"
+        if: always()
