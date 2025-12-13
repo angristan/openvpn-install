@@ -122,6 +122,28 @@ export PASS="1" # set to "2" for a password-protected client, and set PASSPHRASE
 ./openvpn-install.sh
 ```
 
+### Headless User Revocation
+
+It's also possible to automate the revocation of an existing user. The key is to provide the `MENU_OPTION` variable set to `2` along with either `CLIENT` (client name) or `CLIENTNUMBER` (1-based index from the client list).
+
+The following Bash script revokes the existing user `foo`:
+
+```bash
+#!/bin/bash
+export MENU_OPTION="2"
+export CLIENT="foo"
+./openvpn-install.sh
+```
+
+Alternatively, you can use the client number:
+
+```bash
+#!/bin/bash
+export MENU_OPTION="2"
+export CLIENTNUMBER="1"  # Revokes the first client in the list
+./openvpn-install.sh
+```
+
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server

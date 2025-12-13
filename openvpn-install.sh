@@ -1627,6 +1627,15 @@ function selectClient() {
 		log_fatal "You have no existing clients!"
 	fi
 
+	# If CLIENT is set, validate it exists as a valid client
+	if [[ -n $CLIENT ]]; then
+		if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | grep -qx "$CLIENT"; then
+			return
+		else
+			log_fatal "Client '$CLIENT' not found or not valid"
+		fi
+	fi
+
 	if [[ $show_expiry == "true" ]]; then
 		local i=1
 		while read -r client; do
