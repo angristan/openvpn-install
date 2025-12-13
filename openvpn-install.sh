@@ -1667,6 +1667,8 @@ function listClients() {
 
 	log_prompt "Found $number_of_clients certificate(s), sorted by expiration (oldest first):"
 	log_menu ""
+	printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Days"
+	printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "----"
 
 	# Parse index.txt and sort by expiry date (oldest first)
 	{
