@@ -1668,12 +1668,14 @@ function listClients() {
 	log_prompt "Found $number_of_clients certificate(s), sorted by expiration (oldest first):"
 	log_menu ""
 
-	# Parse index.txt: status, expiry timestamp, [revocation timestamp], serial, unknown, /CN=name
-	# Build output and pipe through column for alignment
+	# Parse index.txt and sort by expiry date (oldest first)
 	{
-		# Sort by expiry date (oldest first)
-		while IFS=$'\t' read -r status expiry_ts _ _ _ dn; do
-			local client_name="${dn##*/CN=}"
+		while read -r line; do
+			local status="${line:0:1}"
+			local expiry_ts
+			expiry_ts=$(echo "$line" | awk '{print $2}')
+			local client_name
+			client_name=$(echo "$line" | sed 's/.*\/CN=//')
 
 			# Parse expiry: format is YYMMDDHHMMSSZ
 			local year="20${expiry_ts:0:2}"
