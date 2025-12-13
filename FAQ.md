@@ -87,9 +87,9 @@ If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/s
 
 ---
 
-**Q:** What syctl and iptables changes are made by the script?
+**Q:** What sysctl and firewall changes are made by the script?
 
-**A:** Iptables rules are saved at `/etc/iptables/add-openvpn-rules.sh` and `/etc/iptables/rm-openvpn-rules.sh`. They are managed by the service `/etc/systemd/system/iptables-openvpn.service`
+**A:** If firewalld is active, the script uses `firewall-cmd --permanent` to configure port, masquerade, and rich rules. Otherwise, iptables rules are saved at `/etc/iptables/add-openvpn-rules.sh` and `/etc/iptables/rm-openvpn-rules.sh`, managed by `/etc/systemd/system/iptables-openvpn.service`.
 
 Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
 
