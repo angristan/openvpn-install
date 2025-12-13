@@ -1474,7 +1474,12 @@ table ip6 openvpn-nat {
 		fi
 
 		# Add include to nftables.conf if not already present
-		if ! grep -q 'include.*/etc/nftables/openvpn.nft' /etc/nftables.conf 2>/dev/null; then
+		# Create nftables.conf if it doesn't exist
+		if [[ ! -f /etc/nftables.conf ]]; then
+			echo '#!/usr/sbin/nft -f' > /etc/nftables.conf
+			echo 'flush ruleset' >> /etc/nftables.conf
+		fi
+		if ! grep -q 'include.*/etc/nftables/openvpn.nft' /etc/nftables.conf; then
 			run_cmd "Adding include to nftables.conf" sh -c 'echo "include \"/etc/nftables/openvpn.nft\"" >> /etc/nftables.conf'
 		fi
 
@@ -2183,8 +2188,9 @@ function removeOpenVPN() {
 			run_cmd "Reloading firewalld" firewall-cmd --reload
 		elif [[ -f /etc/nftables/openvpn.nft ]]; then
 			# nftables was used
-			run_cmd "Removing OpenVPN nftables table" nft delete table inet openvpn
-			run_cmd "Removing OpenVPN NAT table" nft delete table ip openvpn-nat
+			# Delete tables (suppress errors in case tables don't exist)
+			nft delete table inet openvpn 2>/dev/null || true
+			nft delete table ip openvpn-nat 2>/dev/null || true
 			nft delete table ip6 openvpn-nat 2>/dev/null || true
 			run_cmd "Removing include from nftables.conf" sed -i '/include.*openvpn\.nft/d' /etc/nftables.conf
 			run_cmd "Removing nftables rules file" rm -f /etc/nftables/openvpn.nft
