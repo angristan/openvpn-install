@@ -261,9 +261,9 @@ function checkArchPendingKernelUpgrade() {
 		return 0
 	fi
 
-	# Check for pending linux kernel upgrades (linux, linux-lts, linux-zen, linux-hardened)
+	# Check for pending linux kernel upgrades
 	local pending_kernels
-	pending_kernels=$(pacman -Qu 2>/dev/null | grep -E '^linux(-lts|-zen|-hardened)?[[:space:]]' || true)
+	pending_kernels=$(pacman -Qu 2>/dev/null | grep -E '^linux' || true)
 
 	if [[ -n "$pending_kernels" ]]; then
 		log_warn "Linux kernel upgrade(s) pending:"
@@ -278,7 +278,7 @@ function checkArchPendingKernelUpgrade() {
 		log_info "  sudo pacman -Syu"
 		log_info "  sudo reboot"
 		echo ""
-		log_fatal "Aborting. Please update and reboot, then run this script again."
+		log_fatal "Aborting. Run this script again after upgrading and rebooting."
 	fi
 
 	log_success "No pending kernel upgrades"
