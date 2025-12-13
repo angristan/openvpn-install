@@ -423,12 +423,8 @@ function installOpenVPNRepo() {
 		log_info "OpenVPN Copr repository configured"
 
 	elif [[ $OS == "fedora" ]]; then
-		# Fedora already has recent OpenVPN, but we can use Copr for latest 2.6
-		log_info "Configuring OpenVPN Copr repository for Fedora..."
-		run_cmd "Installing dnf-plugins-core" dnf install -y dnf-plugins-core
-		run_cmd "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6
-
-		log_info "OpenVPN Copr repository configured"
+		# Fedora already ships with recent OpenVPN 2.6.x, no Copr needed
+		log_info "Fedora already has recent OpenVPN packages, using distribution version"
 
 	else
 		log_info "No official OpenVPN repository available for this OS, using distribution packages"
@@ -1983,8 +1979,6 @@ function removeOpenVPN() {
 			run_cmd "Removing OpenVPN" dnf remove -y openvpn
 		elif [[ $OS == 'fedora' ]]; then
 			run_cmd "Removing OpenVPN" dnf remove -y openvpn
-			# Disable Copr repo
-			run_cmd "Disabling OpenVPN Copr repo" dnf copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
 		elif [[ $OS == 'opensuse' ]]; then
 			run_cmd "Removing OpenVPN" zypper remove -y openvpn
 		fi
