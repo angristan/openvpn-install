@@ -99,34 +99,56 @@ jobs:
           docker run -d \
             --name openvpn-server \
             --hostname openvpn-server \
-            --cap-add=NET_ADMIN \
+            --privileged \
+            --cgroupns=host \
             --device=/dev/net/tun:/dev/net/tun \
             --sysctl net.ipv4.ip_forward=1 \
             --network vpn-test \
             --ip 172.28.0.10 \
             -v shared-config:/shared \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            --tmpfs /run \
+            --tmpfs /run/lock \
+            --stop-signal SIGRTMIN+3 \
             openvpn-server
 
       - name: Wait for server installation and startup
         run: |
-          echo "Waiting for OpenVPN server to install and start..."
-          for i in {1..60}; do
-            # Use pgrep -f to match openvpn running with server.conf, not transient
-            # processes like "openvpn --genkey" that run during installation
+          echo "Waiting for OpenVPN server to install and client config to be ready..."
+          for i in {1..90}; do
+            # Check BOTH conditions:
+            # 1. OpenVPN server process is running
+            # 2. Client config file exists in shared volume
+            OPENVPN_RUNNING=false
+            CONFIG_EXISTS=false
+
             if docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
-              echo "OpenVPN server is running!"
+              OPENVPN_RUNNING=true
+            fi
+
+            if docker exec openvpn-server test -f /shared/client.ovpn 2>/dev/null; then
+              CONFIG_EXISTS=true
+            fi
+
+            if [ "$OPENVPN_RUNNING" = true ] && [ "$CONFIG_EXISTS" = true ]; then
+              echo "OpenVPN server is running and client config is ready!"
               break
             fi
-            echo "Waiting... ($i/60)"
+
+            echo "Waiting... ($i/90) - OpenVPN running: $OPENVPN_RUNNING, Config exists: $CONFIG_EXISTS"
             sleep 5
-            # Show logs for debugging
-            docker logs --tail 20 openvpn-server 2>&1 || true
           done
 
           # Final check
           if ! docker exec openvpn-server pgrep -f "openvpn.*server.conf" > /dev/null 2>&1; then
             echo "ERROR: OpenVPN server failed to start"
-            docker logs openvpn-server
+            docker exec openvpn-server systemctl status openvpn-server@server 2>&1 || true
+            exit 1
+          fi
+
+          if ! docker exec openvpn-server test -f /shared/client.ovpn 2>/dev/null; then
+            echo "ERROR: Client config not generated"
+            docker exec openvpn-server systemctl status openvpn-test.service 2>&1 || true
             exit 1
           fi
 
@@ -173,6 +195,18 @@ jobs:
       - name: Show server logs
         if: always()
         run: docker logs openvpn-server 2>&1 || true
+
+      - name: Show systemd journal logs
+        if: always()
+        run: |
+          echo "=== openvpn-test.service status ==="
+          docker exec openvpn-server systemctl status openvpn-test.service 2>&1 || true
+          echo ""
+          echo "=== openvpn-test.service journal ==="
+          docker exec openvpn-server journalctl -u openvpn-test.service --no-pager -n 100 2>&1 || true
+          echo ""
+          echo "=== openvpn-server@server.service journal ==="
+          docker exec openvpn-server journalctl -u openvpn-server@server.service --no-pager -n 50 2>&1 || true
 
       - name: Show install script log
         if: always()

@@ -27,21 +27,12 @@ export CLIENT=testclient
 export PASS=1
 export ENDPOINT=openvpn-server
 
-# Prepare script for container environment:
-# - Replace systemctl calls with no-ops (systemd doesn't work in containers)
-# - Skip Unbound startup validation (we start Unbound manually later)
-# This ensures the script won't fail silently on systemctl commands
-sed -e 's/\bsystemctl /echo "[SKIPPED] systemctl " # /g' \
-	-e 's/log_fatal "Unbound failed to start/return 0 # [SKIPPED] /g' \
-	/opt/openvpn-install.sh >/tmp/openvpn-install.sh
-chmod +x /tmp/openvpn-install.sh
-
 echo "Running OpenVPN install script..."
 # Run in subshell because the script calls 'exit 0' after generating client config
 # Capture output to validate logging format, while still displaying it
 # Use || true to prevent set -e from exiting on failure, then check exit code
 INSTALL_OUTPUT="/tmp/install-output.log"
-(bash /tmp/openvpn-install.sh) 2>&1 | tee "$INSTALL_OUTPUT"
+(bash /opt/openvpn-install.sh) 2>&1 | tee "$INSTALL_OUTPUT"
 INSTALL_EXIT_CODE=${PIPESTATUS[0]}
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
@@ -85,6 +76,11 @@ if [ $MISSING_FILES -gt 0 ]; then
 fi
 
 echo "All required files present"
+
+# Copy client config to shared volume for the client container
+cp /root/testclient.ovpn /shared/client.ovpn
+sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
+echo "Client config copied to /shared/client.ovpn"
 
 # =====================================================
 # Verify systemd service file configuration
@@ -146,12 +142,6 @@ echo ""
 echo "Server config:"
 cat /etc/openvpn/server/server.conf
 
-# Copy client config to shared volume
-cp /root/testclient.ovpn /shared/client.ovpn
-# Modify remote address to use container hostname
-sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
-echo "Client config copied to /shared/client.ovpn"
-
 # =====================================================
 # Test certificate renewal functionality
 # =====================================================
@@ -165,7 +155,7 @@ echo "Original client certificate serial: $ORIG_CERT_SERIAL"
 # Test client certificate renewal using the script
 echo "Testing client certificate renewal..."
 RENEW_OUTPUT="/tmp/renew-client-output.log"
-(MENU_OPTION=3 RENEW_OPTION=1 CLIENTNUMBER=1 CLIENT_CERT_DURATION_DAYS=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
+(MENU_OPTION=3 RENEW_OPTION=1 CLIENTNUMBER=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Certificate for client testclient renewed" "$RENEW_OUTPUT"; then
@@ -245,7 +235,7 @@ echo "Original server certificate serial: $ORIG_SERVER_SERIAL"
 # Test server certificate renewal
 echo "Testing server certificate renewal..."
 RENEW_SERVER_OUTPUT="/tmp/renew-server-output.log"
-(MENU_OPTION=3 RENEW_OPTION=2 CONTINUE=y SERVER_CERT_DURATION_DAYS=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
+(MENU_OPTION=3 RENEW_OPTION=2 CONTINUE=y SERVER_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Server certificate renewed successfully" "$RENEW_SERVER_OUTPUT"; then
@@ -304,26 +294,14 @@ echo "=== All Certificate Renewal Tests PASSED ==="
 echo ""
 
 # =====================================================
-# Start and verify Unbound DNS resolver
+# Verify Unbound DNS resolver (started by systemd via install script)
 # =====================================================
-echo "=== Starting Unbound DNS Resolver ==="
+echo "=== Verifying Unbound DNS Resolver ==="
 
-# Start Unbound manually (systemctl commands are no-ops in container)
 if [ -f /etc/unbound/unbound.conf ]; then
-	echo "Starting Unbound DNS resolver..."
-
-	# Create root key for DNSSEC if it doesn't exist
-	# Normally, unbound.service's ExecStartPre copies /usr/share/dns/root.key to /var/lib/unbound/root.key
-	# In Docker, policy-rc.d blocks service starts during apt install, so this never happens
-	if [ ! -f /var/lib/unbound/root.key ] && [ -f /usr/share/dns/root.key ]; then
-		mkdir -p /var/lib/unbound
-		cp /usr/share/dns/root.key /var/lib/unbound/root.key
-		chown -R unbound:unbound /var/lib/unbound 2>/dev/null || true
-	fi
-
-	unbound
-	# Poll up to 10 seconds for Unbound to start
-	for _ in $(seq 1 10); do
+	# Verify Unbound is running (started by systemctl in install script)
+	echo "Checking Unbound service status..."
+	for _ in $(seq 1 30); do
 		if pgrep -x unbound >/dev/null; then
 			echo "PASS: Unbound is running"
 			break
@@ -331,9 +309,9 @@ if [ -f /etc/unbound/unbound.conf ]; then
 		sleep 1
 	done
 	if ! pgrep -x unbound >/dev/null; then
-		echo "FAIL: Unbound failed to start"
-		# Show debug info
-		unbound-checkconf /etc/unbound/unbound.conf 2>&1 || true
+		echo "FAIL: Unbound is not running"
+		systemctl status unbound 2>&1 || true
+		journalctl -u unbound --no-pager -n 50 2>&1 || true
 		exit 1
 	fi
 else
@@ -377,50 +355,46 @@ fi
 echo "=== Unbound Installation Verified ==="
 echo ""
 
-# Start OpenVPN server manually (systemd doesn't work in containers)
-echo "Starting OpenVPN server..."
+# Verify OpenVPN server (started by systemd via install script)
+echo "Verifying OpenVPN server..."
 
-# Apply iptables rules manually (systemd not available in containers)
-echo "Applying iptables rules..."
-bash /etc/iptables/add-openvpn-rules.sh
-
-# Verify iptables NAT rules exist
+# Verify iptables NAT rules exist (applied by iptables-openvpn service)
 echo "Verifying iptables NAT rules..."
-if iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
-	echo "PASS: NAT POSTROUTING rule for 10.8.0.0/24 exists"
-else
+for _ in $(seq 1 10); do
+	if iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
+		echo "PASS: NAT POSTROUTING rule for 10.8.0.0/24 exists"
+		break
+	fi
+	sleep 1
+done
+if ! iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
 	echo "FAIL: NAT POSTROUTING rule for 10.8.0.0/24 not found"
 	echo "Current NAT rules:"
 	iptables -t nat -L POSTROUTING -n -v
+	systemctl status iptables-openvpn 2>&1 || true
 	exit 1
 fi
 
-# Enable IP forwarding (may already be set via docker-compose sysctls)
+# Verify IP forwarding is enabled
 if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "1" ]; then
-	echo 1 >/proc/sys/net/ipv4/ip_forward || {
-		echo "ERROR: Failed to enable IP forwarding"
-		exit 1
-	}
+	echo "ERROR: IP forwarding is not enabled"
+	exit 1
 fi
 
-# Start OpenVPN in background (run from /etc/openvpn/server so relative paths work)
-cd /etc/openvpn/server
-openvpn --config /etc/openvpn/server/server.conf --log /var/log/openvpn-server.log &
-OPENVPN_PID=$!
-
-# Wait for OpenVPN to start
+# Wait for OpenVPN to start (started by systemctl in install script)
 echo "Waiting for OpenVPN server to start..."
 for _ in $(seq 1 30); do
-	if pgrep -f "openvpn --config" >/dev/null; then
-		echo "OpenVPN server started (PID: $OPENVPN_PID)"
+	if pgrep -f "openvpn.*server.conf" >/dev/null; then
+		echo "PASS: OpenVPN server is running"
 		break
 	fi
 	sleep 1
 done
 
-if ! pgrep -f "openvpn --config" >/dev/null; then
-	echo "FAIL: OpenVPN server failed to start"
-	cat /var/log/openvpn-server.log || true
+if ! pgrep -f "openvpn.*server.conf" >/dev/null; then
+	echo "FAIL: OpenVPN server is not running"
+	systemctl status openvpn-server@server 2>&1 || true
+	journalctl -u openvpn-server@server --no-pager -n 50 2>&1 || true
 	exit 1
 fi
 
@@ -453,7 +427,7 @@ echo "=== Testing Certificate Revocation ==="
 REVOKE_CLIENT="revoketest"
 echo "Creating client '$REVOKE_CLIENT' for revocation testing..."
 REVOKE_CREATE_OUTPUT="/tmp/revoke-create-output.log"
-(MENU_OPTION=1 CLIENT=$REVOKE_CLIENT PASS=1 CLIENT_CERT_DURATION_DAYS=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$REVOKE_CREATE_OUTPUT" || true
+(MENU_OPTION=1 CLIENT=$REVOKE_CLIENT PASS=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$REVOKE_CREATE_OUTPUT" || true
 
 if [ -f "/root/$REVOKE_CLIENT.ovpn" ]; then
 	echo "PASS: Client '$REVOKE_CLIENT' created successfully"
@@ -517,7 +491,7 @@ if [ -z "$REVOKE_CLIENT_NUM" ]; then
 	exit 1
 fi
 echo "Revoke client number: $REVOKE_CLIENT_NUM"
-(MENU_OPTION=2 CLIENTNUMBER=$REVOKE_CLIENT_NUM bash /tmp/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
+(MENU_OPTION=2 CLIENTNUMBER=$REVOKE_CLIENT_NUM bash /opt/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
 
 if grep -q "Certificate for client $REVOKE_CLIENT revoked" "$REVOKE_OUTPUT"; then
 	echo "PASS: Certificate for '$REVOKE_CLIENT' revoked successfully"
@@ -566,7 +540,7 @@ echo "=== Testing Reuse of Revoked Client Name ==="
 # Create a new certificate with the same name as the revoked one
 echo "Creating new client with same name '$REVOKE_CLIENT'..."
 RECREATE_OUTPUT="/tmp/recreate-output.log"
-(MENU_OPTION=1 CLIENT=$REVOKE_CLIENT PASS=1 CLIENT_CERT_DURATION_DAYS=3650 bash /tmp/openvpn-install.sh) 2>&1 | tee "$RECREATE_OUTPUT" || true
+(MENU_OPTION=1 CLIENT=$REVOKE_CLIENT PASS=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RECREATE_OUTPUT" || true
 
 if [ -f "/root/$REVOKE_CLIENT.ovpn" ]; then
 	echo "PASS: New client '$REVOKE_CLIENT' created successfully (reusing revoked name)"
@@ -625,6 +599,7 @@ echo "=== Reuse of Revoked Client Name Tests PASSED ==="
 echo ""
 echo "=== All Revocation Tests PASSED ==="
 
-# Keep server running for any remaining client tests
-echo "Server waiting for client to complete all tests..."
-wait $OPENVPN_PID
+# Server tests complete - systemd keeps the container running via /sbin/init
+# OpenVPN service (openvpn-server@server) continues independently
+echo "Server tests complete. Container will remain running via systemd."
+echo "OpenVPN is managed by: systemctl status openvpn-server@server"

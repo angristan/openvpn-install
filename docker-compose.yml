@@ -8,17 +8,22 @@ services:
         BASE_IMAGE: ${BASE_IMAGE:-ubuntu:24.04}
     container_name: openvpn-server
     hostname: openvpn-server
-    cap_add:
-      - NET_ADMIN
+    privileged: true
+    cgroupns: host
     devices:
       - /dev/net/tun:/dev/net/tun
     sysctls:
       - net.ipv4.ip_forward=1
     volumes:
       - shared-config:/shared
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /run/lock
     networks:
       vpn-test:
         ipv4_address: 172.28.0.10
+    stop_signal: SIGRTMIN+3
     healthcheck:
       test: ["CMD", "pgrep", "openvpn"]
       interval: 5s
