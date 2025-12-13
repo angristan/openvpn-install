@@ -147,6 +147,16 @@ run_cmd() {
 	return $ret
 }
 
+# Run a command that must succeed, exit on failure
+# Usage: run_cmd_fatal "description" command [args...]
+run_cmd_fatal() {
+	local desc="$1"
+	shift
+	if ! run_cmd "$desc" "$@"; then
+		log_fatal "$desc failed"
+	fi
+}
+
 function isRoot() {
 	if [ "$EUID" -ne 0 ]; then
 		return 1
@@ -367,7 +377,7 @@ function installOpenVPNRepo() {
 
 	if [[ $OS =~ (debian|ubuntu) ]]; then
 		run_cmd "Update package lists" apt-get update
-		run_cmd "Installing prerequisites" apt-get install -y ca-certificates curl
+		run_cmd_fatal "Installing prerequisites" apt-get install -y ca-certificates curl
 
 		# Create keyrings directory
 		run_cmd "Creating keyrings directory" mkdir -p /etc/apt/keyrings
@@ -401,24 +411,20 @@ function installOpenVPNRepo() {
 		fi
 
 		if ! command -v dnf &>/dev/null; then
-			run_cmd "Installing EPEL repository" yum install -y "$EPEL_PACKAGE" || log_fatal "Failed to install EPEL repository"
-			run_cmd "Installing yum-plugin-copr" yum install -y yum-plugin-copr || log_fatal "Failed to install yum-plugin-copr"
-			run_cmd "Enabling OpenVPN Copr repo" yum copr enable -y @OpenVPN/openvpn-release-2.6 || log_fatal "Failed to enable OpenVPN Copr repo"
+			run_cmd_fatal "Installing EPEL repository" yum install -y "$EPEL_PACKAGE"
+			run_cmd_fatal "Installing yum-plugin-copr" yum install -y yum-plugin-copr
+			run_cmd_fatal "Enabling OpenVPN Copr repo" yum copr enable -y @OpenVPN/openvpn-release-2.6
 		else
-			run_cmd "Installing EPEL repository" dnf install -y "$EPEL_PACKAGE" || log_fatal "Failed to install EPEL repository"
-			run_cmd "Installing dnf-plugins-core" dnf install -y dnf-plugins-core || log_fatal "Failed to install dnf-plugins-core"
-			run_cmd "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6 || log_fatal "Failed to enable OpenVPN Copr repo"
+			run_cmd_fatal "Installing EPEL repository" dnf install -y "$EPEL_PACKAGE"
+			run_cmd_fatal "Installing dnf-plugins-core" dnf install -y dnf-plugins-core
+			run_cmd_fatal "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6
 		fi
 
 		log_info "OpenVPN Copr repository configured"
 
 	elif [[ $OS == "fedora" ]]; then
-		# Fedora already has recent OpenVPN, but we can use Copr for latest 2.6
-		log_info "Configuring OpenVPN Copr repository for Fedora..."
-		run_cmd "Installing dnf-plugins-core" dnf install -y dnf-plugins-core
-		run_cmd "Enabling OpenVPN Copr repo" dnf copr enable -y @OpenVPN/openvpn-release-2.6
-
-		log_info "OpenVPN Copr repository configured"
+		# Fedora already ships with recent OpenVPN 2.6.x, no Copr needed
+		log_info "Fedora already has recent OpenVPN packages, using distribution version"
 
 	else
 		log_info "No official OpenVPN repository available for this OS, using distribution packages"
@@ -431,15 +437,15 @@ function installUnbound() {
 	# Install Unbound if not present
 	if [[ ! -e /etc/unbound/unbound.conf ]]; then
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			run_cmd "Installing Unbound" apt-get install -y unbound
+			run_cmd_fatal "Installing Unbound" apt-get install -y unbound
 		elif [[ $OS =~ (centos|oracle) ]]; then
-			run_cmd "Installing Unbound" yum install -y unbound
+			run_cmd_fatal "Installing Unbound" yum install -y unbound
 		elif [[ $OS =~ (fedora|amzn2023) ]]; then
-			run_cmd "Installing Unbound" dnf install -y unbound
+			run_cmd_fatal "Installing Unbound" dnf install -y unbound
 		elif [[ $OS == "opensuse" ]]; then
-			run_cmd "Installing Unbound" zypper install -y unbound
+			run_cmd_fatal "Installing Unbound" zypper install -y unbound
 		elif [[ $OS == "arch" ]]; then
-			run_cmd "Installing Unbound" pacman -Syu --noconfirm unbound
+			run_cmd_fatal "Installing Unbound" pacman -Syu --noconfirm unbound
 		fi
 	fi
 
@@ -1038,19 +1044,19 @@ function installOpenVPN() {
 
 		log_info "Installing OpenVPN and dependencies..."
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			run_cmd "Installing OpenVPN" apt-get install -y openvpn iptables openssl curl ca-certificates tar dnsutils
+			run_cmd_fatal "Installing OpenVPN" apt-get install -y openvpn iptables openssl curl ca-certificates tar dnsutils
 		elif [[ $OS == 'centos' ]]; then
-			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils 'policycoreutils-python*'
+			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-			run_cmd "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils policycoreutils-python-utils
+			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils policycoreutils-python-utils
 		elif [[ $OS == 'amzn2023' ]]; then
-			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils
+			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils
 		elif [[ $OS == 'fedora' ]]; then
-			run_cmd "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils policycoreutils-python-utils
+			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils policycoreutils-python-utils
 		elif [[ $OS == 'opensuse' ]]; then
-			run_cmd "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl tar bind-utils
+			run_cmd_fatal "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl tar bind-utils
 		elif [[ $OS == 'arch' ]]; then
-			run_cmd "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl tar bind
+			run_cmd_fatal "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl tar bind
 		fi
 
 		# Verify ChaCha20-Poly1305 compatibility if selected
@@ -1076,7 +1082,7 @@ function installOpenVPN() {
 		fi
 
 		# Create the server directory (OpenVPN 2.4+ directory structure)
-		run_cmd "Creating server directory" mkdir -p /etc/openvpn/server
+		run_cmd_fatal "Creating server directory" mkdir -p /etc/openvpn/server
 
 		# An old version of easy-rsa was available by default in some openvpn packages
 		if [[ -d /etc/openvpn/server/easy-rsa/ ]]; then
@@ -1114,7 +1120,7 @@ function installOpenVPN() {
 
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/server/easy-rsa/ ]]; then
-		run_cmd "Downloading Easy-RSA v${EASYRSA_VERSION}" curl -fL --retry 5 -o ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
+		run_cmd_fatal "Downloading Easy-RSA v${EASYRSA_VERSION}" curl -fL --retry 5 -o ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
 		log_info "Verifying Easy-RSA checksum..."
 		CHECKSUM_OUTPUT=$(echo "${EASYRSA_SHA256}  $HOME/easy-rsa.tgz" | sha256sum -c 2>&1) || {
 			_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
@@ -1122,8 +1128,8 @@ function installOpenVPN() {
 			log_fatal "SHA256 checksum verification failed for easy-rsa download!"
 		}
 		_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
-		run_cmd "Creating Easy-RSA directory" mkdir -p /etc/openvpn/server/easy-rsa
-		run_cmd "Extracting Easy-RSA" tar xzf ~/easy-rsa.tgz --strip-components=1 --no-same-owner --directory /etc/openvpn/server/easy-rsa
+		run_cmd_fatal "Creating Easy-RSA directory" mkdir -p /etc/openvpn/server/easy-rsa
+		run_cmd_fatal "Extracting Easy-RSA" tar xzf ~/easy-rsa.tgz --strip-components=1 --no-same-owner --directory /etc/openvpn/server/easy-rsa
 		run_cmd "Cleaning up archive" rm -f ~/easy-rsa.tgz
 
 		cd /etc/openvpn/server/easy-rsa/ || return
@@ -1145,31 +1151,31 @@ function installOpenVPN() {
 
 		# Create the PKI, set up the CA, the DH params and the server certificate
 		log_info "Initializing PKI..."
-		run_cmd "Initializing PKI" ./easyrsa init-pki
+		run_cmd_fatal "Initializing PKI" ./easyrsa init-pki
 		export EASYRSA_CA_EXPIRE=$DEFAULT_CERT_VALIDITY_DURATION_DAYS
 		log_info "Building CA..."
-		run_cmd "Building CA" ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
+		run_cmd_fatal "Building CA" ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
 
 		if [[ $DH_TYPE == "2" ]]; then
 			# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
-			run_cmd "Generating DH parameters (this may take a while)" openssl dhparam -out dh.pem "$DH_KEY_SIZE"
+			run_cmd_fatal "Generating DH parameters (this may take a while)" openssl dhparam -out dh.pem "$DH_KEY_SIZE"
 		fi
 
 		export EASYRSA_CERT_EXPIRE=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		log_info "Building server certificate..."
-		run_cmd "Building server certificate" ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
+		run_cmd_fatal "Building server certificate" ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
 		export EASYRSA_CRL_DAYS=$DEFAULT_CRL_VALIDITY_DURATION_DAYS
-		run_cmd "Generating CRL" ./easyrsa gen-crl
+		run_cmd_fatal "Generating CRL" ./easyrsa gen-crl
 
 		log_info "Generating TLS key..."
 		case $TLS_SIG in
 		1)
 			# Generate tls-crypt key
-			run_cmd "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/server/tls-crypt.key
+			run_cmd_fatal "Generating tls-crypt key" openvpn --genkey --secret /etc/openvpn/server/tls-crypt.key
 			;;
 		2)
 			# Generate tls-auth key
-			run_cmd "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/server/tls-auth.key
+			run_cmd_fatal "Generating tls-auth key" openvpn --genkey --secret /etc/openvpn/server/tls-auth.key
 			;;
 		esac
 	else
@@ -1181,9 +1187,9 @@ function installOpenVPN() {
 
 	# Move all the generated files
 	log_info "Copying certificates..."
-	run_cmd "Copying certificates to /etc/openvpn/server" cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server
+	run_cmd_fatal "Copying certificates to /etc/openvpn/server" cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server
 	if [[ $DH_TYPE == "2" ]]; then
-		run_cmd "Copying DH parameters" cp dh.pem /etc/openvpn/server
+		run_cmd_fatal "Copying DH parameters" cp dh.pem /etc/openvpn/server
 	fi
 
 	# Make cert revocation list readable for non-root
@@ -1339,9 +1345,9 @@ status /var/log/openvpn/status.log
 verb 3" >>/etc/openvpn/server/server.conf
 
 	# Create client-config-dir dir
-	run_cmd "Creating client config directory" mkdir -p /etc/openvpn/server/ccd
+	run_cmd_fatal "Creating client config directory" mkdir -p /etc/openvpn/server/ccd
 	# Create log dir
-	run_cmd "Creating log directory" mkdir -p /var/log/openvpn
+	run_cmd_fatal "Creating log directory" mkdir -p /var/log/openvpn
 
 	# On distros that use a dedicated OpenVPN user (not "nobody"), e.g., Fedora, RHEL, Arch,
 	# set ownership so OpenVPN can read config/certs and write to log directory
@@ -1353,7 +1359,7 @@ verb 3" >>/etc/openvpn/server/server.conf
 
 	# Enable routing
 	log_info "Enabling IP forwarding..."
-	run_cmd "Creating sysctl.d directory" mkdir -p /etc/sysctl.d
+	run_cmd_fatal "Creating sysctl.d directory" mkdir -p /etc/sysctl.d
 	echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/99-openvpn.conf
 	if [[ $IPV6_SUPPORT == 'y' ]]; then
 		echo 'net.ipv6.conf.all.forwarding=1' >>/etc/sysctl.d/99-openvpn.conf
@@ -1391,7 +1397,7 @@ verb 3" >>/etc/openvpn/server/server.conf
 	fi
 
 	# Don't modify package-provided service, copy to /etc/systemd/system/
-	run_cmd "Copying OpenVPN service file" cp "$SERVICE_SOURCE" /etc/systemd/system/openvpn-server@.service
+	run_cmd_fatal "Copying OpenVPN service file" cp "$SERVICE_SOURCE" /etc/systemd/system/openvpn-server@.service
 
 	# Workaround to fix OpenVPN service on OpenVZ
 	run_cmd "Patching service file (LimitNPROC)" sed -i 's|LimitNPROC|#LimitNPROC|' /etc/systemd/system/openvpn-server@.service
@@ -1412,7 +1418,7 @@ verb 3" >>/etc/openvpn/server/server.conf
 
 	# Add iptables rules in two scripts
 	log_info "Configuring firewall rules..."
-	run_cmd "Creating iptables directory" mkdir -p /etc/iptables
+	run_cmd_fatal "Creating iptables directory" mkdir -p /etc/iptables
 
 	# Script to add rules
 	echo "#!/bin/sh
@@ -1452,7 +1458,7 @@ ip6tables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables
 	# Handle the rules via a systemd script
 	echo "[Unit]
 Description=iptables rules for OpenVPN
-After=network-online.target
+Before=network-online.target
 Wants=network-online.target
 
 [Service]
@@ -1533,9 +1539,9 @@ function getHomeDir() {
 # Helper function to regenerate the CRL after certificate changes
 function regenerateCRL() {
 	export EASYRSA_CRL_DAYS=$DEFAULT_CRL_VALIDITY_DURATION_DAYS
-	run_cmd "Regenerating CRL" ./easyrsa gen-crl
+	run_cmd_fatal "Regenerating CRL" ./easyrsa gen-crl
 	run_cmd "Removing old CRL" rm -f /etc/openvpn/server/crl.pem
-	run_cmd "Copying new CRL" cp /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server/crl.pem
+	run_cmd_fatal "Copying new CRL" cp /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server/crl.pem
 	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/server/crl.pem
 }
 
@@ -1661,11 +1667,14 @@ function newClient() {
 		export EASYRSA_CERT_EXPIRE=$CLIENT_CERT_DURATION_DAYS
 		case $PASS in
 		1)
-			run_cmd "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
+			run_cmd_fatal "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
 			;;
 		2)
 			log_warn "You will be asked for the client password below"
-			./easyrsa --batch build-client-full "$CLIENT"
+			# Run directly (not via run_cmd) so password prompt is visible to user
+			if ! ./easyrsa --batch build-client-full "$CLIENT"; then
+				log_fatal "Building client certificate failed"
+			fi
 			;;
 		esac
 		log_success "Client $CLIENT added and is valid for $CLIENT_CERT_DURATION_DAYS days."
@@ -1689,7 +1698,7 @@ function revokeClient() {
 
 	cd /etc/openvpn/server/easy-rsa/ || return
 	log_info "Revoking certificate for $CLIENT..."
-	run_cmd "Revoking certificate" ./easyrsa --batch revoke-issued "$CLIENT"
+	run_cmd_fatal "Revoking certificate" ./easyrsa --batch revoke-issued "$CLIENT"
 	regenerateCRL
 	run_cmd "Removing client config from /home" find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	run_cmd "Removing client config from /root" rm -f "/root/$CLIENT.ovpn"
@@ -1725,10 +1734,10 @@ function renewClient() {
 
 	# Renew the certificate (keeps the same private key)
 	export EASYRSA_CERT_EXPIRE=$client_cert_duration_days
-	run_cmd "Renewing certificate" ./easyrsa --batch renew "$CLIENT"
+	run_cmd_fatal "Renewing certificate" ./easyrsa --batch renew "$CLIENT"
 
 	# Revoke the old certificate
-	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$CLIENT"
+	run_cmd_fatal "Revoking old certificate" ./easyrsa --batch revoke-renewed "$CLIENT"
 
 	# Regenerate the CRL
 	regenerateCRL
@@ -1783,16 +1792,16 @@ function renewServer() {
 
 	# Renew the certificate (keeps the same private key)
 	export EASYRSA_CERT_EXPIRE=$server_cert_duration_days
-	run_cmd "Renewing certificate" ./easyrsa --batch renew "$server_name"
+	run_cmd_fatal "Renewing certificate" ./easyrsa --batch renew "$server_name"
 
 	# Revoke the old certificate
-	run_cmd "Revoking old certificate" ./easyrsa --batch revoke-renewed "$server_name"
+	run_cmd_fatal "Revoking old certificate" ./easyrsa --batch revoke-renewed "$server_name"
 
 	# Regenerate the CRL
 	regenerateCRL
 
 	# Copy the new certificate to /etc/openvpn/server/
-	run_cmd "Copying new certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt" /etc/openvpn/server/
+	run_cmd_fatal "Copying new certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt" /etc/openvpn/server/
 
 	# Restart OpenVPN
 	log_info "Restarting OpenVPN service..."
@@ -1970,8 +1979,6 @@ function removeOpenVPN() {
 			run_cmd "Removing OpenVPN" dnf remove -y openvpn
 		elif [[ $OS == 'fedora' ]]; then
 			run_cmd "Removing OpenVPN" dnf remove -y openvpn
-			# Disable Copr repo
-			run_cmd "Disabling OpenVPN Copr repo" dnf copr disable -y @OpenVPN/openvpn-release-2.6 2>/dev/null || true
 		elif [[ $OS == 'opensuse' ]]; then
 			run_cmd "Removing OpenVPN" zypper remove -y openvpn
 		fi

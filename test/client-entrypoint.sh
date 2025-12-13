@@ -74,7 +74,7 @@ fi
 
 # Test 2: Ping VPN gateway
 echo "Test 2: Pinging VPN gateway (10.8.0.1)..."
-if ping -c 3 10.8.0.1; then
+if ping -c 10 10.8.0.1; then
 	echo "PASS: Can ping VPN gateway"
 else
 	echo "FAIL: Cannot ping VPN gateway"
