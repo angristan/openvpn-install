@@ -1663,29 +1663,18 @@ function listClients() {
 
 	log_info "Found $number_of_clients client certificate(s)"
 	log_menu ""
-	printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Days"
-	printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "----"
+	printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Remaining"
+	printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "---------"
+
+	local cert_dir="/etc/openvpn/server/easy-rsa/pki/issued"
 
 	# Parse index.txt and sort by expiry date (oldest first)
 	# Exclude server certificates (CN starting with server_)
 	{
 		while read -r line; do
 			local status="${line:0:1}"
-			local expiry_ts
-			expiry_ts=$(echo "$line" | awk '{print $2}')
 			local client_name
 			client_name=$(echo "$line" | sed 's/.*\/CN=//')
-
-			# Parse expiry: format is YYMMDDHHMMSSZ
-			local year="20${expiry_ts:0:2}"
-			local month="${expiry_ts:2:2}"
-			local day="${expiry_ts:4:2}"
-			local expiry_date="${year}-${month}-${day}"
-
-			# Calculate days until expiry
-			local expiry_epoch now_epoch days_remaining
-			expiry_epoch=$(date -d "$expiry_date" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$expiry_date" +%s 2>/dev/null)
-			now_epoch=$(date +%s)
 
 			# Format status
 			local status_text
@@ -1697,20 +1686,40 @@ function listClients() {
 				status_text="Unknown"
 			fi
 
-			# Format relative time (handle date parsing failure)
-			local relative
-			if [[ -z "$expiry_epoch" ]]; then
-				relative="unknown"
-			else
-				days_remaining=$(((expiry_epoch - now_epoch) / 86400))
-				if [[ $days_remaining -lt 0 ]]; then
-					relative="$((-days_remaining)) days ago"
-				elif [[ $days_remaining -eq 0 ]]; then
-					relative="today"
-				elif [[ $days_remaining -eq 1 ]]; then
-					relative="1 day"
-				else
-					relative="$days_remaining days"
+			# Get expiry date from certificate file
+			local cert_file="$cert_dir/$client_name.crt"
+			local expiry_date="unknown"
+			local relative="unknown"
+
+			if [[ -f "$cert_file" ]]; then
+				# Get expiry from certificate (format: notAfter=Mon DD HH:MM:SS YYYY GMT)
+				local enddate
+				enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+
+				if [[ -n "$enddate" ]]; then
+					# Parse date and convert to epoch
+					local expiry_epoch
+					expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
+
+					if [[ -n "$expiry_epoch" ]]; then
+						# Format as YYYY-MM-DD
+						expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
+
+						# Calculate days remaining
+						local now_epoch days_remaining
+						now_epoch=$(date +%s)
+						days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+
+						if [[ $days_remaining -lt 0 ]]; then
+							relative="$((-days_remaining)) days ago"
+						elif [[ $days_remaining -eq 0 ]]; then
+							relative="today"
+						elif [[ $days_remaining -eq 1 ]]; then
+							relative="1 day"
+						else
+							relative="$days_remaining days"
+						fi
+					fi
 				fi
 			fi
 
