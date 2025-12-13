@@ -671,7 +671,7 @@ function installQuestions() {
 	log_menu "   12) NextDNS (Anycast: worldwide)"
 	log_menu "   13) Custom"
 	until [[ $DNS =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 13 ]; do
-		read -rp "DNS [1-13]: " -e -i 11 DNS
+		read -rp "DNS [1-13]: " -e -i 3 DNS
 		if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
 			log_menu ""
 			log_prompt "Unbound is already installed."
@@ -981,7 +981,7 @@ function installOpenVPN() {
 		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
-		DNS=${DNS:-1}
+		DNS=${DNS:-3}
 		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
