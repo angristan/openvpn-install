@@ -1562,6 +1562,29 @@ function getHomeDir() {
 	fi
 }
 
+# Helper function to get the owner of a client config file (if client matches a system user)
+function getClientOwner() {
+	local client="$1"
+	if [ -e "/home/${client}" ]; then
+		echo "${client}"
+	elif [ "${SUDO_USER}" ] && [ "${SUDO_USER}" != "root" ]; then
+		echo "${SUDO_USER}"
+	fi
+}
+
+# Helper function to set proper ownership and permissions on client config file
+function setClientConfigPermissions() {
+	local filepath="$1"
+	local owner="$2"
+
+	if [[ -n "$owner" ]]; then
+		local owner_group
+		owner_group=$(id -gn "$owner")
+		chmod go-rw "$filepath"
+		chown "$owner:$owner_group" "$filepath"
+	fi
+}
+
 # Helper function to regenerate the CRL after certificate changes
 function regenerateCRL() {
 	export EASYRSA_CRL_DAYS=$DEFAULT_CRL_VALIDITY_DURATION_DAYS
@@ -1572,9 +1595,10 @@ function regenerateCRL() {
 }
 
 # Helper function to generate .ovpn client config file
+# Usage: generateClientConfig <client_name> <filepath>
 function generateClientConfig() {
 	local client="$1"
-	local home_dir="$2"
+	local filepath="$2"
 
 	# Determine if we use tls-crypt-v2, tls-crypt, or tls-auth
 	local tls_sig=""
@@ -1587,7 +1611,7 @@ function generateClientConfig() {
 	fi
 
 	# Generate the custom client.ovpn
-	run_cmd "Creating client config" cp /etc/openvpn/server/client-template.txt "$home_dir/$client.ovpn"
+	run_cmd "Creating client config" cp /etc/openvpn/server/client-template.txt "$filepath"
 	{
 		echo "<ca>"
 		cat "/etc/openvpn/server/easy-rsa/pki/ca.crt"
@@ -1628,7 +1652,7 @@ function generateClientConfig() {
 			echo "</tls-auth>"
 			;;
 		esac
-	} >>"$home_dir/$client.ovpn"
+	} >>"$filepath"
 }
 
 # Helper function to list valid clients and select one
@@ -1821,12 +1845,26 @@ function newClient() {
 		log_success "Client $CLIENT added and is valid for $CLIENT_CERT_DURATION_DAYS days."
 	fi
 
+	# Determine output file path
+	local clientFilePath
+	if [[ -n "$CLIENT_FILEPATH" ]]; then
+		clientFilePath="$CLIENT_FILEPATH"
+	else
+		local homeDir
+		homeDir=$(getHomeDir "$CLIENT")
+		clientFilePath="$homeDir/$CLIENT.ovpn"
+	fi
+
 	# Generate the .ovpn config file
-	homeDir=$(getHomeDir "$CLIENT")
-	generateClientConfig "$CLIENT" "$homeDir"
+	generateClientConfig "$CLIENT" "$clientFilePath"
+
+	# Set proper ownership and permissions if client matches a system user
+	local clientOwner
+	clientOwner=$(getClientOwner "$CLIENT")
+	setClientConfigPermissions "$clientFilePath" "$clientOwner"
 
 	log_menu ""
-	log_success "The configuration file has been written to $homeDir/$CLIENT.ovpn."
+	log_success "The configuration file has been written to $clientFilePath."
 	log_info "Download the .ovpn file and import it in your OpenVPN client."
 
 	exit 0
@@ -1850,7 +1888,7 @@ function revokeClient() {
 }
 
 function renewClient() {
-	local homeDir client_cert_duration_days
+	local client_cert_duration_days
 
 	log_header "Renew Client Certificate"
 	log_prompt "Select the existing client certificate you want to renew"
@@ -1883,13 +1921,27 @@ function renewClient() {
 	# Regenerate the CRL
 	regenerateCRL
 
+	# Determine output file path
+	local clientFilePath
+	if [[ -n "$CLIENT_FILEPATH" ]]; then
+		clientFilePath="$CLIENT_FILEPATH"
+	else
+		local homeDir
+		homeDir=$(getHomeDir "$CLIENT")
+		clientFilePath="$homeDir/$CLIENT.ovpn"
+	fi
+
 	# Regenerate the .ovpn file with the new certificate
-	homeDir=$(getHomeDir "$CLIENT")
-	generateClientConfig "$CLIENT" "$homeDir"
+	generateClientConfig "$CLIENT" "$clientFilePath"
+
+	# Set proper ownership and permissions if client matches a system user
+	local clientOwner
+	clientOwner=$(getClientOwner "$CLIENT")
+	setClientConfigPermissions "$clientFilePath" "$clientOwner"
 
 	log_menu ""
 	log_success "Certificate for client $CLIENT renewed and is valid for $client_cert_duration_days days."
-	log_info "The new configuration file has been written to $homeDir/$CLIENT.ovpn."
+	log_info "The new configuration file has been written to $clientFilePath."
 	log_info "Download the new .ovpn file and import it in your OpenVPN client."
 }
 

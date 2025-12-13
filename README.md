@@ -101,6 +101,9 @@ If you want to customise your installation, you can export them or specify them 
 - `CLIENT_CERT_DURATION_DAYS=3650`
 - `SERVER_CERT_DURATION_DAYS=3650`
 - `NEW_CLIENT=y` (set to `n` to skip client creation after installation)
+- `CLIENT_FILEPATH=/custom/path/client.ovpn` (optional, overrides default output path)
+
+The `.ovpn` file is saved to `CLIENT_FILEPATH` if defined, otherwise: the client's home directory if it exists (`/home/$CLIENT`), otherwise `SUDO_USER`'s home, otherwise `/root`. When the client name matches a system user, the script automatically sets proper ownership and permissions on the file.
 
 If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
 
@@ -119,18 +122,19 @@ The following Bash script adds a new user `foo` to an existing OpenVPN configura
 export MENU_OPTION="1"
 export CLIENT="foo"
 export PASS="1" # set to "2" for a password-protected client, and set PASSPHRASE
+export CLIENT_FILEPATH="" # optional, custom path for .ovpn file
 ./openvpn-install.sh
 ```
 
 ### Headless User Revocation
 
-It's also possible to automate the revocation of an existing user. The key is to provide the `MENU_OPTION` variable set to `2` along with either `CLIENT` (client name) or `CLIENTNUMBER` (1-based index from the client list).
+It's also possible to automate the revocation of an existing user. The key is to provide the `MENU_OPTION` variable set to `3` along with either `CLIENT` (client name) or `CLIENTNUMBER` (1-based index from the client list).
 
 The following Bash script revokes the existing user `foo`:
 
 ```bash
 #!/bin/bash
-export MENU_OPTION="2"
+export MENU_OPTION="3"
 export CLIENT="foo"
 ./openvpn-install.sh
 ```
@@ -139,7 +143,7 @@ Alternatively, you can use the client number:
 
 ```bash
 #!/bin/bash
-export MENU_OPTION="2"
+export MENU_OPTION="3"
 export CLIENTNUMBER="1"  # Revokes the first client in the list
 ./openvpn-install.sh
 ```
