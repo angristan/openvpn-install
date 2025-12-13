@@ -240,12 +240,17 @@ function checkArchPendingKernelUpgrade() {
 
 	# Check if running kernel's modules are available
 	# (detects if kernel was upgraded but system not rebooted)
-	local running_kernel
-	running_kernel=$(uname -r)
-	if [[ ! -d "/lib/modules/${running_kernel}" ]]; then
-		log_error "Kernel modules for running kernel ($running_kernel) not found!"
-		log_info "This usually means the kernel was upgraded but the system wasn't rebooted."
-		log_fatal "Please reboot your system and run this script again."
+	# Skip this check in containers - they share host kernel but have their own /lib/modules
+	if [[ -f /.dockerenv ]] || grep -qE '(docker|lxc|containerd)' /proc/1/cgroup 2>/dev/null; then
+		log_info "Running in container, skipping kernel modules check"
+	else
+		local running_kernel
+		running_kernel=$(uname -r)
+		if [[ ! -d "/lib/modules/${running_kernel}" ]]; then
+			log_error "Kernel modules for running kernel ($running_kernel) not found!"
+			log_info "This usually means the kernel was upgraded but the system wasn't rebooted."
+			log_fatal "Please reboot your system and run this script again."
+		fi
 	fi
 
 	log_info "Checking for pending kernel upgrades on Arch Linux..."
