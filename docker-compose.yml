@@ -6,6 +6,8 @@ services:
       dockerfile: test/Dockerfile.server
       args:
         BASE_IMAGE: ${BASE_IMAGE:-ubuntu:24.04}
+        ENABLE_FIREWALLD: ${ENABLE_FIREWALLD:-n}
+        ENABLE_NFTABLES: ${ENABLE_NFTABLES:-n}
     container_name: openvpn-server
     hostname: openvpn-server
     privileged: true
