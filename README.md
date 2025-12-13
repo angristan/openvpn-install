@@ -359,7 +359,7 @@ The script provides the following choices:
 
 It defaults to `SHA256`.
 
-### `tls-auth` and `tls-crypt`
+### `tls-auth`, `tls-crypt`, and `tls-crypt-v2`
 
 From the OpenVPN wiki, about `tls-auth`:
 
@@ -381,7 +381,17 @@ So both provide an additional layer of security and mitigate DoS attacks. They a
 
 `tls-crypt` is an OpenVPN 2.4 feature that provides encryption in addition to authentication (unlike `tls-auth`). It is more privacy-friendly.
 
-The script supports both and uses `tls-crypt` by default.
+`tls-crypt-v2` is an OpenVPN 2.5 feature that builds on `tls-crypt` by using **per-client keys** instead of a shared key. Each client receives a unique key derived from a server key. This provides:
+
+- **Better security**: If a client key is compromised, other clients are not affected
+- **Easier key management**: Client keys can be revoked individually without regenerating the server key
+- **Scalability**: Better suited for large deployments with many clients
+
+The script supports all three options:
+
+- `tls-crypt-v2` (default): Per-client keys for better security
+- `tls-crypt`: Shared key for all clients, compatible with OpenVPN 2.4+
+- `tls-auth`: HMAC authentication only (no encryption), compatible with older clients
 
 ### Certificate type verification (`remote-cert-tls`)
 
