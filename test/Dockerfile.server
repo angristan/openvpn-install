@@ -50,13 +50,11 @@ RUN if [ "$ENABLE_FIREWALLD" = "y" ] && command -v firewall-cmd >/dev/null; then
     fi
 
 # Enable nftables if requested (must be done after systemd is available)
-# Always overwrite nftables.conf with minimal config to avoid the default Debian
-# config (which creates filter tables) interfering with Docker networking
+# Use empty nftables.conf - do NOT flush ruleset as it removes Docker's networking rules
 RUN if [ "$ENABLE_NFTABLES" = "y" ] && command -v nft >/dev/null; then \
         systemctl enable nftables; \
         mkdir -p /etc/nftables; \
-        echo '#!/usr/sbin/nft -f' > /etc/nftables.conf && \
-        echo 'flush ruleset' >> /etc/nftables.conf; \
+        echo '#!/usr/sbin/nft -f' > /etc/nftables.conf; \
     fi
 
 # Create TUN device (will be mounted at runtime)
