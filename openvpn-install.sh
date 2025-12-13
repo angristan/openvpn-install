@@ -1452,7 +1452,7 @@ ip6tables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables
 	# Handle the rules via a systemd script
 	echo "[Unit]
 Description=iptables rules for OpenVPN
-Before=network-online.target
+After=network-online.target
 Wants=network-online.target
 
 [Service]
