@@ -30,6 +30,8 @@ jobs:
             image: ubuntu:22.04
           - name: ubuntu-24.04
             image: ubuntu:24.04
+          - name: ubuntu-25.10
+            image: ubuntu:25.10
           - name: debian-11
             image: debian:11
           - name: debian-12

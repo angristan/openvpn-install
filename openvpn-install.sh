@@ -1140,9 +1140,10 @@ function installOpenVPN() {
 		esac
 
 		# Generate a random, alphanumeric identifier of 16 characters for CN and one for server name
-		SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+		# Note: 2>/dev/null suppresses "Broken pipe" errors from fold when head exits early
+		SERVER_CN="cn_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 2>/dev/null | head -n 1)"
 		echo "$SERVER_CN" >SERVER_CN_GENERATED
-		SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+		SERVER_NAME="server_$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 2>/dev/null | head -n 1)"
 		echo "$SERVER_NAME" >SERVER_NAME_GENERATED
 
 		# Create the PKI, set up the CA, the DH params and the server certificate
@@ -1707,8 +1708,13 @@ function generateClientConfig() {
 
 		case $tls_sig in
 		1)
-			# Generate per-client tls-crypt-v2 key using secure temp file
-			tls_crypt_v2_tmpfile=$(mktemp)
+			# Generate per-client tls-crypt-v2 key in /etc/openvpn/server/
+			# Using /tmp would fail on Ubuntu 25.04+ due to AppArmor restrictions
+			tls_crypt_v2_tmpfile=$(mktemp /etc/openvpn/server/tls-crypt-v2-client.XXXXXX)
+			if [[ -z "$tls_crypt_v2_tmpfile" ]] || [[ ! -f "$tls_crypt_v2_tmpfile" ]]; then
+				log_error "Failed to create temporary file for tls-crypt-v2 client key"
+				exit 1
+			fi
 			if ! openvpn --tls-crypt-v2 /etc/openvpn/server/tls-crypt-v2.key \
 				--genkey tls-crypt-v2-client "$tls_crypt_v2_tmpfile"; then
 				rm -f "$tls_crypt_v2_tmpfile"
