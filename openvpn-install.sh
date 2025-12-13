@@ -1474,11 +1474,6 @@ table ip6 openvpn-nat {
 		fi
 
 		# Add include to nftables.conf if not already present
-		# Create nftables.conf if it doesn't exist
-		if [[ ! -f /etc/nftables.conf ]]; then
-			echo '#!/usr/sbin/nft -f' > /etc/nftables.conf
-			echo 'flush ruleset' >> /etc/nftables.conf
-		fi
 		if ! grep -q 'include.*/etc/nftables/openvpn.nft' /etc/nftables.conf; then
 			run_cmd "Adding include to nftables.conf" sh -c 'echo "include \"/etc/nftables/openvpn.nft\"" >> /etc/nftables.conf'
 		fi
