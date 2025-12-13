@@ -1648,6 +1648,88 @@ function selectClient() {
 	CLIENT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 }
 
+function listClients() {
+	log_header "Client Certificates"
+
+	local index_file="/etc/openvpn/server/easy-rsa/pki/index.txt"
+	local number_of_clients
+	# Exclude server certificates (CN starting with server_)
+	number_of_clients=$(tail -n +2 "$index_file" | grep "^[VR]" | grep -cv "/CN=server_")
+
+	if [[ $number_of_clients == '0' ]]; then
+		log_warn "You have no existing client certificates!"
+		return
+	fi
+
+	log_info "Found $number_of_clients client certificate(s)"
+	log_menu ""
+	printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Remaining"
+	printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "---------"
+
+	local cert_dir="/etc/openvpn/server/easy-rsa/pki/issued"
+
+	# Parse index.txt and sort by expiry date (oldest first)
+	# Exclude server certificates (CN starting with server_)
+	{
+		while read -r line; do
+			local status="${line:0:1}"
+			local client_name
+			client_name=$(echo "$line" | sed 's/.*\/CN=//')
+
+			# Format status
+			local status_text
+			if [[ "$status" == "V" ]]; then
+				status_text="Valid"
+			elif [[ "$status" == "R" ]]; then
+				status_text="Revoked"
+			else
+				status_text="Unknown"
+			fi
+
+			# Get expiry date from certificate file
+			local cert_file="$cert_dir/$client_name.crt"
+			local expiry_date="unknown"
+			local relative="unknown"
+
+			if [[ -f "$cert_file" ]]; then
+				# Get expiry from certificate (format: notAfter=Mon DD HH:MM:SS YYYY GMT)
+				local enddate
+				enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+
+				if [[ -n "$enddate" ]]; then
+					# Parse date and convert to epoch
+					local expiry_epoch
+					expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
+
+					if [[ -n "$expiry_epoch" ]]; then
+						# Format as YYYY-MM-DD
+						expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
+
+						# Calculate days remaining
+						local now_epoch days_remaining
+						now_epoch=$(date +%s)
+						days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+
+						if [[ $days_remaining -lt 0 ]]; then
+							relative="$((-days_remaining)) days ago"
+						elif [[ $days_remaining -eq 0 ]]; then
+							relative="today"
+						elif [[ $days_remaining -eq 1 ]]; then
+							relative="1 day"
+						else
+							relative="$days_remaining days"
+						fi
+					fi
+				fi
+			fi
+
+			printf "   %-25s %-10s %-12s %s\n" "$client_name" "$status_text" "$expiry_date" "$relative"
+		done < <(tail -n +2 "$index_file" | grep "^[VR]" | grep -v "/CN=server_" | sort -t$'\t' -k2)
+	}
+
+	log_menu ""
+}
+
 function newClient() {
 	log_header "New Client Setup"
 	log_prompt "Tell me a name for the client."
@@ -2036,12 +2118,13 @@ function manageMenu() {
 	log_menu ""
 	log_prompt "What do you want to do?"
 	log_menu "   1) Add a new user"
-	log_menu "   2) Revoke existing user"
-	log_menu "   3) Renew certificate"
-	log_menu "   4) Remove OpenVPN"
-	log_menu "   5) Exit"
-	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-5]$ ]]; do
-		read -rp "Select an option [1-5]: " menu_option
+	log_menu "   2) List client certificates"
+	log_menu "   3) Revoke existing user"
+	log_menu "   4) Renew certificate"
+	log_menu "   5) Remove OpenVPN"
+	log_menu "   6) Exit"
+	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-6]$ ]]; do
+		read -rp "Select an option [1-6]: " menu_option
 	done
 	menu_option="${MENU_OPTION:-$menu_option}"
 
@@ -2050,15 +2133,18 @@ function manageMenu() {
 		newClient
 		;;
 	2)
-		revokeClient
+		listClients
 		;;
 	3)
-		renewMenu
+		revokeClient
 		;;
 	4)
-		removeOpenVPN
+		renewMenu
 		;;
 	5)
+		removeOpenVPN
+		;;
+	6)
 		exit 0
 		;;
 	esac
