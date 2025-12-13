@@ -77,15 +77,22 @@ fi
 # Verify all expected files were created
 echo "Verifying installation..."
 MISSING_FILES=0
-for f in \
-	/etc/openvpn/server/server.conf \
-	/etc/openvpn/server/ca.crt \
-	/etc/openvpn/server/ca.key \
-	"/etc/openvpn/server/$TLS_KEY_FILE" \
-	/etc/openvpn/server/crl.pem \
-	/etc/openvpn/server/easy-rsa/pki/ca.crt \
-	/etc/iptables/add-openvpn-rules.sh \
-	/root/testclient.ovpn; do
+# Build list of required files
+REQUIRED_FILES=(
+	/etc/openvpn/server/server.conf
+	/etc/openvpn/server/ca.crt
+	/etc/openvpn/server/ca.key
+	"/etc/openvpn/server/$TLS_KEY_FILE"
+	/etc/openvpn/server/crl.pem
+	/etc/openvpn/server/easy-rsa/pki/ca.crt
+	/root/testclient.ovpn
+)
+# Only check for iptables script if firewalld is not active
+if ! systemctl is-active --quiet firewalld; then
+	REQUIRED_FILES+=(/etc/iptables/add-openvpn-rules.sh)
+fi
+
+for f in "${REQUIRED_FILES[@]}"; do
 	if [ ! -f "$f" ]; then
 		echo "ERROR: Missing file: $f"
 		MISSING_FILES=$((MISSING_FILES + 1))
@@ -380,21 +387,58 @@ echo ""
 # Verify OpenVPN server (started by systemd via install script)
 echo "Verifying OpenVPN server..."
 
-# Verify iptables NAT rules exist (applied by iptables-openvpn service)
-echo "Verifying iptables NAT rules..."
-for _ in $(seq 1 10); do
-	if iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
-		echo "PASS: NAT POSTROUTING rule for 10.8.0.0/24 exists"
-		break
+# Verify firewall rules exist
+echo "Verifying firewall rules..."
+if systemctl is-active --quiet firewalld; then
+	# firewalld is active - verify masquerade is enabled
+	echo "firewalld detected, checking masquerade..."
+	for _ in $(seq 1 10); do
+		if firewall-cmd --query-masquerade 2>/dev/null; then
+			echo "PASS: firewalld masquerade is enabled"
+			break
+		fi
+		sleep 1
+	done
+	if ! firewall-cmd --query-masquerade 2>/dev/null; then
+		echo "FAIL: firewalld masquerade is not enabled"
+		echo "Current firewalld config:"
+		firewall-cmd --list-all 2>&1 || true
+		exit 1
 	fi
-	sleep 1
-done
-if ! iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
-	echo "FAIL: NAT POSTROUTING rule for 10.8.0.0/24 not found"
-	echo "Current NAT rules:"
-	iptables -t nat -L POSTROUTING -n -v
-	systemctl status iptables-openvpn 2>&1 || true
-	exit 1
+	# Verify port is open
+	if firewall-cmd --list-ports | grep -q "1194/udp"; then
+		echo "PASS: OpenVPN port is open in firewalld"
+	else
+		echo "FAIL: OpenVPN port not found in firewalld"
+		firewall-cmd --list-ports
+		exit 1
+	fi
+	# Verify VPN subnet rich rule exists
+	if firewall-cmd --list-rich-rules | grep -q 'source address="10.8.0.0/24"'; then
+		echo "PASS: VPN subnet rich rule is configured"
+	else
+		echo "FAIL: VPN subnet rich rule not found in firewalld"
+		echo "Current rich rules:"
+		firewall-cmd --list-rich-rules
+		exit 1
+	fi
+else
+	# iptables mode - verify NAT rules
+	echo "iptables mode, checking NAT rules..."
+	for _ in $(seq 1 10); do
+		if iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
+			echo "PASS: NAT POSTROUTING rule for 10.8.0.0/24 exists"
+			break
+		fi
+		sleep 1
+	done
+	if ! iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
+		echo "FAIL: NAT POSTROUTING rule for 10.8.0.0/24 not found"
+		echo "Current NAT rules:"
+		iptables -t nat -L POSTROUTING -n -v
+		systemctl status iptables-openvpn 2>&1 || true
+		exit 1
+	fi
 fi
 
 # Verify IP forwarding is enabled

@@ -5,7 +5,10 @@ ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 
 ARG BASE_IMAGE
+# Set to "y" to install and enable firewalld for testing
+ARG ENABLE_FIREWALLD=n
 ENV DEBIAN_FRONTEND=noninteractive
+ENV ENABLE_FIREWALLD=${ENABLE_FIREWALLD}
 
 # Install basic dependencies based on the OS
 # dnsutils/bind-utils provides dig for DNS testing with Unbound
@@ -16,10 +19,12 @@ RUN if command -v apt-get >/dev/null; then \
     elif command -v dnf >/dev/null; then \
         dnf install -y --allowerasing \
             iproute iptables curl procps-ng systemd tar gzip bind-utils \
+        && if [ "$ENABLE_FIREWALLD" = "y" ]; then dnf install -y firewalld; fi \
         && dnf clean all; \
     elif command -v yum >/dev/null; then \
         yum install -y \
             iproute iptables curl procps-ng systemd tar gzip bind-utils \
+        && if [ "$ENABLE_FIREWALLD" = "y" ]; then yum install -y firewalld; fi \
         && yum clean all; \
     elif command -v pacman >/dev/null; then \
         pacman -Syu --noconfirm \
@@ -29,6 +34,11 @@ RUN if command -v apt-get >/dev/null; then \
         zypper install -y \
             iproute2 iptables curl procps systemd tar gzip bind-utils gawk \
         && zypper clean -a; \
+    fi
+
+# Enable firewalld if requested (must be done after systemd is available)
+RUN if [ "$ENABLE_FIREWALLD" = "y" ] && command -v firewall-cmd >/dev/null; then \
+        systemctl enable firewalld; \
     fi
 
 # Create TUN device (will be mounted at runtime)

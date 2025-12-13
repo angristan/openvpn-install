@@ -149,8 +149,8 @@ export CLIENTNUMBER="1"  # Revokes the first client in the list
 - Installs and configures a ready-to-use OpenVPN server
 - Certificate renewal for both client and server certificates
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
-- Iptables rules and forwarding managed in a seamless way
-- If needed, the script can cleanly remove OpenVPN, including configuration and iptables rules
+- Firewall rules and forwarding managed seamlessly (native firewalld support, iptables fallback)
+- If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
 - OpenVPN 2.4 features, mainly encryption improvements (see [Security and Encryption](#security-and-encryption) below)
 - Variety of DNS resolvers to be pushed to the clients

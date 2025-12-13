@@ -1419,48 +1419,66 @@ verb 3" >>/etc/openvpn/server/server.conf
 		installUnbound
 	fi
 
-	# Add iptables rules in two scripts
+	# Configure firewall rules
 	log_info "Configuring firewall rules..."
-	run_cmd_fatal "Creating iptables directory" mkdir -p /etc/iptables
 
-	# Script to add rules
-	echo "#!/bin/sh
+	if systemctl is-active --quiet firewalld; then
+		# Use firewalld native commands for systems with firewalld active
+		log_info "firewalld detected, using firewall-cmd..."
+		run_cmd "Adding OpenVPN port to firewalld" firewall-cmd --permanent --add-port="$PORT/$PROTOCOL"
+		run_cmd "Adding masquerade to firewalld" firewall-cmd --permanent --add-masquerade
+
+		# Add rich rules for VPN traffic (source-based rules work reliably with dynamic tun0 interface)
+		run_cmd "Adding VPN subnet rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept'
+
+		if [[ $IPV6_SUPPORT == 'y' ]]; then
+			run_cmd "Adding IPv6 source rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept'
+		fi
+
+		run_cmd "Reloading firewalld" firewall-cmd --reload
+	else
+		# Use iptables for systems without firewalld
+		run_cmd_fatal "Creating iptables directory" mkdir -p /etc/iptables
+
+		# Script to add rules
+		echo "#!/bin/sh
 iptables -t nat -I POSTROUTING 1 -s 10.8.0.0/24 -o $NIC -j MASQUERADE
 iptables -I INPUT 1 -i tun0 -j ACCEPT
 iptables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 iptables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
 iptables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >/etc/iptables/add-openvpn-rules.sh
 
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo "ip6tables -t nat -I POSTROUTING 1 -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
+		if [[ $IPV6_SUPPORT == 'y' ]]; then
+			echo "ip6tables -t nat -I POSTROUTING 1 -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
 ip6tables -I INPUT 1 -i tun0 -j ACCEPT
 ip6tables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 ip6tables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
 ip6tables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/add-openvpn-rules.sh
-	fi
+		fi
 
-	# Script to remove rules
-	echo "#!/bin/sh
+		# Script to remove rules
+		echo "#!/bin/sh
 iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
 iptables -D INPUT -i tun0 -j ACCEPT
 iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT
 iptables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >/etc/iptables/rm-openvpn-rules.sh
 
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
+		if [[ $IPV6_SUPPORT == 'y' ]]; then
+			echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
 ip6tables -D INPUT -i tun0 -j ACCEPT
 ip6tables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT
 ip6tables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/rm-openvpn-rules.sh
-	fi
+		fi
 
-	run_cmd "Making add-openvpn-rules.sh executable" chmod +x /etc/iptables/add-openvpn-rules.sh
-	run_cmd "Making rm-openvpn-rules.sh executable" chmod +x /etc/iptables/rm-openvpn-rules.sh
+		run_cmd "Making add-openvpn-rules.sh executable" chmod +x /etc/iptables/add-openvpn-rules.sh
+		run_cmd "Making rm-openvpn-rules.sh executable" chmod +x /etc/iptables/rm-openvpn-rules.sh
 
-	# Handle the rules via a systemd script
-	echo "[Unit]
+		# Handle the rules via a systemd script
+		echo "[Unit]
 Description=iptables rules for OpenVPN
+After=firewalld.service
 Before=network-online.target
 Wants=network-online.target
 
@@ -1473,10 +1491,11 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 
-	# Enable service and apply rules
-	run_cmd "Reloading systemd" systemctl daemon-reload
-	run_cmd "Enabling iptables service" systemctl enable iptables-openvpn
-	run_cmd "Starting iptables service" systemctl start iptables-openvpn
+		# Enable service and apply rules
+		run_cmd "Reloading systemd" systemctl daemon-reload
+		run_cmd "Enabling iptables service" systemctl enable iptables-openvpn
+		run_cmd "Starting iptables service" systemctl start iptables-openvpn
+	fi
 
 	# If the server is behind a NAT, use the correct IP address for the clients to connect to
 	if [[ $ENDPOINT != "" ]]; then
@@ -2057,15 +2076,24 @@ function removeOpenVPN() {
 		# Remove customised service
 		run_cmd "Removing service file" rm -f /etc/systemd/system/openvpn-server@.service
 
-		# Remove the iptables rules related to the script
-		log_info "Removing iptables rules..."
-		run_cmd "Stopping iptables service" systemctl stop iptables-openvpn
-		# Cleanup
-		run_cmd "Disabling iptables service" systemctl disable iptables-openvpn
-		run_cmd "Removing iptables service file" rm /etc/systemd/system/iptables-openvpn.service
-		run_cmd "Reloading systemd" systemctl daemon-reload
-		run_cmd "Removing iptables add script" rm /etc/iptables/add-openvpn-rules.sh
-		run_cmd "Removing iptables rm script" rm /etc/iptables/rm-openvpn-rules.sh
+		# Remove firewall rules
+		log_info "Removing firewall rules..."
+		if systemctl is-active --quiet firewalld && firewall-cmd --list-ports | grep -q "$PORT/$PROTOCOL"; then
+			# firewalld was used
+			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL"
+			run_cmd "Removing masquerade from firewalld" firewall-cmd --permanent --remove-masquerade
+			run_cmd "Removing VPN subnet rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept' 2>/dev/null || true
+			run_cmd "Removing IPv6 source rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept' 2>/dev/null || true
+			run_cmd "Reloading firewalld" firewall-cmd --reload
+		elif [[ -f /etc/systemd/system/iptables-openvpn.service ]]; then
+			# iptables was used
+			run_cmd "Stopping iptables service" systemctl stop iptables-openvpn
+			run_cmd "Disabling iptables service" systemctl disable iptables-openvpn
+			run_cmd "Removing iptables service file" rm /etc/systemd/system/iptables-openvpn.service
+			run_cmd "Reloading systemd" systemctl daemon-reload
+			run_cmd "Removing iptables add script" rm -f /etc/iptables/add-openvpn-rules.sh
+			run_cmd "Removing iptables rm script" rm -f /etc/iptables/rm-openvpn-rules.sh
+		fi
 
 		# SELinux
 		if hash sestatus 2>/dev/null; then
