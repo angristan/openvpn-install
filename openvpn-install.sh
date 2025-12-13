@@ -1549,7 +1549,7 @@ verb 3" >>/etc/openvpn/server/client-template.txt
 # Helper function to get the home directory for storing client configs
 function getHomeDir() {
 	local client="$1"
-	if [ -e "/home/${client}" ]; then
+	if [ -d "/home/${client}" ]; then
 		echo "/home/${client}"
 	elif [ "${SUDO_USER}" ]; then
 		if [ "${SUDO_USER}" == "root" ]; then
@@ -1565,7 +1565,8 @@ function getHomeDir() {
 # Helper function to get the owner of a client config file (if client matches a system user)
 function getClientOwner() {
 	local client="$1"
-	if [ -e "/home/${client}" ]; then
+	# Check if client name corresponds to an existing system user with a home directory
+	if id "$client" &>/dev/null && [ -d "/home/${client}" ]; then
 		echo "${client}"
 	elif [ "${SUDO_USER}" ] && [ "${SUDO_USER}" != "root" ]; then
 		echo "${SUDO_USER}"
@@ -1583,6 +1584,41 @@ function setClientConfigPermissions() {
 		chmod go-rw "$filepath"
 		chown "$owner:$owner_group" "$filepath"
 	fi
+}
+
+# Helper function to write client config file with proper path and permissions
+# Usage: writeClientConfig <client_name>
+# Uses CLIENT_FILEPATH env var if set, otherwise defaults to home directory
+# Side effects: sets GENERATED_CONFIG_PATH global variable with the final path
+function writeClientConfig() {
+	local client="$1"
+	local clientFilePath
+
+	# Determine output file path
+	if [[ -n "$CLIENT_FILEPATH" ]]; then
+		clientFilePath="$CLIENT_FILEPATH"
+		# Ensure parent directory exists for custom paths
+		local parentDir
+		parentDir=$(dirname "$clientFilePath")
+		if [[ ! -d "$parentDir" ]]; then
+			run_cmd_fatal "Creating directory $parentDir" mkdir -p "$parentDir"
+		fi
+	else
+		local homeDir
+		homeDir=$(getHomeDir "$client")
+		clientFilePath="$homeDir/$client.ovpn"
+	fi
+
+	# Generate the .ovpn config file
+	generateClientConfig "$client" "$clientFilePath"
+
+	# Set proper ownership and permissions if client matches a system user
+	local clientOwner
+	clientOwner=$(getClientOwner "$client")
+	setClientConfigPermissions "$clientFilePath" "$clientOwner"
+
+	# Export path for caller to use
+	GENERATED_CONFIG_PATH="$clientFilePath"
 }
 
 # Helper function to regenerate the CRL after certificate changes
@@ -1845,26 +1881,11 @@ function newClient() {
 		log_success "Client $CLIENT added and is valid for $CLIENT_CERT_DURATION_DAYS days."
 	fi
 
-	# Determine output file path
-	local clientFilePath
-	if [[ -n "$CLIENT_FILEPATH" ]]; then
-		clientFilePath="$CLIENT_FILEPATH"
-	else
-		local homeDir
-		homeDir=$(getHomeDir "$CLIENT")
-		clientFilePath="$homeDir/$CLIENT.ovpn"
-	fi
-
-	# Generate the .ovpn config file
-	generateClientConfig "$CLIENT" "$clientFilePath"
-
-	# Set proper ownership and permissions if client matches a system user
-	local clientOwner
-	clientOwner=$(getClientOwner "$CLIENT")
-	setClientConfigPermissions "$clientFilePath" "$clientOwner"
+	# Write the .ovpn config file with proper path and permissions
+	writeClientConfig "$CLIENT"
 
 	log_menu ""
-	log_success "The configuration file has been written to $clientFilePath."
+	log_success "The configuration file has been written to $GENERATED_CONFIG_PATH."
 	log_info "Download the .ovpn file and import it in your OpenVPN client."
 
 	exit 0
@@ -1921,27 +1942,12 @@ function renewClient() {
 	# Regenerate the CRL
 	regenerateCRL
 
-	# Determine output file path
-	local clientFilePath
-	if [[ -n "$CLIENT_FILEPATH" ]]; then
-		clientFilePath="$CLIENT_FILEPATH"
-	else
-		local homeDir
-		homeDir=$(getHomeDir "$CLIENT")
-		clientFilePath="$homeDir/$CLIENT.ovpn"
-	fi
-
-	# Regenerate the .ovpn file with the new certificate
-	generateClientConfig "$CLIENT" "$clientFilePath"
-
-	# Set proper ownership and permissions if client matches a system user
-	local clientOwner
-	clientOwner=$(getClientOwner "$CLIENT")
-	setClientConfigPermissions "$clientFilePath" "$clientOwner"
+	# Write the .ovpn config file with proper path and permissions
+	writeClientConfig "$CLIENT"
 
 	log_menu ""
 	log_success "Certificate for client $CLIENT renewed and is valid for $client_cert_duration_days days."
-	log_info "The new configuration file has been written to $clientFilePath."
+	log_info "The new configuration file has been written to $GENERATED_CONFIG_PATH."
 	log_info "Download the new .ovpn file and import it in your OpenVPN client."
 }
 
