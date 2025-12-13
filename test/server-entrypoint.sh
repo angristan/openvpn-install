@@ -674,7 +674,7 @@ fi
 cp "/root/$PASSPHRASE_CLIENT.ovpn" "/shared/$PASSPHRASE_CLIENT.ovpn"
 sed -i 's/^remote .*/remote openvpn-server 1194/' "/shared/$PASSPHRASE_CLIENT.ovpn"
 # Write passphrase to a file for client to use with --askpass
-echo "$TEST_PASSPHRASE" > "/shared/$PASSPHRASE_CLIENT.pass"
+echo "$TEST_PASSPHRASE" >"/shared/$PASSPHRASE_CLIENT.pass"
 echo "Copied $PASSPHRASE_CLIENT config and passphrase to /shared/"
 
 # Signal client that passphrase test config is ready
