@@ -89,6 +89,15 @@ jobs:
               name: tls-auth
               sig: "3"
               key_file: tls-auth.key
+          # Test firewalld support on Fedora
+          - os:
+              name: fedora-42-firewalld
+              image: fedora:42
+              enable_firewalld: true
+            tls:
+              name: tls-crypt-v2
+              sig: "1"
+              key_file: tls-crypt-v2.key
 
     name: ${{ matrix.os.name }}
     steps:
@@ -103,6 +112,7 @@ jobs:
         run: |
           docker build \
             --build-arg BASE_IMAGE=${{ matrix.os.image }} \
+            --build-arg ENABLE_FIREWALLD=${{ matrix.os.enable_firewalld && 'y' || 'n' }} \
             -t openvpn-server \
             -f test/Dockerfile.server .
 
