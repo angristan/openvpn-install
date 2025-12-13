@@ -1713,9 +1713,9 @@ function listClients() {
 				fi
 			fi
 
-			echo "${client_name}|${status_text}|${expiry_date}|${relative}"
+			printf "   %-25s %-10s %-12s %s\n" "$client_name" "$status_text" "$expiry_date" "$relative"
 		done < <(tail -n +2 "$index_file" | grep "^[VR]" | sort -t$'\t' -k2)
-	} | column -t -s'|' | sed 's/^/   /'
+	}
 
 	log_menu ""
 }
