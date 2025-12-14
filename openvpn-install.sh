@@ -3096,13 +3096,17 @@ function listConnectedClients() {
 
 function newClient() {
 	log_header "New Client Setup"
-	log_prompt "Tell me a name for the client."
-	log_prompt "The name must consist of alphanumeric character. It may also include an underscore or a dash."
 
-	until [[ $CLIENT =~ ^[a-zA-Z0-9_-]+$ ]]; do
-		read -rp "Client name: " -e CLIENT
-	done
+	# Only prompt for client name if not already set
+	if ! [[ $CLIENT =~ ^[a-zA-Z0-9_-]+$ ]]; then
+		log_prompt "Tell me a name for the client."
+		log_prompt "The name must consist of alphanumeric character. It may also include an underscore or a dash."
+		until [[ $CLIENT =~ ^[a-zA-Z0-9_-]+$ ]]; do
+			read -rp "Client name: " -e CLIENT
+		done
+	fi
 
+	# Only prompt for cert duration if not already set
 	if [[ -z $CLIENT_CERT_DURATION_DAYS ]] || ! [[ $CLIENT_CERT_DURATION_DAYS =~ ^[0-9]+$ ]] || [[ $CLIENT_CERT_DURATION_DAYS -lt 1 ]]; then
 		log_menu ""
 		log_prompt "How many days should the client certificate be valid for?"
@@ -3111,15 +3115,17 @@ function newClient() {
 		done
 	fi
 
-	log_menu ""
-	log_prompt "Do you want to protect the configuration file with a password?"
-	log_prompt "(e.g. encrypt the private key with a password)"
-	log_menu "   1) Add a passwordless client"
-	log_menu "   2) Use a password for the client"
-
-	until [[ $PASS =~ ^[1-2]$ ]]; do
-		read -rp "Select an option [1-2]: " -e -i 1 PASS
-	done
+	# Only prompt for password if not already set
+	if ! [[ $PASS =~ ^[1-2]$ ]]; then
+		log_menu ""
+		log_prompt "Do you want to protect the configuration file with a password?"
+		log_prompt "(e.g. encrypt the private key with a password)"
+		log_menu "   1) Add a passwordless client"
+		log_menu "   2) Use a password for the client"
+		until [[ $PASS =~ ^[1-2]$ ]]; do
+			read -rp "Select an option [1-2]: " -e -i 1 PASS
+		done
+	fi
 
 	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
 	if [[ $CLIENTEXISTS != '0' ]]; then
