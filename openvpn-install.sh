@@ -461,6 +461,43 @@ set_default_encryption() {
 	TLS_SIG="${TLS_SIG:-1}" # tls-crypt-v2
 }
 
+# Validation functions
+validate_port() {
+	local port="$1"
+	if ! [[ "$port" =~ ^[0-9]+$ ]] || [[ "$port" -lt 1 ]] || [[ "$port" -gt 65535 ]]; then
+		log_fatal "Invalid port: $port. Must be a number between 1 and 65535."
+	fi
+}
+
+validate_subnet() {
+	local subnet="$1"
+	# Check format: x.x.x.0 where x is 0-255
+	if ! [[ "$subnet" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.0$ ]]; then
+		log_fatal "Invalid subnet: $subnet. Must be in format x.x.x.0 (e.g., 10.8.0.0)"
+	fi
+	local octet1="${BASH_REMATCH[1]}"
+	local octet2="${BASH_REMATCH[2]}"
+	local octet3="${BASH_REMATCH[3]}"
+	# Validate each octet is 0-255
+	if [[ "$octet1" -gt 255 ]] || [[ "$octet2" -gt 255 ]] || [[ "$octet3" -gt 255 ]]; then
+		log_fatal "Invalid subnet: $subnet. Octets must be 0-255."
+	fi
+	# Check for RFC1918 private address ranges
+	if ! ([[ "$octet1" -eq 10 ]] ||
+		[[ "$octet1" -eq 172 && "$octet2" -ge 16 && "$octet2" -le 31 ]] ||
+		[[ "$octet1" -eq 192 && "$octet2" -eq 168 ]]); then
+		log_fatal "Invalid subnet: $subnet. Must be a private network (10.x.x.0, 172.16-31.x.0, or 192.168.x.0)."
+	fi
+}
+
+validate_positive_int() {
+	local value="$1"
+	local name="$2"
+	if ! [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" -lt 1 ]]; then
+		log_fatal "Invalid $name: $value. Must be a positive integer."
+	fi
+}
+
 # Handle install command
 cmd_install() {
 	local interactive=false
@@ -491,12 +528,14 @@ cmd_install() {
 			;;
 		--subnet)
 			[[ -z "${2:-}" ]] && log_fatal "--subnet requires an argument"
+			validate_subnet "$2"
 			VPN_SUBNET="$2"
 			SUBNET_CHOICE=2
 			shift 2
 			;;
 		--port)
 			[[ -z "${2:-}" ]] && log_fatal "--port requires an argument"
+			validate_port "$2"
 			PORT="$2"
 			PORT_CHOICE=2
 			shift 2
@@ -643,6 +682,7 @@ cmd_install() {
 			;;
 		--server-cert-days)
 			[[ -z "${2:-}" ]] && log_fatal "--server-cert-days requires an argument"
+			validate_positive_int "$2" "server-cert-days"
 			SERVER_CERT_DURATION_DAYS="$2"
 			shift 2
 			;;
@@ -662,6 +702,7 @@ cmd_install() {
 			;;
 		--client-cert-days)
 			[[ -z "${2:-}" ]] && log_fatal "--client-cert-days requires an argument"
+			validate_positive_int "$2" "client-cert-days"
 			CLIENT_CERT_DURATION_DAYS="$2"
 			shift 2
 			;;
@@ -678,6 +719,11 @@ cmd_install() {
 			;;
 		esac
 	done
+
+	# Validate custom DNS settings
+	if [[ -n "${DNS1:-}" || -n "${DNS2:-}" ]] && [[ "${DNS:-}" != "13" ]]; then
+		log_fatal "--dns-primary and --dns-secondary require --dns custom"
+	fi
 
 	# Check if already installed
 	requireNoOpenVPN
@@ -824,6 +870,7 @@ cmd_client_add() {
 			;;
 		--cert-days)
 			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			validate_positive_int "$2" "cert-days"
 			CLIENT_CERT_DURATION_DAYS="$2"
 			shift 2
 			;;
@@ -948,6 +995,7 @@ cmd_client_renew() {
 		case "$1" in
 		--cert-days)
 			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			validate_positive_int "$2" "cert-days"
 			CLIENT_CERT_DURATION_DAYS="$2"
 			shift 2
 			;;
@@ -1038,6 +1086,7 @@ cmd_server_renew() {
 		case "$1" in
 		--cert-days)
 			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			validate_positive_int "$2" "cert-days"
 			SERVER_CERT_DURATION_DAYS="$2"
 			shift 2
 			;;
@@ -2846,6 +2895,18 @@ function selectClient() {
 	CLIENT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 }
 
+# Escape a string for JSON output
+function json_escape() {
+	local str="$1"
+	# Escape backslashes first, then quotes, then control characters
+	str="${str//\\/\\\\}"
+	str="${str//\"/\\\"}"
+	str="${str//$'\n'/\\n}"
+	str="${str//$'\r'/\\r}"
+	str="${str//$'\t'/\\t}"
+	printf '%s' "$str"
+}
+
 function listClients() {
 	local index_file="/etc/openvpn/server/easy-rsa/pki/index.txt"
 	local cert_dir="/etc/openvpn/server/easy-rsa/pki/issued"
@@ -2910,13 +2971,16 @@ function listClients() {
 		local first=true
 		for client_entry in "${clients_data[@]}"; do
 			IFS='|' read -r name status expiry days <<<"$client_entry"
-			if [[ $first == true ]]; then
-				first=false
+			[[ $first == true ]] && first=false || printf ','
+			# Handle null for days_remaining (no quotes for JSON null)
+			local days_json
+			if [[ "$days" == "null" || -z "$days" ]]; then
+				days_json="null"
 			else
-				echo ','
+				days_json="$days"
 			fi
-			printf '{"name":"%s","status":"%s","expiry":"%s","days_remaining":%s}' \
-				"$name" "$status" "$expiry" "$days"
+			printf '{"name":"%s","status":"%s","expiry":"%s","days_remaining":%s}\n' \
+				"$(json_escape "$name")" "$(json_escape "$status")" "$(json_escape "$expiry")" "$days_json"
 		done
 		echo ']}'
 	else
@@ -3005,13 +3069,10 @@ function listConnectedClients() {
 		local first=true
 		for client_entry in "${clients_data[@]}"; do
 			IFS='|' read -r name real_addr vpn_ip bytes_recv bytes_sent connected_since <<<"$client_entry"
-			if [[ $first == true ]]; then
-				first=false
-			else
-				echo ','
-			fi
-			printf '{"name":"%s","real_address":"%s","vpn_ip":"%s","bytes_received":%s,"bytes_sent":%s,"connected_since":"%s"}' \
-				"$name" "$real_addr" "$vpn_ip" "${bytes_recv:-0}" "${bytes_sent:-0}" "$connected_since"
+			[[ $first == true ]] && first=false || printf ','
+			printf '{"name":"%s","real_address":"%s","vpn_ip":"%s","bytes_received":%s,"bytes_sent":%s,"connected_since":"%s"}\n' \
+				"$(json_escape "$name")" "$(json_escape "$real_addr")" "$(json_escape "$vpn_ip")" \
+				"${bytes_recv:-0}" "${bytes_sent:-0}" "$(json_escape "$connected_since")"
 		done
 		echo ']}'
 	else
