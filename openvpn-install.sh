@@ -20,6 +20,7 @@ readonly EASYRSA_SHA256="662ee3b453155aeb1dff7096ec052cd83176c460cfa82ac130ef856
 # Set LOG_FILE="" to disable file logging
 VERBOSE=${VERBOSE:-0}
 LOG_FILE=${LOG_FILE:-openvpn-install.log}
+OUTPUT_FORMAT=${OUTPUT_FORMAT:-table} # table or json - json suppresses log output
 
 # Color definitions (disabled if not a terminal, unless FORCE_COLOR=1)
 if [[ -t 1 ]] || [[ $FORCE_COLOR == "1" ]]; then
@@ -51,11 +52,13 @@ _log_to_file() {
 
 # Logging functions
 log_info() {
+	[[ $OUTPUT_FORMAT == "json" ]] && return
 	echo -e "${COLOR_BLUE}[INFO]${COLOR_RESET} $*"
 	_log_to_file "[INFO] $*"
 }
 
 log_warn() {
+	[[ $OUTPUT_FORMAT == "json" ]] && return
 	echo -e "${COLOR_YELLOW}[WARN]${COLOR_RESET} $*"
 	_log_to_file "[WARN] $*"
 }
@@ -79,12 +82,13 @@ log_fatal() {
 }
 
 log_success() {
+	[[ $OUTPUT_FORMAT == "json" ]] && return
 	echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} $*"
 	_log_to_file "[OK] $*"
 }
 
 log_debug() {
-	if [[ $VERBOSE -eq 1 ]]; then
+	if [[ $VERBOSE -eq 1 && $OUTPUT_FORMAT != "json" ]]; then
 		echo -e "${COLOR_DIM}[DEBUG]${COLOR_RESET} $*"
 	fi
 	_log_to_file "[DEBUG] $*"
@@ -1189,12 +1193,17 @@ parse_args() {
 	shift || true
 
 	# Check if user just wants help (don't require root for help)
+	# Also detect --format json early to suppress log output before initialCheck
 	local wants_help=false
+	local prev_arg=""
 	for arg in "$@"; do
 		if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
 			wants_help=true
-			break
 		fi
+		if [[ "$prev_arg" == "--format" && "$arg" == "json" ]]; then
+			OUTPUT_FORMAT="json"
+		fi
+		prev_arg="$arg"
 	done
 
 	# Dispatch to command handler
