@@ -155,37 +155,44 @@ The `install` command supports many options for customization:
 
 **Network Options:**
 
-- `--endpoint <host>` - Public IP or hostname for clients (auto-detected)
-- `--ip <addr>` - Server listening IP (auto-detected)
-- `--ipv6` - Enable IPv6 support
-- `--subnet <x.x.x.0>` - VPN subnet (default: 10.8.0.0)
-- `--port <num>` - OpenVPN port (default: 1194)
+- `--endpoint <host>` - Public IP or hostname for clients (default: auto-detected)
+- `--ip <addr>` - Server listening IP (default: auto-detected)
+- `--ipv6` - Enable IPv6 support (default: disabled)
+- `--subnet <x.x.x.0>` - VPN subnet (default: `10.8.0.0`)
+- `--port <num>` - OpenVPN port (default: `1194`)
 - `--port-random` - Use random port (49152-65535)
-- `--protocol <udp|tcp>` - Protocol (default: udp)
+- `--protocol <udp|tcp>` - Protocol (default: `udp`)
 
 **DNS Options:**
 
-- `--dns <provider>` - DNS provider: `system`, `unbound`, `cloudflare`, `quad9`, `quad9-uncensored`, `fdn`, `dnswatch`, `opendns`, `google`, `yandex`, `adguard`, `nextdns`, `custom`
+- `--dns <provider>` - DNS provider (default: `cloudflare`). Options: `system`, `unbound`, `cloudflare`, `quad9`, `quad9-uncensored`, `fdn`, `dnswatch`, `opendns`, `google`, `yandex`, `adguard`, `nextdns`, `custom`
 - `--dns-primary <ip>` - Custom primary DNS (requires `--dns custom`)
-- `--dns-secondary <ip>` - Custom secondary DNS
+- `--dns-secondary <ip>` - Custom secondary DNS (requires `--dns custom`)
 
 **Security Options:**
 
-- `--cipher <cipher>` - Data cipher: `AES-128-GCM`, `AES-192-GCM`, `AES-256-GCM`, `AES-128-CBC`, `AES-192-CBC`, `AES-256-CBC`, `CHACHA20-POLY1305`
-- `--cert-type <ecdsa|rsa>` - Certificate type (default: ecdsa)
-- `--cert-curve <curve>` - ECDSA curve: `prime256v1`, `secp384r1`, `secp521r1`
-- `--rsa-bits <2048|3072|4096>` - RSA key size
-- `--hmac <SHA256|SHA384|SHA512>` - HMAC algorithm
-- `--tls-sig <crypt-v2|crypt|auth>` - TLS mode (default: crypt-v2)
+- `--cipher <cipher>` - Data cipher (default: `AES-128-GCM`). Options: `AES-128-GCM`, `AES-192-GCM`, `AES-256-GCM`, `AES-128-CBC`, `AES-192-CBC`, `AES-256-CBC`, `CHACHA20-POLY1305`
+- `--cert-type <ecdsa|rsa>` - Certificate type (default: `ecdsa`)
+- `--cert-curve <curve>` - ECDSA curve (default: `prime256v1`). Options: `prime256v1`, `secp384r1`, `secp521r1`
+- `--rsa-bits <2048|3072|4096>` - RSA key size (default: `2048`)
+- `--hmac <alg>` - HMAC algorithm (default: `SHA256`). Options: `SHA256`, `SHA384`, `SHA512`
+- `--tls-sig <mode>` - TLS mode (default: `crypt-v2`). Options: `crypt-v2`, `crypt`, `auth`
+- `--dh-type <ecdh|dh>` - DH key exchange type (default: `ecdh`)
+- `--dh-curve <curve>` - ECDH curve (default: `prime256v1`). Options: `prime256v1`, `secp384r1`, `secp521r1`
+- `--dh-bits <2048|3072|4096>` - DH key size when using `--dh-type dh` (default: `2048`)
+- `--server-cert-days <n>` - Server cert validity in days (default: `3650`)
+
+**Client Options:**
+
+- `--client <name>` - Initial client name (default: `client`)
+- `--client-password [pass]` - Password-protect client key (default: no password)
+- `--client-cert-days <n>` - Client cert validity in days (default: `3650`)
+- `--no-client` - Skip initial client creation
 
 **Other Options:**
 
-- `--compression <none|lz4-v2|lz4|lzo>` - Compression (default: none)
-- `--multi-client` - Allow same cert on multiple devices
-- `--client <name>` - Initial client name (default: client)
-- `--client-password [pass]` - Password-protect client
-- `--client-cert-days <n>` - Client cert validity (default: 3650)
-- `--no-client` - Skip initial client creation
+- `--compression <alg>` - Compression (default: `none`). Options: `none`, `lz4-v2`, `lz4`, `lzo`
+- `--multi-client` - Allow same cert on multiple devices (default: disabled)
 
 ### Automation Examples
 
