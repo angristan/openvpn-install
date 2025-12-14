@@ -565,6 +565,56 @@ if [ ! -f /shared/revoke-client-connected ]; then
 fi
 echo "PASS: Client connected with '$REVOKE_CLIENT' certificate"
 
+# =====================================================
+# Test server status (while client is connected)
+# =====================================================
+echo ""
+echo "=== Testing Server Status ==="
+
+# Test table output
+STATUS_OUTPUT="/tmp/server-status-output.log"
+(bash /opt/openvpn-install.sh server status) 2>&1 | tee "$STATUS_OUTPUT" || true
+
+if grep -q "Connected Clients" "$STATUS_OUTPUT"; then
+	echo "PASS: Server status shows header"
+else
+	echo "FAIL: Server status missing header"
+	cat "$STATUS_OUTPUT"
+	exit 1
+fi
+
+if grep -q "$REVOKE_CLIENT" "$STATUS_OUTPUT"; then
+	echo "PASS: Server status shows connected client '$REVOKE_CLIENT'"
+else
+	echo "FAIL: Server status does not show connected client"
+	cat "$STATUS_OUTPUT"
+	exit 1
+fi
+
+# Test JSON output
+STATUS_JSON_OUTPUT="/tmp/server-status-json-output.log"
+(bash /opt/openvpn-install.sh server status --format json) 2>&1 | tee "$STATUS_JSON_OUTPUT" || true
+
+# Validate JSON structure
+if echo "$STATUS_JSON_OUTPUT" | jq -e '.clients' >/dev/null 2>&1; then
+	echo "PASS: Server status JSON is valid"
+else
+	echo "FAIL: Server status JSON is invalid"
+	cat "$STATUS_JSON_OUTPUT"
+	exit 1
+fi
+
+# Check client is in JSON output
+if jq -e ".clients[] | select(.name == \"$REVOKE_CLIENT\")" "$STATUS_JSON_OUTPUT" >/dev/null 2>&1; then
+	echo "PASS: Server status JSON contains connected client"
+else
+	echo "FAIL: Server status JSON missing connected client"
+	cat "$STATUS_JSON_OUTPUT"
+	exit 1
+fi
+
+echo "=== Server Status Tests PASSED ==="
+
 # Signal client to disconnect before revocation
 touch /shared/revoke-client-disconnect
 
@@ -662,6 +712,48 @@ if grep -q "Found 3 client certificate(s)" "$LIST_OUTPUT"; then
 else
 	echo "FAIL: List does not show correct certificate count"
 	cat "$LIST_OUTPUT"
+	exit 1
+fi
+
+# Test JSON output
+echo "Testing client list JSON output..."
+LIST_JSON_OUTPUT="/tmp/list-clients-json-output.log"
+(bash /opt/openvpn-install.sh client list --format json) 2>&1 | tee "$LIST_JSON_OUTPUT" || true
+
+# Validate JSON structure
+if jq -e '.clients' "$LIST_JSON_OUTPUT" >/dev/null 2>&1; then
+	echo "PASS: Client list JSON is valid"
+else
+	echo "FAIL: Client list JSON is invalid"
+	cat "$LIST_JSON_OUTPUT"
+	exit 1
+fi
+
+# Verify client count in JSON
+JSON_CLIENT_COUNT=$(jq '.clients | length' "$LIST_JSON_OUTPUT")
+if [ "$JSON_CLIENT_COUNT" -eq 3 ]; then
+	echo "PASS: Client list JSON has correct count ($JSON_CLIENT_COUNT)"
+else
+	echo "FAIL: Client list JSON has wrong count: $JSON_CLIENT_COUNT (expected 3)"
+	cat "$LIST_JSON_OUTPUT"
+	exit 1
+fi
+
+# Verify valid client in JSON
+if jq -e '.clients[] | select(.name == "testclient" and .status == "valid")' "$LIST_JSON_OUTPUT" >/dev/null 2>&1; then
+	echo "PASS: Client list JSON shows testclient as valid"
+else
+	echo "FAIL: Client list JSON does not show testclient correctly"
+	cat "$LIST_JSON_OUTPUT"
+	exit 1
+fi
+
+# Verify revoked client in JSON
+if jq -e ".clients[] | select(.name == \"$REVOKE_CLIENT\" and .status == \"revoked\")" "$LIST_JSON_OUTPUT" >/dev/null 2>&1; then
+	echo "PASS: Client list JSON shows $REVOKE_CLIENT as revoked"
+else
+	echo "FAIL: Client list JSON does not show $REVOKE_CLIENT correctly"
+	cat "$LIST_JSON_OUTPUT"
 	exit 1
 fi
 
