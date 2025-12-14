@@ -97,7 +97,7 @@ jobs:
           host: ${{ steps.server_ip.outputs.value }}
           username: root
           key: ${{ secrets.SSH_KEY }}
-          script: 'set -x && AUTO_INSTALL=y bash -x ~/openvpn-install/openvpn-install.sh && ps aux | grep openvpn | grep -v grep > /dev/null 2>&1 && echo "Success: OpenVPN is running" && exit 0 || echo "Failure: OpenVPN is not running" && exit 1'
+          script: 'set -x && bash -x ~/openvpn-install/openvpn-install.sh install && ps aux | grep openvpn | grep -v grep > /dev/null 2>&1 && echo "Success: OpenVPN is running" && exit 0 || echo "Failure: OpenVPN is not running" && exit 1'
 
       - name: Delete server
         run: doctl compute droplet delete -f "openvpn-action-${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}-${{ matrix.os-image }}"

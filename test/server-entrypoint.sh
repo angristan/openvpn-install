@@ -12,54 +12,40 @@ fi
 
 echo "TUN device ready"
 
-# Set up environment for auto-install
-export AUTO_INSTALL=y
+# Configuration for install
 export FORCE_COLOR=1
-export APPROVE_INSTALL=y
-export APPROVE_IP=y
-export IPV6_SUPPORT=n
-export VPN_SUBNET=10.9.0.0 # Custom subnet to test configurability
-export PORT_CHOICE=1
-export PROTOCOL_CHOICE=1
-export DNS=2 # Self-hosted Unbound DNS resolver
-export COMPRESSION_ENABLED=n
-export CLIENT=testclient
-export PASS=1
-export ENDPOINT=openvpn-server
+VPN_SUBNET=10.9.0.0 # Custom subnet to test configurability
 
 # Calculate VPN gateway from subnet (first usable IP)
 VPN_GATEWAY="${VPN_SUBNET%.*}.1"
 export VPN_GATEWAY
 
 # TLS key type configuration (default: tls-crypt-v2)
-# TLS_SIG: 1=tls-crypt-v2, 2=tls-crypt, 3=tls-auth
+# TLS_SIG: crypt-v2, crypt, auth
 # TLS_KEY_FILE: the expected key file name for verification
-TLS_SIG="${TLS_SIG:-1}"
+TLS_SIG="${TLS_SIG:-crypt-v2}"
 TLS_KEY_FILE="${TLS_KEY_FILE:-tls-crypt-v2.key}"
-export TLS_SIG
 
-# If using non-default TLS settings, enable encryption customization
-if [ "$TLS_SIG" != "1" ]; then
-	export CUSTOMIZE_ENC=y
-	# Set other encryption defaults when customizing
-	export CIPHER_CHOICE=1     # AES-128-GCM
-	export CERT_TYPE=1         # ECDSA
-	export CERT_CURVE_CHOICE=1 # prime256v1
-	export CC_CIPHER_CHOICE=1  # ECDHE-ECDSA-AES-128-GCM-SHA256
-	export DH_TYPE=1           # ECDH
-	export DH_CURVE_CHOICE=1   # prime256v1
-	export HMAC_ALG_CHOICE=1   # SHA-256
+# Build install command with CLI flags
+INSTALL_CMD="/opt/openvpn-install.sh install"
+INSTALL_CMD+=" --endpoint openvpn-server"
+INSTALL_CMD+=" --dns unbound"
+INSTALL_CMD+=" --subnet $VPN_SUBNET"
+INSTALL_CMD+=" --client testclient"
+
+# Add TLS signature mode if non-default
+if [ "$TLS_SIG" != "crypt-v2" ]; then
+	INSTALL_CMD+=" --tls-sig $TLS_SIG"
 	echo "Testing TLS key type: $TLS_SIG (key file: $TLS_KEY_FILE)"
-else
-	export CUSTOMIZE_ENC=n
 fi
 
 echo "Running OpenVPN install script..."
+echo "Command: $INSTALL_CMD"
 # Run in subshell because the script calls 'exit 0' after generating client config
 # Capture output to validate logging format, while still displaying it
 # Use || true to prevent set -e from exiting on failure, then check exit code
 INSTALL_OUTPUT="/tmp/install-output.log"
-(bash /opt/openvpn-install.sh) 2>&1 | tee "$INSTALL_OUTPUT"
+(bash $INSTALL_CMD) 2>&1 | tee "$INSTALL_OUTPUT"
 INSTALL_EXIT_CODE=${PIPESTATUS[0]}
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
@@ -196,7 +182,7 @@ echo "Original client certificate serial: $ORIG_CERT_SERIAL"
 # Test client certificate renewal using the script
 echo "Testing client certificate renewal..."
 RENEW_OUTPUT="/tmp/renew-client-output.log"
-(MENU_OPTION=4 RENEW_OPTION=1 CLIENTNUMBER=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_OUTPUT" || true
+(bash /opt/openvpn-install.sh client renew testclient --cert-days 3650) 2>&1 | tee "$RENEW_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Certificate for client testclient renewed" "$RENEW_OUTPUT"; then
@@ -276,7 +262,7 @@ echo "Original server certificate serial: $ORIG_SERVER_SERIAL"
 # Test server certificate renewal
 echo "Testing server certificate renewal..."
 RENEW_SERVER_OUTPUT="/tmp/renew-server-output.log"
-(MENU_OPTION=4 RENEW_OPTION=2 CONTINUE=y SERVER_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
+(bash /opt/openvpn-install.sh server renew --cert-days 3650 --force) 2>&1 | tee "$RENEW_SERVER_OUTPUT" || true
 
 # Verify renewal succeeded
 if grep -q "Server certificate renewed successfully" "$RENEW_SERVER_OUTPUT"; then
@@ -545,7 +531,7 @@ echo "=== Testing Certificate Revocation ==="
 REVOKE_CLIENT="revoketest"
 echo "Creating client '$REVOKE_CLIENT' for revocation testing..."
 REVOKE_CREATE_OUTPUT="/tmp/revoke-create-output.log"
-(MENU_OPTION=1 CLIENT=$REVOKE_CLIENT PASS=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$REVOKE_CREATE_OUTPUT" || true
+(bash /opt/openvpn-install.sh client add "$REVOKE_CLIENT" --cert-days 3650) 2>&1 | tee "$REVOKE_CREATE_OUTPUT" || true
 
 if [ -f "/root/$REVOKE_CLIENT.ovpn" ]; then
 	echo "PASS: Client '$REVOKE_CLIENT' created successfully"
@@ -597,11 +583,10 @@ if [ ! -f /shared/revoke-client-disconnected ]; then
 fi
 echo "Client disconnected"
 
-# Now revoke the certificate using the new CLIENT name feature
+# Now revoke the certificate
 echo "Revoking certificate for '$REVOKE_CLIENT'..."
 REVOKE_OUTPUT="/tmp/revoke-output.log"
-# MENU_OPTION=3 is revoke, CLIENT specifies the client name directly
-(MENU_OPTION=3 CLIENT=$REVOKE_CLIENT bash /opt/openvpn-install.sh) 2>&1 | tee "$REVOKE_OUTPUT" || true
+(bash /opt/openvpn-install.sh client revoke "$REVOKE_CLIENT" --force) 2>&1 | tee "$REVOKE_OUTPUT" || true
 
 if grep -q "Certificate for client $REVOKE_CLIENT revoked" "$REVOKE_OUTPUT"; then
 	echo "PASS: Certificate for '$REVOKE_CLIENT' revoked successfully"
@@ -652,7 +637,7 @@ echo "=== Testing List Client Certificates ==="
 # - testclient (Revoked) - the old certificate revoked during renewal
 # - revoketest (Revoked) - the revoked certificate
 LIST_OUTPUT="/tmp/list-clients-output.log"
-(MENU_OPTION=2 bash /opt/openvpn-install.sh) 2>&1 | tee "$LIST_OUTPUT" || true
+(bash /opt/openvpn-install.sh client list) 2>&1 | tee "$LIST_OUTPUT" || true
 
 # Verify list output contains expected clients
 if grep -q "testclient" "$LIST_OUTPUT" && grep -q "Valid" "$LIST_OUTPUT"; then
@@ -691,7 +676,7 @@ echo "=== Testing Reuse of Revoked Client Name ==="
 # Create a new certificate with the same name as the revoked one
 echo "Creating new client with same name '$REVOKE_CLIENT'..."
 RECREATE_OUTPUT="/tmp/recreate-output.log"
-(MENU_OPTION=1 CLIENT=$REVOKE_CLIENT PASS=1 CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$RECREATE_OUTPUT" || true
+(bash /opt/openvpn-install.sh client add "$REVOKE_CLIENT" --cert-days 3650) 2>&1 | tee "$RECREATE_OUTPUT" || true
 
 if [ -f "/root/$REVOKE_CLIENT.ovpn" ]; then
 	echo "PASS: New client '$REVOKE_CLIENT' created successfully (reusing revoked name)"
@@ -758,7 +743,7 @@ PASSPHRASE_CLIENT="passphrasetest"
 TEST_PASSPHRASE="TestP@ssw0rd#123"
 echo "Creating client '$PASSPHRASE_CLIENT' with passphrase in headless mode..."
 PASSPHRASE_OUTPUT="/tmp/passphrase-output.log"
-(MENU_OPTION=1 CLIENT=$PASSPHRASE_CLIENT PASS=2 PASSPHRASE="$TEST_PASSPHRASE" CLIENT_CERT_DURATION_DAYS=3650 bash /opt/openvpn-install.sh) 2>&1 | tee "$PASSPHRASE_OUTPUT" || true
+(bash /opt/openvpn-install.sh client add "$PASSPHRASE_CLIENT" --password "$TEST_PASSPHRASE" --cert-days 3650) 2>&1 | tee "$PASSPHRASE_OUTPUT" || true
 
 # Verify client was created
 if [ -f "/root/$PASSPHRASE_CLIENT.ovpn" ]; then
