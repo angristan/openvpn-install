@@ -10,7 +10,18 @@ You can, of course, it's even recommended, update the `openvpn` package with you
 
 **Q:** How do I renew certificates before they expire?
 
-**A:** Run the script again and select "Renew certificates" from the menu. You can renew either client certificates or the server certificate. The script will show you the current expiration date for each certificate and let you choose a new validity period (default: 3650 days / 10 years).
+**A:** Use the CLI commands to renew certificates:
+
+```bash
+# Renew a client certificate
+./openvpn-install.sh client renew alice
+
+# Renew with custom validity period (365 days)
+./openvpn-install.sh client renew alice --cert-days 365
+
+# Renew the server certificate
+./openvpn-install.sh server renew
+```
 
 For client renewals, a new `.ovpn` file will be generated that you need to distribute to the client. For server renewals, the OpenVPN service will need to be restarted (the script will prompt you).
 
@@ -61,20 +72,6 @@ down /usr/share/openvpn/contrib/pull-resolv-conf/client.down
 
 ---
 
-**Q:** Can I use an OpenVPN 2.3 client?
-
-**A:** Yes. I really recommend using an up-to-date client, but if you really need it, choose the following options:
-
-- No compression or LZ0
-- RSA certificate
-- DH Key
-- AES CBC
-- tls-auth
-
-If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/server/server.conf` and `.ovpn` files.
-
----
-
 **Q:** IPv6 is not working on my Hetzner VM
 
 **A:** This an issue on their side. See <https://angristan.xyz/fix-ipv6-hetzner-cloud/>
@@ -109,10 +106,6 @@ Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
 
   type `yes` when asked to customize encryption settings and choose `tls-auth`
 
-- `Options error: Unrecognized option or missing parameter(s) in config.ovpn:36: tls-version-min (2.3.2)` :
-
-  see question "Can I use an OpenVPN 2.3 client?"
-
 ---
 
 **Q:** How can I access computers the OpenVPN server's remote LAN?
@@ -125,20 +118,29 @@ Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
 
 **A:** Here is a sample Bash script to achieve this:
 
-```sh
+```bash
+#!/bin/bash
 userlist=(user1 user2 user3)
 
-for i in ${userlist[@]};do
-   MENU_OPTION=1 CLIENT=$i PASS=1 ./openvpn-install.sh
+for user in "${userlist[@]}"; do
+  ./openvpn-install.sh client add "$user"
 done
 ```
 
 From a list in a text file:
 
-```sh
-while read USER
-    do MENU_OPTION="1" CLIENT="$USER" PASS="1" ./openvpn-install.sh
+```bash
+#!/bin/bash
+while read -r user; do
+  ./openvpn-install.sh client add "$user"
 done < users.txt
+```
+
+To add password-protected clients:
+
+```bash
+#!/bin/bash
+./openvpn-install.sh client add alice --password "secretpass123"
 ```
 
 ---

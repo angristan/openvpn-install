@@ -20,6 +20,7 @@ readonly EASYRSA_SHA256="662ee3b453155aeb1dff7096ec052cd83176c460cfa82ac130ef856
 # Set LOG_FILE="" to disable file logging
 VERBOSE=${VERBOSE:-0}
 LOG_FILE=${LOG_FILE:-openvpn-install.log}
+OUTPUT_FORMAT=${OUTPUT_FORMAT:-table} # table or json - json suppresses log output
 
 # Color definitions (disabled if not a terminal, unless FORCE_COLOR=1)
 if [[ -t 1 ]] || [[ $FORCE_COLOR == "1" ]]; then
@@ -51,11 +52,13 @@ _log_to_file() {
 
 # Logging functions
 log_info() {
+	[[ $OUTPUT_FORMAT == "json" ]] && return
 	echo -e "${COLOR_BLUE}[INFO]${COLOR_RESET} $*"
 	_log_to_file "[INFO] $*"
 }
 
 log_warn() {
+	[[ $OUTPUT_FORMAT == "json" ]] && return
 	echo -e "${COLOR_YELLOW}[WARN]${COLOR_RESET} $*"
 	_log_to_file "[WARN] $*"
 }
@@ -79,12 +82,13 @@ log_fatal() {
 }
 
 log_success() {
+	[[ $OUTPUT_FORMAT == "json" ]] && return
 	echo -e "${COLOR_GREEN}[OK]${COLOR_RESET} $*"
 	_log_to_file "[OK] $*"
 }
 
 log_debug() {
-	if [[ $VERBOSE -eq 1 ]]; then
+	if [[ $VERBOSE -eq 1 && $OUTPUT_FORMAT != "json" ]]; then
 		echo -e "${COLOR_DIM}[DEBUG]${COLOR_RESET} $*"
 	fi
 	_log_to_file "[DEBUG] $*"
@@ -157,6 +161,1086 @@ run_cmd_fatal() {
 	fi
 }
 
+# =============================================================================
+# CLI Configuration
+# =============================================================================
+readonly SCRIPT_NAME="openvpn-install"
+
+# =============================================================================
+# Help Text Functions
+# =============================================================================
+show_help() {
+	cat <<-EOF
+		OpenVPN installer and manager
+
+		Usage: $SCRIPT_NAME <command> [options]
+
+		Commands:
+			install       Install and configure OpenVPN server
+			uninstall     Remove OpenVPN server
+			client        Manage client certificates
+			server        Server management
+			interactive   Launch interactive menu
+
+		Global Options:
+			--verbose     Show detailed output
+			--log <path>  Log file path (default: openvpn-install.log)
+			--no-log      Disable file logging
+			--no-color    Disable colored output
+			-h, --help    Show help
+
+		Run '$SCRIPT_NAME <command> --help' for command-specific help.
+	EOF
+}
+
+show_install_help() {
+	cat <<-EOF
+		Install and configure OpenVPN server
+
+		Usage: $SCRIPT_NAME install [options]
+
+		Options:
+			-i, --interactive     Run interactive install wizard
+
+		Network Options:
+			--endpoint <host>     Public IP or hostname for clients (auto-detected)
+			--ip <addr>           Server listening IP (auto-detected)
+			--ipv6                Enable IPv6 support
+			--subnet <x.x.x.0>    VPN subnet (default: 10.8.0.0)
+			--port <num>          OpenVPN port (default: 1194)
+			--port-random         Use random port (49152-65535)
+			--protocol <proto>    Protocol: udp or tcp (default: udp)
+
+		DNS Options:
+			--dns <provider>      DNS provider (default: cloudflare)
+				Providers: system, unbound, cloudflare, quad9, quad9-uncensored,
+				fdn, dnswatch, opendns, google, yandex, adguard, nextdns, custom
+			--dns-primary <ip>    Custom primary DNS (requires --dns custom)
+			--dns-secondary <ip>  Custom secondary DNS (optional)
+
+		Security Options:
+			--cipher <cipher>     Data channel cipher (default: AES-128-GCM)
+				Ciphers: AES-128-GCM, AES-192-GCM, AES-256-GCM, AES-128-CBC,
+				AES-192-CBC, AES-256-CBC, CHACHA20-POLY1305
+			--cert-type <type>    Certificate type: ecdsa or rsa (default: ecdsa)
+			--cert-curve <curve>  ECDSA curve (default: prime256v1)
+				Curves: prime256v1, secp384r1, secp521r1
+			--rsa-bits <size>     RSA key size: 2048, 3072, 4096 (default: 2048)
+			--cc-cipher <cipher>  Control channel cipher (auto-selected)
+			--dh-type <type>      DH type: ecdh or dh (default: ecdh)
+			--dh-curve <curve>    ECDH curve (default: prime256v1)
+			--dh-bits <size>      DH key size: 2048, 3072, 4096 (default: 2048)
+			--hmac <alg>          HMAC algorithm: SHA256, SHA384, SHA512 (default: SHA256)
+			--tls-sig <mode>      TLS mode: crypt-v2, crypt, auth (default: crypt-v2)
+			--server-cert-days <n>  Server cert validity in days (default: 3650)
+
+		Other Options:
+			--compression <alg>   Compression: lz4-v2, lz4, lzo, none (default: none)
+			--multi-client        Allow same cert on multiple devices
+
+		Initial Client Options:
+			--client <name>       Initial client name (default: client)
+			--client-password [p] Password-protect client (prompts if no value given)
+			--client-cert-days <n>  Client cert validity in days (default: 3650)
+			--no-client           Skip initial client creation
+
+		Examples:
+			$SCRIPT_NAME install
+			$SCRIPT_NAME install --port 443 --protocol tcp
+			$SCRIPT_NAME install --dns quad9 --cipher AES-256-GCM
+			$SCRIPT_NAME install -i
+	EOF
+}
+
+show_uninstall_help() {
+	cat <<-EOF
+		Remove OpenVPN server
+
+		Usage: $SCRIPT_NAME uninstall [options]
+
+		Options:
+			-f, --force   Skip confirmation prompt
+
+		Examples:
+			$SCRIPT_NAME uninstall
+			$SCRIPT_NAME uninstall --force
+	EOF
+}
+
+show_client_help() {
+	cat <<-EOF
+		Manage client certificates
+
+		Usage: $SCRIPT_NAME client <subcommand> [options]
+
+		Subcommands:
+			add <name>     Add a new client
+			list           List all clients
+			revoke <name>  Revoke a client certificate
+			renew <name>   Renew a client certificate
+
+		Run '$SCRIPT_NAME client <subcommand> --help' for more info.
+	EOF
+}
+
+show_client_add_help() {
+	cat <<-EOF
+		Add a new VPN client
+
+		Usage: $SCRIPT_NAME client add <name> [options]
+
+		Options:
+			--password [pass]   Password-protect client (prompts if no value given)
+			--cert-days <n>     Certificate validity in days (default: 3650)
+			--output <path>     Output path for .ovpn file (default: ~/<name>.ovpn)
+
+		Examples:
+			$SCRIPT_NAME client add alice
+			$SCRIPT_NAME client add bob --password
+			$SCRIPT_NAME client add charlie --cert-days 365 --output /tmp/charlie.ovpn
+	EOF
+}
+
+show_client_list_help() {
+	cat <<-EOF
+		List all client certificates
+
+		Usage: $SCRIPT_NAME client list [options]
+
+		Options:
+			--format <fmt>  Output format: table or json (default: table)
+
+		Examples:
+			$SCRIPT_NAME client list
+			$SCRIPT_NAME client list --format json
+	EOF
+}
+
+show_client_revoke_help() {
+	cat <<-EOF
+		Revoke a client certificate
+
+		Usage: $SCRIPT_NAME client revoke <name> [options]
+
+		Options:
+			-f, --force   Skip confirmation prompt
+
+		Examples:
+			$SCRIPT_NAME client revoke alice
+			$SCRIPT_NAME client revoke bob --force
+	EOF
+}
+
+show_client_renew_help() {
+	cat <<-EOF
+		Renew a client certificate
+
+		Usage: $SCRIPT_NAME client renew <name> [options]
+
+		Options:
+			--cert-days <n>   New certificate validity in days (default: 3650)
+
+		Examples:
+			$SCRIPT_NAME client renew alice
+			$SCRIPT_NAME client renew bob --cert-days 365
+	EOF
+}
+
+show_server_help() {
+	cat <<-EOF
+		Server management
+
+		Usage: $SCRIPT_NAME server <subcommand> [options]
+
+		Subcommands:
+			status   List currently connected clients
+			renew    Renew server certificate
+
+		Run '$SCRIPT_NAME server <subcommand> --help' for more info.
+	EOF
+}
+
+show_server_status_help() {
+	cat <<-EOF
+		List currently connected clients
+
+		Note: Client data is updated every 60 seconds by OpenVPN.
+
+		Usage: $SCRIPT_NAME server status [options]
+
+		Options:
+			--format <fmt>  Output format: table or json (default: table)
+
+		Examples:
+			$SCRIPT_NAME server status
+			$SCRIPT_NAME server status --format json
+	EOF
+}
+
+show_server_renew_help() {
+	cat <<-EOF
+		Renew server certificate
+
+		Usage: $SCRIPT_NAME server renew [options]
+
+		Options:
+			--cert-days <n>   New certificate validity in days (default: 3650)
+			-f, --force       Skip confirmation/warning
+
+		Examples:
+			$SCRIPT_NAME server renew
+			$SCRIPT_NAME server renew --cert-days 1825
+	EOF
+}
+
+# =============================================================================
+# CLI Command Handlers
+# =============================================================================
+
+# Check if OpenVPN is installed
+isOpenVPNInstalled() {
+	[[ -e /etc/openvpn/server/server.conf ]]
+}
+
+# Require OpenVPN to be installed
+requireOpenVPN() {
+	if ! isOpenVPNInstalled; then
+		log_fatal "OpenVPN is not installed. Run '$SCRIPT_NAME install' first."
+	fi
+}
+
+# Require OpenVPN to NOT be installed
+requireNoOpenVPN() {
+	if isOpenVPNInstalled; then
+		log_fatal "OpenVPN is already installed. Use '$SCRIPT_NAME client' to manage clients or '$SCRIPT_NAME uninstall' to remove."
+	fi
+}
+
+# Parse DNS provider string to DNS number
+parse_dns_provider() {
+	case "$1" in
+	system) DNS=1 ;;
+	unbound) DNS=2 ;;
+	cloudflare) DNS=3 ;;
+	quad9) DNS=4 ;;
+	quad9-uncensored) DNS=5 ;;
+	fdn) DNS=6 ;;
+	dnswatch) DNS=7 ;;
+	opendns) DNS=8 ;;
+	google) DNS=9 ;;
+	yandex) DNS=10 ;;
+	adguard) DNS=11 ;;
+	nextdns) DNS=12 ;;
+	custom) DNS=13 ;;
+	*) log_fatal "Invalid DNS provider: $1. See '$SCRIPT_NAME install --help' for valid providers." ;;
+	esac
+}
+
+# Parse cipher string
+parse_cipher() {
+	case "$1" in
+	AES-128-GCM | AES-192-GCM | AES-256-GCM | AES-128-CBC | AES-192-CBC | AES-256-CBC | CHACHA20-POLY1305)
+		CIPHER="$1"
+		;;
+	*) log_fatal "Invalid cipher: $1. See '$SCRIPT_NAME install --help' for valid ciphers." ;;
+	esac
+}
+
+# Parse curve string
+parse_curve() {
+	case "$1" in
+	prime256v1 | secp384r1 | secp521r1) echo "$1" ;;
+	*) log_fatal "Invalid curve: $1. Valid curves: prime256v1, secp384r1, secp521r1" ;;
+	esac
+}
+
+# Set default encryption settings (non-interactive mode)
+set_default_encryption() {
+	CIPHER="${CIPHER:-AES-128-GCM}"
+	CERT_TYPE="${CERT_TYPE:-1}" # ECDSA
+	CERT_CURVE="${CERT_CURVE:-prime256v1}"
+	CC_CIPHER="${CC_CIPHER:-TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256}"
+	DH_TYPE="${DH_TYPE:-1}" # ECDH
+	DH_CURVE="${DH_CURVE:-prime256v1}"
+	HMAC_ALG="${HMAC_ALG:-SHA256}"
+	TLS_SIG="${TLS_SIG:-1}" # tls-crypt-v2
+}
+
+# Validation functions
+validate_port() {
+	local port="$1"
+	if ! [[ "$port" =~ ^[0-9]+$ ]] || [[ "$port" -lt 1 ]] || [[ "$port" -gt 65535 ]]; then
+		log_fatal "Invalid port: $port. Must be a number between 1 and 65535."
+	fi
+}
+
+validate_subnet() {
+	local subnet="$1"
+	# Check format: x.x.x.0 where x is 0-255
+	if ! [[ "$subnet" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.0$ ]]; then
+		log_fatal "Invalid subnet: $subnet. Must be in format x.x.x.0 (e.g., 10.8.0.0)"
+	fi
+	local octet1="${BASH_REMATCH[1]}"
+	local octet2="${BASH_REMATCH[2]}"
+	local octet3="${BASH_REMATCH[3]}"
+	# Validate each octet is 0-255
+	if [[ "$octet1" -gt 255 ]] || [[ "$octet2" -gt 255 ]] || [[ "$octet3" -gt 255 ]]; then
+		log_fatal "Invalid subnet: $subnet. Octets must be 0-255."
+	fi
+	# Check for RFC1918 private address ranges
+	if ! { [[ "$octet1" -eq 10 ]] ||
+		[[ "$octet1" -eq 172 && "$octet2" -ge 16 && "$octet2" -le 31 ]] ||
+		[[ "$octet1" -eq 192 && "$octet2" -eq 168 ]]; }; then
+		log_fatal "Invalid subnet: $subnet. Must be a private network (10.x.x.0, 172.16-31.x.0, or 192.168.x.0)."
+	fi
+}
+
+validate_positive_int() {
+	local value="$1"
+	local name="$2"
+	if ! [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" -lt 1 ]]; then
+		log_fatal "Invalid $name: $value. Must be a positive integer."
+	fi
+}
+
+# Handle install command
+cmd_install() {
+	local interactive=false
+	local no_client=false
+	local client_password_flag=false
+	local client_password_value=""
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-i | --interactive)
+			interactive=true
+			shift
+			;;
+		--endpoint)
+			[[ -z "${2:-}" ]] && log_fatal "--endpoint requires an argument"
+			ENDPOINT="$2"
+			shift 2
+			;;
+		--ip)
+			[[ -z "${2:-}" ]] && log_fatal "--ip requires an argument"
+			IP="$2"
+			APPROVE_IP=y
+			shift 2
+			;;
+		--ipv6)
+			IPV6_SUPPORT=y
+			shift
+			;;
+		--subnet)
+			[[ -z "${2:-}" ]] && log_fatal "--subnet requires an argument"
+			validate_subnet "$2"
+			VPN_SUBNET="$2"
+			SUBNET_CHOICE=2
+			shift 2
+			;;
+		--port)
+			[[ -z "${2:-}" ]] && log_fatal "--port requires an argument"
+			validate_port "$2"
+			PORT="$2"
+			PORT_CHOICE=2
+			shift 2
+			;;
+		--port-random)
+			PORT_CHOICE=3
+			shift
+			;;
+		--protocol)
+			[[ -z "${2:-}" ]] && log_fatal "--protocol requires an argument"
+			case "$2" in
+			udp)
+				PROTOCOL=udp
+				PROTOCOL_CHOICE=1
+				;;
+			tcp)
+				PROTOCOL=tcp
+				PROTOCOL_CHOICE=2
+				;;
+			*) log_fatal "Invalid protocol: $2. Use 'udp' or 'tcp'." ;;
+			esac
+			shift 2
+			;;
+		--dns)
+			[[ -z "${2:-}" ]] && log_fatal "--dns requires an argument"
+			parse_dns_provider "$2"
+			shift 2
+			;;
+		--dns-primary)
+			[[ -z "${2:-}" ]] && log_fatal "--dns-primary requires an argument"
+			DNS1="$2"
+			shift 2
+			;;
+		--dns-secondary)
+			[[ -z "${2:-}" ]] && log_fatal "--dns-secondary requires an argument"
+			DNS2="$2"
+			shift 2
+			;;
+		--compression)
+			[[ -z "${2:-}" ]] && log_fatal "--compression requires an argument"
+			case "$2" in
+			none) COMPRESSION_ENABLED=n ;;
+			lz4-v2)
+				COMPRESSION_ENABLED=y
+				COMPRESSION_ALG=lz4-v2
+				;;
+			lz4)
+				COMPRESSION_ENABLED=y
+				COMPRESSION_ALG=lz4
+				;;
+			lzo)
+				COMPRESSION_ENABLED=y
+				COMPRESSION_ALG=lzo
+				;;
+			*) log_fatal "Invalid compression: $2. Use 'none', 'lz4-v2', 'lz4', or 'lzo'." ;;
+			esac
+			shift 2
+			;;
+		--multi-client)
+			MULTI_CLIENT=y
+			shift
+			;;
+		--cipher)
+			[[ -z "${2:-}" ]] && log_fatal "--cipher requires an argument"
+			parse_cipher "$2"
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--cert-type)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-type requires an argument"
+			case "$2" in
+			ecdsa) CERT_TYPE=1 ;;
+			rsa) CERT_TYPE=2 ;;
+			*) log_fatal "Invalid cert-type: $2. Use 'ecdsa' or 'rsa'." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--cert-curve)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-curve requires an argument"
+			CERT_CURVE=$(parse_curve "$2")
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--rsa-bits)
+			[[ -z "${2:-}" ]] && log_fatal "--rsa-bits requires an argument"
+			case "$2" in
+			2048 | 3072 | 4096) RSA_KEY_SIZE="$2" ;;
+			*) log_fatal "Invalid RSA key size: $2. Use 2048, 3072, or 4096." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--cc-cipher)
+			[[ -z "${2:-}" ]] && log_fatal "--cc-cipher requires an argument"
+			CC_CIPHER="$2"
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--dh-type)
+			[[ -z "${2:-}" ]] && log_fatal "--dh-type requires an argument"
+			case "$2" in
+			ecdh) DH_TYPE=1 ;;
+			dh) DH_TYPE=2 ;;
+			*) log_fatal "Invalid dh-type: $2. Use 'ecdh' or 'dh'." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--dh-curve)
+			[[ -z "${2:-}" ]] && log_fatal "--dh-curve requires an argument"
+			DH_CURVE=$(parse_curve "$2")
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--dh-bits)
+			[[ -z "${2:-}" ]] && log_fatal "--dh-bits requires an argument"
+			case "$2" in
+			2048 | 3072 | 4096) DH_KEY_SIZE="$2" ;;
+			*) log_fatal "Invalid DH key size: $2. Use 2048, 3072, or 4096." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--hmac)
+			[[ -z "${2:-}" ]] && log_fatal "--hmac requires an argument"
+			case "$2" in
+			SHA256 | SHA384 | SHA512) HMAC_ALG="$2" ;;
+			*) log_fatal "Invalid HMAC algorithm: $2. Use SHA256, SHA384, or SHA512." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--tls-sig)
+			[[ -z "${2:-}" ]] && log_fatal "--tls-sig requires an argument"
+			case "$2" in
+			crypt-v2) TLS_SIG=1 ;;
+			crypt) TLS_SIG=2 ;;
+			auth) TLS_SIG=3 ;;
+			*) log_fatal "Invalid TLS mode: $2. Use 'crypt-v2', 'crypt', or 'auth'." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--server-cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--server-cert-days requires an argument"
+			validate_positive_int "$2" "server-cert-days"
+			SERVER_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		--client)
+			[[ -z "${2:-}" ]] && log_fatal "--client requires an argument"
+			CLIENT="$2"
+			shift 2
+			;;
+		--client-password)
+			client_password_flag=true
+			# Check if next arg is a value or another flag
+			if [[ -n "${2:-}" ]] && [[ ! "$2" =~ ^- ]]; then
+				client_password_value="$2"
+				shift
+			fi
+			shift
+			;;
+		--client-cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--client-cert-days requires an argument"
+			validate_positive_int "$2" "client-cert-days"
+			CLIENT_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		--no-client)
+			no_client=true
+			shift
+			;;
+		-h | --help)
+			show_install_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME install --help' for usage."
+			;;
+		esac
+	done
+
+	# Validate custom DNS settings
+	if [[ -n "${DNS1:-}" || -n "${DNS2:-}" ]] && [[ "${DNS:-}" != "13" ]]; then
+		log_fatal "--dns-primary and --dns-secondary require --dns custom"
+	fi
+
+	# Check if already installed
+	requireNoOpenVPN
+
+	if [[ $interactive == true ]]; then
+		# Run interactive installer
+		installQuestions
+		installOpenVPN
+	else
+		# Non-interactive mode - set defaults
+		AUTO_INSTALL=y
+		APPROVE_INSTALL=y
+		APPROVE_IP=${APPROVE_IP:-y}
+		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
+
+		# Subnet
+		if [[ -n $VPN_SUBNET ]]; then
+			SUBNET_CHOICE=${SUBNET_CHOICE:-2}
+		else
+			SUBNET_CHOICE=${SUBNET_CHOICE:-1}
+			VPN_SUBNET="10.8.0.0"
+		fi
+
+		# Port
+		PORT_CHOICE=${PORT_CHOICE:-1}
+
+		# Protocol
+		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
+
+		# DNS
+		DNS=${DNS:-3}
+
+		# Compression
+		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
+
+		# Multi-client
+		MULTI_CLIENT=${MULTI_CLIENT:-n}
+
+		# Encryption
+		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
+		if [[ $CUSTOMIZE_ENC == "n" ]]; then
+			set_default_encryption
+		fi
+
+		# Client setup
+		if [[ $no_client == true ]]; then
+			NEW_CLIENT=n
+		else
+			NEW_CLIENT=y
+			CLIENT=${CLIENT:-client}
+			if [[ $client_password_flag == true ]]; then
+				PASS=2
+				if [[ -n "$client_password_value" ]]; then
+					PASSPHRASE="$client_password_value"
+				fi
+			else
+				PASS=${PASS:-1}
+			fi
+		fi
+
+		# Certificate duration
+		CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+		SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+		CONTINUE=y
+
+		installOpenVPN
+	fi
+}
+
+# Handle uninstall command
+cmd_uninstall() {
+	local force=false
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-f | --force)
+			force=true
+			shift
+			;;
+		-h | --help)
+			show_uninstall_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME uninstall --help' for usage."
+			;;
+		esac
+	done
+
+	requireOpenVPN
+
+	if [[ $force == true ]]; then
+		REMOVE=y
+	fi
+
+	removeOpenVPN
+}
+
+# Handle client command
+cmd_client() {
+	local subcmd="${1:-}"
+	shift || true
+
+	case "$subcmd" in
+	"" | "-h" | "--help")
+		show_client_help
+		exit 0
+		;;
+	add)
+		cmd_client_add "$@"
+		;;
+	list)
+		cmd_client_list "$@"
+		;;
+	revoke)
+		cmd_client_revoke "$@"
+		;;
+	renew)
+		cmd_client_renew "$@"
+		;;
+	*)
+		log_fatal "Unknown client subcommand: $subcmd. See '$SCRIPT_NAME client --help' for usage."
+		;;
+	esac
+}
+
+# Handle client add command
+cmd_client_add() {
+	local client_name=""
+	local password_flag=false
+	local password_value=""
+
+	# First non-flag argument is the client name
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--password)
+			password_flag=true
+			# Check if next arg is a value or another flag
+			if [[ -n "${2:-}" ]] && [[ ! "$2" =~ ^- ]]; then
+				password_value="$2"
+				shift
+			fi
+			shift
+			;;
+		--cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			validate_positive_int "$2" "cert-days"
+			CLIENT_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		--output)
+			[[ -z "${2:-}" ]] && log_fatal "--output requires an argument"
+			CLIENT_FILEPATH="$2"
+			shift 2
+			;;
+		-h | --help)
+			show_client_add_help
+			exit 0
+			;;
+		-*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME client add --help' for usage."
+			;;
+		*)
+			if [[ -z "$client_name" ]]; then
+				client_name="$1"
+			else
+				log_fatal "Unexpected argument: $1"
+			fi
+			shift
+			;;
+		esac
+	done
+
+	[[ -z "$client_name" ]] && log_fatal "Client name is required. See '$SCRIPT_NAME client add --help' for usage."
+
+	requireOpenVPN
+
+	# Set up variables for newClient function
+	CLIENT="$client_name"
+	CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+
+	if [[ $password_flag == true ]]; then
+		PASS=2
+		if [[ -n "$password_value" ]]; then
+			PASSPHRASE="$password_value"
+		fi
+	else
+		PASS=1
+	fi
+
+	newClient
+}
+
+# Handle client list command
+cmd_client_list() {
+	local format="table"
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--format)
+			[[ -z "${2:-}" ]] && log_fatal "--format requires an argument"
+			case "$2" in
+			table | json) format="$2" ;;
+			*) log_fatal "Invalid format: $2. Use 'table' or 'json'." ;;
+			esac
+			shift 2
+			;;
+		-h | --help)
+			show_client_list_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME client list --help' for usage."
+			;;
+		esac
+	done
+
+	requireOpenVPN
+
+	OUTPUT_FORMAT="$format" listClients
+}
+
+# Handle client revoke command
+cmd_client_revoke() {
+	local client_name=""
+	local force=false
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-f | --force)
+			force=true
+			shift
+			;;
+		-h | --help)
+			show_client_revoke_help
+			exit 0
+			;;
+		-*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME client revoke --help' for usage."
+			;;
+		*)
+			if [[ -z "$client_name" ]]; then
+				client_name="$1"
+			else
+				log_fatal "Unexpected argument: $1"
+			fi
+			shift
+			;;
+		esac
+	done
+
+	[[ -z "$client_name" ]] && log_fatal "Client name is required. See '$SCRIPT_NAME client revoke --help' for usage."
+
+	requireOpenVPN
+
+	CLIENT="$client_name"
+	if [[ $force == true ]]; then
+		REVOKE_CONFIRM=y
+	fi
+
+	revokeClient
+}
+
+# Handle client renew command
+cmd_client_renew() {
+	local client_name=""
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			validate_positive_int "$2" "cert-days"
+			CLIENT_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		-h | --help)
+			show_client_renew_help
+			exit 0
+			;;
+		-*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME client renew --help' for usage."
+			;;
+		*)
+			if [[ -z "$client_name" ]]; then
+				client_name="$1"
+			else
+				log_fatal "Unexpected argument: $1"
+			fi
+			shift
+			;;
+		esac
+	done
+
+	[[ -z "$client_name" ]] && log_fatal "Client name is required. See '$SCRIPT_NAME client renew --help' for usage."
+
+	requireOpenVPN
+
+	CLIENT="$client_name"
+	CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+
+	renewClient
+}
+
+# Handle server command
+cmd_server() {
+	local subcmd="${1:-}"
+	shift || true
+
+	case "$subcmd" in
+	"" | "-h" | "--help")
+		show_server_help
+		exit 0
+		;;
+	status)
+		cmd_server_status "$@"
+		;;
+	renew)
+		cmd_server_renew "$@"
+		;;
+	*)
+		log_fatal "Unknown server subcommand: $subcmd. See '$SCRIPT_NAME server --help' for usage."
+		;;
+	esac
+}
+
+# Handle server status command
+cmd_server_status() {
+	local format="table"
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--format)
+			[[ -z "${2:-}" ]] && log_fatal "--format requires an argument"
+			case "$2" in
+			table | json) format="$2" ;;
+			*) log_fatal "Invalid format: $2. Use 'table' or 'json'." ;;
+			esac
+			shift 2
+			;;
+		-h | --help)
+			show_server_status_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME server status --help' for usage."
+			;;
+		esac
+	done
+
+	requireOpenVPN
+
+	OUTPUT_FORMAT="$format" listConnectedClients
+}
+
+# Handle server renew command
+cmd_server_renew() {
+	local force=false
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			validate_positive_int "$2" "cert-days"
+			SERVER_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		-f | --force)
+			force=true
+			shift
+			;;
+		-h | --help)
+			show_server_renew_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME server renew --help' for usage."
+			;;
+		esac
+	done
+
+	requireOpenVPN
+
+	SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+	if [[ $force == true ]]; then
+		CONTINUE=y
+	fi
+
+	renewServer
+}
+
+# Handle interactive command (legacy menu)
+cmd_interactive() {
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-h | --help)
+			echo "Launch interactive menu for OpenVPN management"
+			echo ""
+			echo "Usage: $SCRIPT_NAME interactive"
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1"
+			;;
+		esac
+	done
+
+	if isOpenVPNInstalled; then
+		manageMenu
+	else
+		installQuestions
+		installOpenVPN
+	fi
+}
+
+# Main argument parser
+parse_args() {
+	# Parse global options first
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--verbose)
+			VERBOSE=1
+			shift
+			;;
+		--log)
+			[[ -z "${2:-}" ]] && log_fatal "--log requires an argument"
+			LOG_FILE="$2"
+			shift 2
+			;;
+		--no-log)
+			LOG_FILE=""
+			shift
+			;;
+		--no-color)
+			# Colors already set at script start, but we can unset them
+			COLOR_RESET=''
+			COLOR_RED=''
+			COLOR_GREEN=''
+			COLOR_YELLOW=''
+			COLOR_BLUE=''
+			COLOR_CYAN=''
+			COLOR_DIM=''
+			COLOR_BOLD=''
+			shift
+			;;
+		-h | --help)
+			show_help
+			exit 0
+			;;
+		-*)
+			# Could be a command-specific option, let command handle it
+			break
+			;;
+		*)
+			# First non-option is the command
+			break
+			;;
+		esac
+	done
+
+	# Get the command
+	local cmd="${1:-}"
+	shift || true
+
+	# Check if user just wants help (don't require root for help)
+	# Also detect --format json early to suppress log output before initialCheck
+	local wants_help=false
+	local prev_arg=""
+	for arg in "$@"; do
+		if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
+			wants_help=true
+		fi
+		if [[ "$prev_arg" == "--format" && "$arg" == "json" ]]; then
+			OUTPUT_FORMAT="json"
+		fi
+		prev_arg="$arg"
+	done
+
+	# Dispatch to command handler
+	case "$cmd" in
+	"")
+		show_help
+		exit 0
+		;;
+	install)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_install "$@"
+		;;
+	uninstall)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_uninstall "$@"
+		;;
+	client)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_client "$@"
+		;;
+	server)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_server "$@"
+		;;
+	interactive)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_interactive "$@"
+		;;
+	*)
+		log_fatal "Unknown command: $cmd. See '$SCRIPT_NAME --help' for usage."
+		;;
+	esac
+}
+
+# =============================================================================
+# System Check Functions
+# =============================================================================
 function isRoot() {
 	if [ "$EUID" -ne 0 ]; then
 		return 1
@@ -309,7 +1393,7 @@ function initialCheck() {
 
 	log_debug "Detecting operating system..."
 	checkOS
-	log_info "Detected OS: $OS (${PRETTY_NAME:-unknown})"
+	log_debug "Detected OS: $OS (${PRETTY_NAME:-unknown})"
 	checkArchPendingKernelUpgrade
 }
 
@@ -1821,86 +2905,122 @@ function selectClient() {
 	CLIENT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
 }
 
-function listClients() {
-	log_header "Client Certificates"
+# Escape a string for JSON output
+function json_escape() {
+	local str="$1"
+	# Escape backslashes first, then quotes, then control characters
+	str="${str//\\/\\\\}"
+	str="${str//\"/\\\"}"
+	str="${str//$'\n'/\\n}"
+	str="${str//$'\r'/\\r}"
+	str="${str//$'\t'/\\t}"
+	printf '%s' "$str"
+}
 
+function listClients() {
 	local index_file="/etc/openvpn/server/easy-rsa/pki/index.txt"
+	local cert_dir="/etc/openvpn/server/easy-rsa/pki/issued"
 	local number_of_clients
+	local format="${OUTPUT_FORMAT:-table}"
+
 	# Exclude server certificates (CN starting with server_)
 	number_of_clients=$(tail -n +2 "$index_file" | grep "^[VR]" | grep -cv "/CN=server_")
 
 	if [[ $number_of_clients == '0' ]]; then
-		log_warn "You have no existing client certificates!"
+		if [[ $format == "json" ]]; then
+			echo '{"clients":[]}'
+		else
+			log_warn "You have no existing client certificates!"
+		fi
 		return
 	fi
 
-	log_info "Found $number_of_clients client certificate(s)"
-	log_menu ""
-	printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Remaining"
-	printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "---------"
+	# Collect client data
+	local clients_data=()
+	while read -r line; do
+		local status="${line:0:1}"
+		local client_name
+		client_name=$(echo "$line" | sed 's/.*\/CN=//')
 
-	local cert_dir="/etc/openvpn/server/easy-rsa/pki/issued"
+		local status_text
+		if [[ "$status" == "V" ]]; then
+			status_text="valid"
+		elif [[ "$status" == "R" ]]; then
+			status_text="revoked"
+		else
+			status_text="unknown"
+		fi
 
-	# Parse index.txt and sort by expiry date (oldest first)
-	# Exclude server certificates (CN starting with server_)
-	{
-		while read -r line; do
-			local status="${line:0:1}"
-			local client_name
-			client_name=$(echo "$line" | sed 's/.*\/CN=//')
+		local cert_file="$cert_dir/$client_name.crt"
+		local expiry_date="unknown"
+		local days_remaining="null"
 
-			# Format status
-			local status_text
-			if [[ "$status" == "V" ]]; then
-				status_text="Valid"
-			elif [[ "$status" == "R" ]]; then
-				status_text="Revoked"
-			else
-				status_text="Unknown"
-			fi
+		if [[ -f "$cert_file" ]]; then
+			local enddate
+			enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
 
-			# Get expiry date from certificate file
-			local cert_file="$cert_dir/$client_name.crt"
-			local expiry_date="unknown"
-			local relative="unknown"
+			if [[ -n "$enddate" ]]; then
+				local expiry_epoch
+				expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
 
-			if [[ -f "$cert_file" ]]; then
-				# Get expiry from certificate (format: notAfter=Mon DD HH:MM:SS YYYY GMT)
-				local enddate
-				enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
-
-				if [[ -n "$enddate" ]]; then
-					# Parse date and convert to epoch
-					local expiry_epoch
-					expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
-
-					if [[ -n "$expiry_epoch" ]]; then
-						# Format as YYYY-MM-DD
-						expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
-
-						# Calculate days remaining
-						local now_epoch days_remaining
-						now_epoch=$(date +%s)
-						days_remaining=$(((expiry_epoch - now_epoch) / 86400))
-
-						if [[ $days_remaining -lt 0 ]]; then
-							relative="$((-days_remaining)) days ago"
-						elif [[ $days_remaining -eq 0 ]]; then
-							relative="today"
-						elif [[ $days_remaining -eq 1 ]]; then
-							relative="1 day"
-						else
-							relative="$days_remaining days"
-						fi
-					fi
+				if [[ -n "$expiry_epoch" ]]; then
+					expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
+					local now_epoch
+					now_epoch=$(date +%s)
+					days_remaining=$(((expiry_epoch - now_epoch) / 86400))
 				fi
 			fi
+		fi
 
-			printf "   %-25s %-10s %-12s %s\n" "$client_name" "$status_text" "$expiry_date" "$relative"
-		done < <(tail -n +2 "$index_file" | grep "^[VR]" | grep -v "/CN=server_" | sort -t$'\t' -k2)
-	}
+		clients_data+=("$client_name|$status_text|$expiry_date|$days_remaining")
+	done < <(tail -n +2 "$index_file" | grep "^[VR]" | grep -v "/CN=server_" | sort -t$'\t' -k2)
 
-	log_menu ""
+	if [[ $format == "json" ]]; then
+		# Output JSON
+		echo '{"clients":['
+		local first=true
+		for client_entry in "${clients_data[@]}"; do
+			IFS='|' read -r name status expiry days <<<"$client_entry"
+			[[ $first == true ]] && first=false || printf ','
+			# Handle null for days_remaining (no quotes for JSON null)
+			local days_json
+			if [[ "$days" == "null" || -z "$days" ]]; then
+				days_json="null"
+			else
+				days_json="$days"
+			fi
+			printf '{"name":"%s","status":"%s","expiry":"%s","days_remaining":%s}\n' \
+				"$(json_escape "$name")" "$(json_escape "$status")" "$(json_escape "$expiry")" "$days_json"
+		done
+		echo ']}'
+	else
+		# Output table
+		log_header "Client Certificates"
+		log_info "Found $number_of_clients client certificate(s)"
+		log_menu ""
+		printf "   %-25s %-10s %-12s %s\n" "Name" "Status" "Expiry" "Remaining"
+		printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "---------"
+
+		for client_entry in "${clients_data[@]}"; do
+			IFS='|' read -r name status expiry days <<<"$client_entry"
+			local relative
+			if [[ $days == "null" ]]; then
+				relative="unknown"
+			elif [[ $days -lt 0 ]]; then
+				relative="$((-days)) days ago"
+			elif [[ $days -eq 0 ]]; then
+				relative="today"
+			elif [[ $days -eq 1 ]]; then
+				relative="1 day"
+			else
+				relative="$days days"
+			fi
+			# Capitalize status for table display
+			local status_display="${status^}"
+			printf "   %-25s %-10s %-12s %s\n" "$name" "$status_display" "$expiry" "$relative"
+		done
+		log_menu ""
+	fi
 }
 
 function formatBytes() {
@@ -1922,13 +3042,16 @@ function formatBytes() {
 }
 
 function listConnectedClients() {
-	log_header "Connected Clients"
-
 	local status_file="/var/log/openvpn/status.log"
+	local format="${OUTPUT_FORMAT:-table}"
 
 	if [[ ! -f "$status_file" ]]; then
-		log_warn "Status file not found: $status_file"
-		log_info "Make sure OpenVPN is running."
+		if [[ $format == "json" ]]; then
+			echo '{"error":"Status file not found","clients":[]}'
+		else
+			log_warn "Status file not found: $status_file"
+			log_info "Make sure OpenVPN is running."
+		fi
 		return
 	fi
 
@@ -1936,36 +3059,66 @@ function listConnectedClients() {
 	client_count=$(grep -c "^CLIENT_LIST" "$status_file" 2>/dev/null) || client_count=0
 
 	if [[ "$client_count" -eq 0 ]]; then
-		log_info "No clients currently connected."
+		if [[ $format == "json" ]]; then
+			echo '{"clients":[]}'
+		else
+			log_header "Connected Clients"
+			log_info "No clients currently connected."
+			log_info "Note: Data refreshes every 60 seconds."
+		fi
 		return
 	fi
 
-	log_info "Found $client_count connected client(s)"
-	log_menu ""
-	printf "   %-20s %-22s %-16s %-20s %s\n" "Name" "Real Address" "VPN IP" "Connected Since" "Transfer"
-	printf "   %-20s %-22s %-16s %-20s %s\n" "----" "------------" "------" "---------------" "--------"
-
+	# Collect client data
+	local clients_data=()
 	while IFS=',' read -r _ name real_addr vpn_ip _ bytes_recv bytes_sent connected_since _; do
-		local recv_human sent_human
-		recv_human=$(formatBytes "$bytes_recv")
-		sent_human=$(formatBytes "$bytes_sent")
-		local transfer="↓${recv_human} ↑${sent_human}"
-
-		printf "   %-20s %-22s %-16s %-20s %s\n" "$name" "$real_addr" "$vpn_ip" "$connected_since" "$transfer"
+		clients_data+=("$name|$real_addr|$vpn_ip|$bytes_recv|$bytes_sent|$connected_since")
 	done < <(grep "^CLIENT_LIST" "$status_file")
 
-	log_menu ""
+	if [[ $format == "json" ]]; then
+		echo '{"clients":['
+		local first=true
+		for client_entry in "${clients_data[@]}"; do
+			IFS='|' read -r name real_addr vpn_ip bytes_recv bytes_sent connected_since <<<"$client_entry"
+			[[ $first == true ]] && first=false || printf ','
+			printf '{"name":"%s","real_address":"%s","vpn_ip":"%s","bytes_received":%s,"bytes_sent":%s,"connected_since":"%s"}\n' \
+				"$(json_escape "$name")" "$(json_escape "$real_addr")" "$(json_escape "$vpn_ip")" \
+				"${bytes_recv:-0}" "${bytes_sent:-0}" "$(json_escape "$connected_since")"
+		done
+		echo ']}'
+	else
+		log_header "Connected Clients"
+		log_info "Found $client_count connected client(s)"
+		log_menu ""
+		printf "   %-20s %-22s %-16s %-20s %s\n" "Name" "Real Address" "VPN IP" "Connected Since" "Transfer"
+		printf "   %-20s %-22s %-16s %-20s %s\n" "----" "------------" "------" "---------------" "--------"
+
+		for client_entry in "${clients_data[@]}"; do
+			IFS='|' read -r name real_addr vpn_ip bytes_recv bytes_sent connected_since <<<"$client_entry"
+			local recv_human sent_human
+			recv_human=$(formatBytes "$bytes_recv")
+			sent_human=$(formatBytes "$bytes_sent")
+			local transfer="↓${recv_human} ↑${sent_human}"
+			printf "   %-20s %-22s %-16s %-20s %s\n" "$name" "$real_addr" "$vpn_ip" "$connected_since" "$transfer"
+		done
+		log_menu ""
+		log_info "Note: Data refreshes every 60 seconds."
+	fi
 }
 
 function newClient() {
 	log_header "New Client Setup"
-	log_prompt "Tell me a name for the client."
-	log_prompt "The name must consist of alphanumeric character. It may also include an underscore or a dash."
 
-	until [[ $CLIENT =~ ^[a-zA-Z0-9_-]+$ ]]; do
-		read -rp "Client name: " -e CLIENT
-	done
+	# Only prompt for client name if not already set
+	if ! [[ $CLIENT =~ ^[a-zA-Z0-9_-]+$ ]]; then
+		log_prompt "Tell me a name for the client."
+		log_prompt "The name must consist of alphanumeric character. It may also include an underscore or a dash."
+		until [[ $CLIENT =~ ^[a-zA-Z0-9_-]+$ ]]; do
+			read -rp "Client name: " -e CLIENT
+		done
+	fi
 
+	# Only prompt for cert duration if not already set
 	if [[ -z $CLIENT_CERT_DURATION_DAYS ]] || ! [[ $CLIENT_CERT_DURATION_DAYS =~ ^[0-9]+$ ]] || [[ $CLIENT_CERT_DURATION_DAYS -lt 1 ]]; then
 		log_menu ""
 		log_prompt "How many days should the client certificate be valid for?"
@@ -1974,15 +3127,17 @@ function newClient() {
 		done
 	fi
 
-	log_menu ""
-	log_prompt "Do you want to protect the configuration file with a password?"
-	log_prompt "(e.g. encrypt the private key with a password)"
-	log_menu "   1) Add a passwordless client"
-	log_menu "   2) Use a password for the client"
-
-	until [[ $PASS =~ ^[1-2]$ ]]; do
-		read -rp "Select an option [1-2]: " -e -i 1 PASS
-	done
+	# Only prompt for password if not already set
+	if ! [[ $PASS =~ ^[1-2]$ ]]; then
+		log_menu ""
+		log_prompt "Do you want to protect the configuration file with a password?"
+		log_prompt "(e.g. encrypt the private key with a password)"
+		log_menu "   1) Add a passwordless client"
+		log_menu "   2) Use a password for the client"
+		until [[ $PASS =~ ^[1-2]$ ]]; do
+			read -rp "Select an option [1-2]: " -e -i 1 PASS
+		done
+	fi
 
 	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
 	if [[ $CLIENTEXISTS != '0' ]]; then
@@ -2255,7 +3410,9 @@ function removeUnbound() {
 
 function removeOpenVPN() {
 	log_header "Remove OpenVPN"
-	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+	if [[ -z $REMOVE ]]; then
+		read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
+	fi
 	if [[ $REMOVE == 'y' ]]; then
 		# Get OpenVPN configuration
 		PORT=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
@@ -2397,12 +3554,7 @@ function manageMenu() {
 	esac
 }
 
-# Check for root, TUN, OS...
-initialCheck
-
-# Check if OpenVPN is already installed
-if [[ -e /etc/openvpn/server/server.conf ]]; then
-	manageMenu
-else
-	installOpenVPN
-fi
+# =============================================================================
+# Main Entry Point
+# =============================================================================
+parse_args "$@"

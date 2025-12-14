@@ -1,12 +1,10 @@
 # openvpn-install
 
-![Test](https://github.com/angristan/openvpn-install/workflows/Test/badge.svg)
-![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/angristan)
 
 OpenVPN installer for Debian, Ubuntu, Fedora, openSUSE, CentOS, Amazon Linux, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
 
-This script will let you setup your own secure VPN server in just a few seconds.
+This script will let you setup and manage your own secure VPN server in just a few seconds.
 
 ## What is this?
 
@@ -37,129 +35,18 @@ That said, OpenVPN still makes sense when you need:
 - **Password-protected private keys**: WireGuard configs store the private key in plain text
 - **Legacy compatibility**: clients exist for pretty much every platform, including older systems
 
-## Usage
-
-First, on your server, get the script and make it executable:
-
-```bash
-curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
-chmod +x openvpn-install.sh
-```
-
-Then run it:
-
-```sh
-./openvpn-install.sh
-```
-
-You need to run the script as root and have the TUN module enabled.
-
-The first time you run it, you'll have to follow the assistant and answer a few questions to setup your VPN server.
-
-When OpenVPN is installed, you can run the script again, and you will get the choice to:
-
-- Add a client
-- List client certificates
-- Revoke a client
-- Renew certificates (client or server)
-- Uninstall OpenVPN
-- List connected clients (shows real-time connection status)
-
-In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
-
-If you have any question, head to the [FAQ](#faq) first. And if you need help, you can open a [discussion](https://github.com/angristan/openvpn-install/discussions). Please search existing issues and dicussions first.
-
-### Headless install
-
-It's also possible to run the script headless, e.g. without waiting for user input, in an automated manner.
-
-Example usage:
-
-```bash
-AUTO_INSTALL=y ./openvpn-install.sh
-
-# or
-
-export AUTO_INSTALL=y
-./openvpn-install.sh
-```
-
-A default set of variables will then be set, by passing the need for user input.
-
-If you want to customise your installation, you can export them or specify them on the same line, as shown above.
-
-- `APPROVE_INSTALL=y`
-- `APPROVE_IP=y`
-- `IPV6_SUPPORT=n`
-- `VPN_SUBNET=10.8.0.0` (VPN subnet, must be a valid RFC1918 /24 network like `10.8.0.0`, `10.9.0.0`, `172.16.0.0`, or `192.168.1.0`)
-- `PORT_CHOICE=1`
-- `PROTOCOL_CHOICE=1`
-- `DNS=1`
-- `COMPRESSION_ENABLED=n`
-- `CUSTOMIZE_ENC=n`
-- `CLIENT=clientname`
-- `PASS=1` (set to `2` for password-protected clients, requires `PASSPHRASE`)
-- `MULTI_CLIENT=n`
-- `CLIENT_CERT_DURATION_DAYS=3650`
-- `SERVER_CERT_DURATION_DAYS=3650`
-- `NEW_CLIENT=y` (set to `n` to skip client creation after installation)
-- `CLIENT_FILEPATH=/custom/path/client.ovpn` (optional, overrides default output path)
-
-The `.ovpn` file is saved to `CLIENT_FILEPATH` if defined, otherwise: the client's home directory if it exists (`/home/$CLIENT`), otherwise `SUDO_USER`'s home, otherwise `/root`. When the client name matches a system user, the script automatically sets proper ownership and permissions on the file.
-
-If the server is behind NAT, you can specify its endpoint with the `ENDPOINT` variable. If the endpoint is the public IP address which it is behind, you can use `ENDPOINT=$(curl -4 ifconfig.co)` (the script will default to this). The endpoint can be an IPv4 or a domain.
-
-Other variables can be set depending on your choice (encryption, compression). You can search for them in the `installQuestions()` function of the script.
-
-The headless install is more-or-less idempotent, in that it has been made safe to run multiple times with the same parameters, e.g. by a state provisioner like Ansible/Terraform/Salt/Chef/Puppet. It will only install and regenerate the Easy-RSA PKI if it doesn't already exist, and it will only install OpenVPN and other upstream dependencies if OpenVPN isn't already installed. It will recreate all local config and re-generate the client file on each headless run.
-
-### Headless User Addition
-
-It's also possible to automate the addition of a new user. Here, the key is to provide the (string) value of the `MENU_OPTION` variable along with the remaining mandatory variables before invoking the script.
-
-The following Bash script adds a new user `foo` to an existing OpenVPN configuration
-
-```bash
-#!/bin/bash
-export MENU_OPTION="1"
-export CLIENT="foo"
-export PASS="1" # set to "2" for a password-protected client, and set PASSPHRASE
-export CLIENT_FILEPATH="" # optional, custom path for .ovpn file
-./openvpn-install.sh
-```
-
-### Headless User Revocation
-
-It's also possible to automate the revocation of an existing user. The key is to provide the `MENU_OPTION` variable set to `3` along with either `CLIENT` (client name) or `CLIENTNUMBER` (1-based index from the client list).
-
-The following Bash script revokes the existing user `foo`:
-
-```bash
-#!/bin/bash
-export MENU_OPTION="3"
-export CLIENT="foo"
-./openvpn-install.sh
-```
-
-Alternatively, you can use the client number:
-
-```bash
-#!/bin/bash
-export MENU_OPTION="3"
-export CLIENTNUMBER="1"  # Revokes the first client in the list
-./openvpn-install.sh
-```
-
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
+- CLI interface for automation and scripting (non-interactive mode with JSON output)
 - Certificate renewal for both client and server certificates
+- List and monitor connected clients
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
 - Configurable VPN subnet (default: `10.8.0.0/24`)
 - If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
-- OpenVPN 2.4 features, mainly encryption improvements (see [Security and Encryption](#security-and-encryption) below)
+- Uses latest OpenVPN features when available (see [Security and Encryption](#security-and-encryption) below)
 - Variety of DNS resolvers to be pushed to the clients
 - Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
 - Choice between TCP and UDP
@@ -195,6 +82,258 @@ To be noted:
 - The script is regularly tested against the distributions marked with a 🤖 only.
   - It's only tested on `amd64` architecture.
 - The script requires `systemd`.
+
+## Usage
+
+First, download the script on your server and make it executable:
+
+```bash
+curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
+chmod +x openvpn-install.sh
+```
+
+You need to run the script as root and have the TUN module enabled.
+
+### Interactive Mode
+
+The easiest way to get started is the interactive menu:
+
+```bash
+./openvpn-install.sh interactive
+```
+
+This will guide you through installation and client management.
+
+In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server (using `scp` for example) and connect using your favorite OpenVPN client.
+
+If you have any question, head to the [FAQ](#faq) first. And if you need help, you can open a [discussion](https://github.com/angristan/openvpn-install/discussions). Please search existing issues and discussions first.
+
+### CLI Mode
+
+> [!WARNING]
+> API compatibility is not guaranteed. Breaking changes may occur between versions. If you use this script programmatically (e.g., in automation or CI/CD), pin to a specific commit rather than using the master branch.
+
+For automation and scripting, use the CLI interface:
+
+```bash
+# Install with defaults
+./openvpn-install.sh install
+
+# Add a client
+./openvpn-install.sh client add alice
+
+# List clients
+./openvpn-install.sh client list
+
+# Revoke a client
+./openvpn-install.sh client revoke alice
+```
+
+#### Commands
+
+```text
+openvpn-install <command> [options]
+
+Commands:
+  install       Install and configure OpenVPN server
+  uninstall     Remove OpenVPN server
+  client        Manage client certificates
+  server        Server management
+  interactive   Launch interactive menu
+
+Global Options:
+  --verbose     Show detailed output
+  --log <path>  Log file path (default: openvpn-install.log)
+  --no-log      Disable file logging
+  --no-color    Disable colored output
+  -h, --help    Show help
+```
+
+Run `./openvpn-install.sh <command> --help` for command-specific options.
+
+#### Client Management
+
+```bash
+# Add a new client
+./openvpn-install.sh client add alice
+
+# Add a password-protected client
+./openvpn-install.sh client add bob --password
+
+# Revoke a client
+./openvpn-install.sh client revoke alice
+
+# Renew a client certificate
+./openvpn-install.sh client renew bob --cert-days 365
+```
+
+List all clients:
+
+```text
+$ ./openvpn-install.sh client list
+══ Client Certificates ══
+[INFO] Found 3 client certificate(s)
+
+   Name      Status   Expiry      Remaining
+   ----      ------   ------      ---------
+   alice     Valid    2035-01-15  3650 days
+   bob       Valid    2035-01-15  3650 days
+   charlie   Revoked  2035-01-15  unknown
+```
+
+JSON output for scripting:
+
+```text
+$ ./openvpn-install.sh client list --format json | jq
+{
+  "clients": [
+    {
+      "name": "alice",
+      "status": "valid",
+      "expiry": "2035-01-15",
+      "days_remaining": 3650
+    },
+    {
+      "name": "bob",
+      "status": "valid",
+      "expiry": "2035-01-15",
+      "days_remaining": 3650
+    },
+    {
+      "name": "charlie",
+      "status": "revoked",
+      "expiry": "2035-01-15",
+      "days_remaining": null
+    }
+  ]
+}
+```
+
+#### Server Management
+
+```bash
+# Renew server certificate
+./openvpn-install.sh server renew
+
+# Uninstall OpenVPN
+./openvpn-install.sh uninstall
+```
+
+Show connected clients (data refreshes every 60 seconds):
+
+```text
+$ ./openvpn-install.sh server status
+══ Connected Clients ══
+[INFO] Found 2 connected client(s)
+
+   Name    Real Address          VPN IP      Connected Since   Transfer
+   ----    ------------          ------      ---------------   --------
+   alice   203.0.113.45:52341    10.8.0.2    2025-01-15 14:32  ↓1.2M ↑500K
+   bob     198.51.100.22:41892   10.8.0.3    2025-01-15 09:15  ↓800K ↑200K
+
+[INFO] Note: Data refreshes every 60 seconds.
+```
+
+#### Install Options
+
+The `install` command supports many options for customization:
+
+```bash
+# Custom port and protocol
+./openvpn-install.sh install --port 443 --protocol tcp
+
+# Custom DNS provider
+./openvpn-install.sh install --dns quad9
+
+# Custom encryption settings
+./openvpn-install.sh install --cipher AES-256-GCM --cert-type rsa --rsa-bits 4096
+
+# Custom VPN subnet
+./openvpn-install.sh install --subnet 10.9.0.0
+
+# Skip initial client creation
+./openvpn-install.sh install --no-client
+
+# Full example with multiple options
+./openvpn-install.sh install \
+  --port 443 \
+  --protocol tcp \
+  --dns cloudflare \
+  --cipher AES-256-GCM \
+  --client mydevice \
+  --client-cert-days 365
+```
+
+**Network Options:**
+
+- `--endpoint <host>` - Public IP or hostname for clients (default: auto-detected)
+- `--ip <addr>` - Server listening IP (default: auto-detected)
+- `--ipv6` - Enable IPv6 support (default: disabled)
+- `--subnet <x.x.x.0>` - VPN subnet (default: `10.8.0.0`)
+- `--port <num>` - OpenVPN port (default: `1194`)
+- `--port-random` - Use random port (49152-65535)
+- `--protocol <udp|tcp>` - Protocol (default: `udp`)
+
+**DNS Options:**
+
+- `--dns <provider>` - DNS provider (default: `cloudflare`). Options: `system`, `unbound`, `cloudflare`, `quad9`, `quad9-uncensored`, `fdn`, `dnswatch`, `opendns`, `google`, `yandex`, `adguard`, `nextdns`, `custom`
+- `--dns-primary <ip>` - Custom primary DNS (requires `--dns custom`)
+- `--dns-secondary <ip>` - Custom secondary DNS (requires `--dns custom`)
+
+**Security Options:**
+
+- `--cipher <cipher>` - Data cipher (default: `AES-128-GCM`). Options: `AES-128-GCM`, `AES-192-GCM`, `AES-256-GCM`, `AES-128-CBC`, `AES-192-CBC`, `AES-256-CBC`, `CHACHA20-POLY1305`
+- `--cert-type <ecdsa|rsa>` - Certificate type (default: `ecdsa`)
+- `--cert-curve <curve>` - ECDSA curve (default: `prime256v1`). Options: `prime256v1`, `secp384r1`, `secp521r1`
+- `--rsa-bits <2048|3072|4096>` - RSA key size (default: `2048`)
+- `--hmac <alg>` - HMAC algorithm (default: `SHA256`). Options: `SHA256`, `SHA384`, `SHA512`
+- `--tls-sig <mode>` - TLS mode (default: `crypt-v2`). Options: `crypt-v2`, `crypt`, `auth`
+- `--dh-type <ecdh|dh>` - DH key exchange type (default: `ecdh`)
+- `--dh-curve <curve>` - ECDH curve (default: `prime256v1`). Options: `prime256v1`, `secp384r1`, `secp521r1`
+- `--dh-bits <2048|3072|4096>` - DH key size when using `--dh-type dh` (default: `2048`)
+- `--server-cert-days <n>` - Server cert validity in days (default: `3650`)
+
+**Client Options:**
+
+- `--client <name>` - Initial client name (default: `client`)
+- `--client-password [pass]` - Password-protect client key (default: no password)
+- `--client-cert-days <n>` - Client cert validity in days (default: `3650`)
+- `--no-client` - Skip initial client creation
+
+**Other Options:**
+
+- `--compression <alg>` - Compression (default: `none`). Options: `none`, `lz4-v2`, `lz4`, `lzo`
+- `--multi-client` - Allow same cert on multiple devices (default: disabled)
+
+#### Automation Examples
+
+**Batch client creation:**
+
+```bash
+#!/bin/bash
+for user in alice bob charlie; do
+  ./openvpn-install.sh client add "$user"
+done
+```
+
+**Create clients from a file:**
+
+```bash
+#!/bin/bash
+while read -r user; do
+  ./openvpn-install.sh client add "$user"
+done < users.txt
+```
+
+**JSON output for scripting:**
+
+```bash
+# Get client list as JSON
+./openvpn-install.sh client list --format json | jq '.clients[] | select(.status == "valid")'
+
+# Get connected clients as JSON
+./openvpn-install.sh server status --format json
+```
 
 ## Fork
 
@@ -236,7 +375,7 @@ More Q&A in [FAQ.md](FAQ.md).
 
 **Q:** Is there an OpenVPN documentation?
 
-**A:** Yes, please head to the [OpenVPN Manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage), which references all the options.
+**A:** Yes, please head to the [OpenVPN Manual](https://openvpn.net/community-docs/community-articles/openvpn-2-6-manual.html), which references all the options.
 
 ---
 
@@ -244,13 +383,9 @@ More Q&A in [FAQ.md](FAQ.md).
 
 ## Contributing
 
-## Discuss changes
+### Discuss changes
 
 Please open an issue before submitting a PR if you want to discuss a change, especially if it's a big one.
-
-### Code formatting
-
-We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce Bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the [lint workflow configuration](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/lint.yml).
 
 ## Security and Encryption
 

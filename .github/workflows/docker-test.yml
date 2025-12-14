@@ -73,7 +73,7 @@ jobs:
         # Default TLS settings (tls-crypt-v2)
         tls:
           - name: tls-crypt-v2
-            sig: "1"
+            sig: crypt-v2
             key_file: tls-crypt-v2.key
         # Additional TLS types tested on Ubuntu 24.04 only
         include:
@@ -82,14 +82,14 @@ jobs:
               image: ubuntu:24.04
             tls:
               name: tls-crypt
-              sig: "2"
+              sig: crypt
               key_file: tls-crypt.key
           - os:
               name: ubuntu-24.04-tls-auth
               image: ubuntu:24.04
             tls:
               name: tls-auth
-              sig: "3"
+              sig: auth
               key_file: tls-auth.key
           # Test firewalld support on Fedora
           - os:
@@ -98,7 +98,7 @@ jobs:
               enable_firewalld: true
             tls:
               name: tls-crypt-v2
-              sig: "1"
+              sig: crypt-v2
               key_file: tls-crypt-v2.key
           # Test nftables support on Debian
           - os:
@@ -107,7 +107,7 @@ jobs:
               enable_nftables: true
             tls:
               name: tls-crypt-v2
-              sig: "1"
+              sig: crypt-v2
               key_file: tls-crypt-v2.key
 
     name: ${{ matrix.os.name }}
