@@ -17,29 +17,29 @@ ENV ENABLE_NFTABLES=${ENABLE_NFTABLES}
 # dnsutils/bind-utils provides dig for DNS testing with Unbound
 RUN if command -v apt-get >/dev/null; then \
         apt-get update && apt-get install -y --no-install-recommends \
-            iproute2 iptables curl procps systemd systemd-sysv dnsutils \
+            iproute2 iptables curl procps systemd systemd-sysv dnsutils jq \
         && if [ "$ENABLE_NFTABLES" = "y" ]; then apt-get install -y --no-install-recommends nftables; fi \
         && rm -rf /var/lib/apt/lists/*; \
     elif command -v dnf >/dev/null; then \
         dnf install -y --allowerasing \
-            iproute iptables curl procps-ng systemd tar gzip bind-utils \
+            iproute iptables curl procps-ng systemd tar gzip bind-utils jq \
         && if [ "$ENABLE_FIREWALLD" = "y" ]; then dnf install -y firewalld; fi \
         && if [ "$ENABLE_NFTABLES" = "y" ]; then dnf install -y nftables; fi \
         && dnf clean all; \
     elif command -v yum >/dev/null; then \
         yum install -y \
-            iproute iptables curl procps-ng systemd tar gzip bind-utils \
+            iproute iptables curl procps-ng systemd tar gzip bind-utils jq \
         && if [ "$ENABLE_FIREWALLD" = "y" ]; then yum install -y firewalld; fi \
         && if [ "$ENABLE_NFTABLES" = "y" ]; then yum install -y nftables; fi \
         && yum clean all; \
     elif command -v pacman >/dev/null; then \
         pacman -Syu --noconfirm \
-            iproute2 iptables curl procps-ng bind \
+            iproute2 iptables curl procps-ng bind jq \
         && if [ "$ENABLE_NFTABLES" = "y" ]; then pacman -S --noconfirm nftables; fi \
         && pacman -Scc --noconfirm; \
     elif command -v zypper >/dev/null; then \
         zypper install -y \
-            iproute2 iptables curl procps systemd tar gzip bind-utils gawk \
+            iproute2 iptables curl procps systemd tar gzip bind-utils gawk jq \
         && if [ "$ENABLE_NFTABLES" = "y" ]; then zypper install -y nftables; fi \
         && zypper clean -a; \
     fi
