@@ -109,12 +109,6 @@ Run `./openvpn-install.sh <command> --help` for command-specific options.
 # Add a password-protected client
 ./openvpn-install.sh client add bob --password
 
-# List all clients
-./openvpn-install.sh client list
-
-# List clients in JSON format
-./openvpn-install.sh client list --format json
-
 # Revoke a client
 ./openvpn-install.sh client revoke alice
 
@@ -122,17 +116,46 @@ Run `./openvpn-install.sh <command> --help` for command-specific options.
 ./openvpn-install.sh client renew bob --cert-days 365
 ```
 
+List all clients:
+
+```bash
+$ ./openvpn-install.sh client list
+NAME      STATUS   EXPIRY
+alice     Valid    Jan 15 2035
+bob       Valid    Jan 15 2035
+charlie   Revoked  -
+```
+
+JSON output for scripting:
+
+```bash
+$ ./openvpn-install.sh client list --format json
+{
+  "clients": [
+    {"name": "alice", "status": "valid", "expiry": "Jan 15 2035"},
+    {"name": "bob", "status": "valid", "expiry": "Jan 15 2035"},
+    {"name": "charlie", "status": "revoked", "expiry": null}
+  ]
+}
+```
+
 #### Server Management
 
 ```bash
-# Show connected clients
-./openvpn-install.sh server status
-
 # Renew server certificate
 ./openvpn-install.sh server renew
 
 # Uninstall OpenVPN
 ./openvpn-install.sh uninstall
+```
+
+Show connected clients:
+
+```bash
+$ ./openvpn-install.sh server status
+CLIENT    REMOTE IP        VPN IP      CONNECTED SINCE
+alice     203.0.113.45     10.8.0.2    Jan 15 2025 14:32
+bob       198.51.100.22    10.8.0.3    Jan 15 2025 09:15
 ```
 
 #### Install Options
