@@ -465,8 +465,8 @@ function installUnbound() {
 	{
 		echo 'server:'
 		echo '    # OpenVPN DNS resolver configuration'
-		echo '    interface: 10.8.0.1'
-		echo '    access-control: 10.8.0.0/24 allow'
+		echo "    interface: $VPN_GATEWAY"
+		echo "    access-control: $VPN_SUBNET/24 allow"
 		echo ''
 		echo '    # Security hardening'
 		echo '    hide-identity: yes'
@@ -616,6 +616,28 @@ function installQuestions() {
 	until [[ $IPV6_SUPPORT =~ (y|n) ]]; do
 		read -rp "Do you want to enable IPv6 support (NAT)? [y/n]: " -e -i $SUGGESTION IPV6_SUPPORT
 	done
+	log_menu ""
+	log_prompt "What subnet do you want for the VPN?"
+	log_menu "   1) Default: 10.8.0.0/24"
+	log_menu "   2) Custom"
+	until [[ $SUBNET_CHOICE =~ ^[1-2]$ ]]; do
+		read -rp "Subnet choice [1-2]: " -e -i 1 SUBNET_CHOICE
+	done
+	case $SUBNET_CHOICE in
+	1)
+		VPN_SUBNET="10.8.0.0"
+		;;
+	2)
+		# Skip prompt if VPN_SUBNET is already set (e.g., via environment variable)
+		if [[ -z $VPN_SUBNET ]]; then
+			until [[ $VPN_SUBNET =~ ^(10\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|172\.(1[6-9]|2[0-9]|3[0-1])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|192\.168\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]))\.0$ ]]; do
+				read -rp "Custom subnet (e.g., 10.9.0.0): " VPN_SUBNET
+			done
+		fi
+		;;
+	esac
+	# Calculate gateway (first usable IP in the subnet)
+	VPN_GATEWAY="${VPN_SUBNET%.*}.1"
 	log_menu ""
 	log_prompt "What port do you want OpenVPN to listen to?"
 	log_menu "   1) Default: 1194"
@@ -979,6 +1001,13 @@ function installOpenVPN() {
 		APPROVE_INSTALL=${APPROVE_INSTALL:-y}
 		APPROVE_IP=${APPROVE_IP:-y}
 		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
+		# If VPN_SUBNET is provided, use custom choice; otherwise use default
+		if [[ -n $VPN_SUBNET ]]; then
+			SUBNET_CHOICE=${SUBNET_CHOICE:-2}
+		else
+			SUBNET_CHOICE=${SUBNET_CHOICE:-1}
+			VPN_SUBNET="10.8.0.0"
+		fi
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
 		DNS=${DNS:-3}
@@ -1001,6 +1030,7 @@ function installOpenVPN() {
 		log_info "Running in auto-install mode with the following settings:"
 		log_info "  ENDPOINT=$ENDPOINT"
 		log_info "  IPV6_SUPPORT=$IPV6_SUPPORT"
+		log_info "  VPN_SUBNET=$VPN_SUBNET"
 		log_info "  PORT_CHOICE=$PORT_CHOICE"
 		log_info "  PROTOCOL_CHOICE=$PROTOCOL_CHOICE"
 		log_info "  DNS=$DNS"
@@ -1219,7 +1249,7 @@ group $OPENVPN_GROUP" >>/etc/openvpn/server/server.conf
 persist-tun
 keepalive 10 120
 topology subnet
-server 10.8.0.0 255.255.255.0" >>/etc/openvpn/server/server.conf
+server $VPN_SUBNET 255.255.255.0" >>/etc/openvpn/server/server.conf
 
 	# ifconfig-pool-persist is incompatible with duplicate-cn
 	if [[ $MULTI_CLIENT != "y" ]]; then
@@ -1245,7 +1275,7 @@ server 10.8.0.0 255.255.255.0" >>/etc/openvpn/server/server.conf
 		done
 		;;
 	2) # Self-hosted DNS resolver (Unbound)
-		echo 'push "dhcp-option DNS 10.8.0.1"' >>/etc/openvpn/server/server.conf
+		echo "push \"dhcp-option DNS $VPN_GATEWAY\"" >>/etc/openvpn/server/server.conf
 		if [[ $IPV6_SUPPORT == 'y' ]]; then
 			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server/server.conf
 		fi
@@ -1430,7 +1460,7 @@ verb 3" >>/etc/openvpn/server/server.conf
 		run_cmd "Adding masquerade to firewalld" firewall-cmd --permanent --add-masquerade
 
 		# Add rich rules for VPN traffic (source-based rules work reliably with dynamic tun0 interface)
-		run_cmd "Adding VPN subnet rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept'
+		run_cmd "Adding VPN subnet rule" firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET/24\" accept"
 
 		if [[ $IPV6_SUPPORT == 'y' ]]; then
 			run_cmd "Adding IPv6 source rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept'
@@ -1460,7 +1490,7 @@ verb 3" >>/etc/openvpn/server/server.conf
 table ip openvpn-nat {
 	chain postrouting {
 		type nat hook postrouting priority 100; policy accept;
-		ip saddr 10.8.0.0/24 oifname \"$NIC\" masquerade
+		ip saddr $VPN_SUBNET/24 oifname \"$NIC\" masquerade
 	}
 }" >/etc/nftables/openvpn.nft
 
@@ -1487,7 +1517,7 @@ table ip6 openvpn-nat {
 
 		# Script to add rules
 		echo "#!/bin/sh
-iptables -t nat -I POSTROUTING 1 -s 10.8.0.0/24 -o $NIC -j MASQUERADE
+iptables -t nat -I POSTROUTING 1 -s $VPN_SUBNET/24 -o $NIC -j MASQUERADE
 iptables -I INPUT 1 -i tun0 -j ACCEPT
 iptables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 iptables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
@@ -1503,7 +1533,7 @@ ip6tables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptabl
 
 		# Script to remove rules
 		echo "#!/bin/sh
-iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o $NIC -j MASQUERADE
+iptables -t nat -D POSTROUTING -s $VPN_SUBNET/24 -o $NIC -j MASQUERADE
 iptables -D INPUT -i tun0 -j ACCEPT
 iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT
@@ -2173,9 +2203,10 @@ function removeOpenVPN() {
 	log_header "Remove OpenVPN"
 	read -rp "Do you really want to remove OpenVPN? [y/n]: " -e -i n REMOVE
 	if [[ $REMOVE == 'y' ]]; then
-		# Get OpenVPN port from the configuration
+		# Get OpenVPN configuration
 		PORT=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
 		PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
+		VPN_SUBNET=$(grep '^server ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
 
 		# Stop OpenVPN
 		log_info "Stopping OpenVPN service..."
@@ -2190,7 +2221,7 @@ function removeOpenVPN() {
 			# firewalld was used
 			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL"
 			run_cmd "Removing masquerade from firewalld" firewall-cmd --permanent --remove-masquerade
-			run_cmd "Removing VPN subnet rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv4" source address="10.8.0.0/24" accept' 2>/dev/null || true
+			run_cmd "Removing VPN subnet rule" firewall-cmd --permanent --remove-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET/24\" accept" 2>/dev/null || true
 			run_cmd "Removing IPv6 source rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept' 2>/dev/null || true
 			run_cmd "Reloading firewalld" firewall-cmd --reload
 		elif [[ -f /etc/nftables/openvpn.nft ]]; then
