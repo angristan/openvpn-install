@@ -210,6 +210,7 @@ show_install_help() {
 			--port <num>          OpenVPN port (default: 1194)
 			--port-random         Use random port (49152-65535)
 			--protocol <proto>    Protocol: udp or tcp (default: udp)
+			--mtu <size>          Tunnel MTU (default: 1500)
 
 		DNS Options:
 			--dns <provider>      DNS provider (default: cloudflare)
@@ -502,6 +503,13 @@ validate_positive_int() {
 	fi
 }
 
+validate_mtu() {
+	local mtu="$1"
+	if ! [[ "$mtu" =~ ^[0-9]+$ ]] || [[ "$mtu" -lt 576 ]] || [[ "$mtu" -gt 65535 ]]; then
+		log_fatal "Invalid MTU: $mtu. Must be between 576 and 65535."
+	fi
+}
+
 # Handle install command
 cmd_install() {
 	local interactive=false
@@ -561,6 +569,12 @@ cmd_install() {
 				;;
 			*) log_fatal "Invalid protocol: $2. Use 'udp' or 'tcp'." ;;
 			esac
+			shift 2
+			;;
+		--mtu)
+			[[ -z "${2:-}" ]] && log_fatal "--mtu requires an argument"
+			validate_mtu "$2"
+			MTU="$2"
 			shift 2
 			;;
 		--dns)
@@ -1789,6 +1803,20 @@ function installQuestions() {
 		read -rp "Allow multiple devices per client? [y/n]: " -e -i n MULTI_CLIENT
 	done
 	log_menu ""
+	log_prompt "Do you want to customize the tunnel MTU?"
+	log_menu "   MTU controls the maximum packet size. Lower values can help"
+	log_menu "   with connectivity issues on some networks (e.g., PPPoE, mobile)."
+	log_menu "   1) Default (1500) - works for most networks"
+	log_menu "   2) Custom"
+	until [[ $MTU_CHOICE =~ ^[1-2]$ ]]; do
+		read -rp "MTU choice [1-2]: " -e -i 1 MTU_CHOICE
+	done
+	if [[ $MTU_CHOICE == "2" ]]; then
+		until [[ $MTU =~ ^[0-9]+$ ]] && [[ $MTU -ge 576 ]] && [[ $MTU -le 65535 ]]; do
+			read -rp "MTU [576-65535]: " -e -i 1500 MTU
+		done
+	fi
+	log_menu ""
 	log_prompt "Do you want to customize encryption settings?"
 	log_prompt "Unless you know what you're doing, you should stick with the default parameters provided by the script."
 	log_prompt "Note that whatever you choose, all the choices presented in the script are safe (unlike OpenVPN's defaults)."
@@ -2046,6 +2074,7 @@ function installOpenVPN() {
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
 		DNS=${DNS:-3}
+		MTU_CHOICE=${MTU_CHOICE:-1}
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		CLIENT=${CLIENT:-client}
@@ -2068,6 +2097,7 @@ function installOpenVPN() {
 		log_info "  PORT_CHOICE=$PORT_CHOICE"
 		log_info "  PROTOCOL_CHOICE=$PROTOCOL_CHOICE"
 		log_info "  DNS=$DNS"
+		[[ -n $MTU ]] && log_info "  MTU=$MTU"
 		log_info "  MULTI_CLIENT=$MULTI_CLIENT"
 		log_info "  CUSTOMIZE_ENC=$CUSTOMIZE_ENC"
 		log_info "  CLIENT=$CLIENT"
@@ -2371,6 +2401,10 @@ push "route-ipv6 2000::/3"
 push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
 	fi
 
+	if [[ -n $MTU ]]; then
+		echo "tun-mtu $MTU" >>/etc/openvpn/server/server.conf
+	fi
+
 	if [[ $DH_TYPE == "1" ]]; then
 		echo "dh none" >>/etc/openvpn/server/server.conf
 		echo "ecdh-curve $DH_CURVE" >>/etc/openvpn/server/server.conf
@@ -2635,6 +2669,10 @@ tls-cipher $CC_CIPHER
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
 verb 3" >>/etc/openvpn/server/client-template.txt
+
+	if [[ -n $MTU ]]; then
+		echo "tun-mtu $MTU" >>/etc/openvpn/server/client-template.txt
+	fi
 
 	# Generate the custom client.ovpn
 	if [[ $NEW_CLIENT == "n" ]]; then

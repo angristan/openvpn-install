@@ -272,6 +272,7 @@ The `install` command supports many options for customization:
 - `--port <num>` - OpenVPN port (default: `1194`)
 - `--port-random` - Use random port (49152-65535)
 - `--protocol <udp|tcp>` - Protocol (default: `udp`)
+- `--mtu <size>` - Tunnel MTU (default: `1500`)
 
 **DNS Options:**
 
