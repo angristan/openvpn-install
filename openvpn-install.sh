@@ -1903,6 +1903,60 @@ function listClients() {
 	log_menu ""
 }
 
+function formatBytes() {
+	local bytes=$1
+	# Validate input is numeric
+	if ! [[ "$bytes" =~ ^[0-9]+$ ]]; then
+		echo "N/A"
+		return
+	fi
+	if [[ $bytes -ge 1073741824 ]]; then
+		awk "BEGIN {printf \"%.1fG\", $bytes/1073741824}"
+	elif [[ $bytes -ge 1048576 ]]; then
+		awk "BEGIN {printf \"%.1fM\", $bytes/1048576}"
+	elif [[ $bytes -ge 1024 ]]; then
+		awk "BEGIN {printf \"%.1fK\", $bytes/1024}"
+	else
+		echo "${bytes}B"
+	fi
+}
+
+function listConnectedClients() {
+	log_header "Connected Clients"
+
+	local status_file="/var/log/openvpn/status.log"
+
+	if [[ ! -f "$status_file" ]]; then
+		log_warn "Status file not found: $status_file"
+		log_info "Make sure OpenVPN is running."
+		return
+	fi
+
+	local client_count
+	client_count=$(grep -c "^CLIENT_LIST" "$status_file" 2>/dev/null) || client_count=0
+
+	if [[ "$client_count" -eq 0 ]]; then
+		log_info "No clients currently connected."
+		return
+	fi
+
+	log_info "Found $client_count connected client(s)"
+	log_menu ""
+	printf "   %-20s %-22s %-16s %-20s %s\n" "Name" "Real Address" "VPN IP" "Connected Since" "Transfer"
+	printf "   %-20s %-22s %-16s %-20s %s\n" "----" "------------" "------" "---------------" "--------"
+
+	while IFS=',' read -r _ name real_addr vpn_ip _ bytes_recv bytes_sent connected_since _; do
+		local recv_human sent_human
+		recv_human=$(formatBytes "$bytes_recv")
+		sent_human=$(formatBytes "$bytes_sent")
+		local transfer="↓${recv_human} ↑${sent_human}"
+
+		printf "   %-20s %-22s %-16s %-20s %s\n" "$name" "$real_addr" "$vpn_ip" "$connected_since" "$transfer"
+	done < <(grep "^CLIENT_LIST" "$status_file")
+
+	log_menu ""
+}
+
 function newClient() {
 	log_header "New Client Setup"
 	log_prompt "Tell me a name for the client."
@@ -2311,9 +2365,10 @@ function manageMenu() {
 	log_menu "   3) Revoke existing user"
 	log_menu "   4) Renew certificate"
 	log_menu "   5) Remove OpenVPN"
-	log_menu "   6) Exit"
-	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-6]$ ]]; do
-		read -rp "Select an option [1-6]: " menu_option
+	log_menu "   6) List connected clients"
+	log_menu "   7) Exit"
+	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-7]$ ]]; do
+		read -rp "Select an option [1-7]: " menu_option
 	done
 	menu_option="${MENU_OPTION:-$menu_option}"
 
@@ -2334,6 +2389,9 @@ function manageMenu() {
 		removeOpenVPN
 		;;
 	6)
+		listConnectedClients
+		;;
+	7)
 		exit 0
 		;;
 	esac
