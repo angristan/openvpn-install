@@ -172,18 +172,18 @@ show_help() {
 		Usage: $SCRIPT_NAME <command> [options]
 
 		Commands:
-		  install       Install and configure OpenVPN server
-		  uninstall     Remove OpenVPN server
-		  client        Manage client certificates
-		  server        Server management
-		  interactive   Launch interactive menu
+			install       Install and configure OpenVPN server
+			uninstall     Remove OpenVPN server
+			client        Manage client certificates
+			server        Server management
+			interactive   Launch interactive menu
 
 		Global Options:
-		  --verbose     Show detailed output
-		  --log <path>  Log file path (default: openvpn-install.log)
-		  --no-log      Disable file logging
-		  --no-color    Disable colored output
-		  -h, --help    Show help
+			--verbose     Show detailed output
+			--log <path>  Log file path (default: openvpn-install.log)
+			--no-log      Disable file logging
+			--no-color    Disable colored output
+			-h, --help    Show help
 
 		Run '$SCRIPT_NAME <command> --help' for command-specific help.
 	EOF
@@ -196,56 +196,56 @@ show_install_help() {
 		Usage: $SCRIPT_NAME install [options]
 
 		Options:
-		  -i, --interactive     Run interactive install wizard
+			-i, --interactive     Run interactive install wizard
 
 		Network Options:
-		  --endpoint <host>     Public IP or hostname for clients (auto-detected)
-		  --ip <addr>           Server listening IP (auto-detected)
-		  --ipv6                Enable IPv6 support
-		  --subnet <x.x.x.0>    VPN subnet (default: 10.8.0.0)
-		  --port <num>          OpenVPN port (default: 1194)
-		  --port-random         Use random port (49152-65535)
-		  --protocol <proto>    Protocol: udp or tcp (default: udp)
+			--endpoint <host>     Public IP or hostname for clients (auto-detected)
+			--ip <addr>           Server listening IP (auto-detected)
+			--ipv6                Enable IPv6 support
+			--subnet <x.x.x.0>    VPN subnet (default: 10.8.0.0)
+			--port <num>          OpenVPN port (default: 1194)
+			--port-random         Use random port (49152-65535)
+			--protocol <proto>    Protocol: udp or tcp (default: udp)
 
 		DNS Options:
-		  --dns <provider>      DNS provider (default: cloudflare)
-		                        Providers: system, unbound, cloudflare, quad9,
-		                        quad9-uncensored, fdn, dnswatch, opendns, google,
-		                        yandex, adguard, nextdns, custom
-		  --dns-primary <ip>    Custom primary DNS (requires --dns custom)
-		  --dns-secondary <ip>  Custom secondary DNS (optional)
+			--dns <provider>      DNS provider (default: cloudflare)
+			                      Providers: system, unbound, cloudflare, quad9,
+			                      quad9-uncensored, fdn, dnswatch, opendns, google,
+			                      yandex, adguard, nextdns, custom
+			--dns-primary <ip>    Custom primary DNS (requires --dns custom)
+			--dns-secondary <ip>  Custom secondary DNS (optional)
 
 		Security Options:
-		  --cipher <cipher>     Data channel cipher (default: AES-128-GCM)
-		                        Ciphers: AES-128-GCM, AES-192-GCM, AES-256-GCM,
-		                        AES-128-CBC, AES-192-CBC, AES-256-CBC, CHACHA20-POLY1305
-		  --cert-type <type>    Certificate type: ecdsa or rsa (default: ecdsa)
-		  --cert-curve <curve>  ECDSA curve (default: prime256v1)
-		                        Curves: prime256v1, secp384r1, secp521r1
-		  --rsa-bits <size>     RSA key size: 2048, 3072, 4096 (default: 2048)
-		  --cc-cipher <cipher>  Control channel cipher (auto-selected)
-		  --dh-type <type>      DH type: ecdh or dh (default: ecdh)
-		  --dh-curve <curve>    ECDH curve (default: prime256v1)
-		  --dh-bits <size>      DH key size: 2048, 3072, 4096 (default: 2048)
-		  --hmac <alg>          HMAC algorithm: SHA256, SHA384, SHA512 (default: SHA256)
-		  --tls-sig <mode>      TLS mode: crypt-v2, crypt, auth (default: crypt-v2)
-		  --server-cert-days <n>  Server cert validity in days (default: 3650)
+			--cipher <cipher>     Data channel cipher (default: AES-128-GCM)
+			                      Ciphers: AES-128-GCM, AES-192-GCM, AES-256-GCM,
+			                      AES-128-CBC, AES-192-CBC, AES-256-CBC, CHACHA20-POLY1305
+			--cert-type <type>    Certificate type: ecdsa or rsa (default: ecdsa)
+			--cert-curve <curve>  ECDSA curve (default: prime256v1)
+			                      Curves: prime256v1, secp384r1, secp521r1
+			--rsa-bits <size>     RSA key size: 2048, 3072, 4096 (default: 2048)
+			--cc-cipher <cipher>  Control channel cipher (auto-selected)
+			--dh-type <type>      DH type: ecdh or dh (default: ecdh)
+			--dh-curve <curve>    ECDH curve (default: prime256v1)
+			--dh-bits <size>      DH key size: 2048, 3072, 4096 (default: 2048)
+			--hmac <alg>          HMAC algorithm: SHA256, SHA384, SHA512 (default: SHA256)
+			--tls-sig <mode>      TLS mode: crypt-v2, crypt, auth (default: crypt-v2)
+			--server-cert-days <n>  Server cert validity in days (default: 3650)
 
 		Other Options:
-		  --compression <alg>   Compression: lz4-v2, lz4, lzo, none (default: none)
-		  --multi-client        Allow same cert on multiple devices
+			--compression <alg>   Compression: lz4-v2, lz4, lzo, none (default: none)
+			--multi-client        Allow same cert on multiple devices
 
 		Initial Client Options:
-		  --client <name>       Initial client name (default: client)
-		  --client-password [p] Password-protect client (prompts if no value given)
-		  --client-cert-days <n>  Client cert validity in days (default: 3650)
-		  --no-client           Skip initial client creation
+			--client <name>       Initial client name (default: client)
+			--client-password [p] Password-protect client (prompts if no value given)
+			--client-cert-days <n>  Client cert validity in days (default: 3650)
+			--no-client           Skip initial client creation
 
 		Examples:
-		  $SCRIPT_NAME install
-		  $SCRIPT_NAME install --port 443 --protocol tcp
-		  $SCRIPT_NAME install --dns quad9 --cipher AES-256-GCM
-		  $SCRIPT_NAME install -i
+			$SCRIPT_NAME install
+			$SCRIPT_NAME install --port 443 --protocol tcp
+			$SCRIPT_NAME install --dns quad9 --cipher AES-256-GCM
+			$SCRIPT_NAME install -i
 	EOF
 }
 
@@ -256,11 +256,11 @@ show_uninstall_help() {
 		Usage: $SCRIPT_NAME uninstall [options]
 
 		Options:
-		  -f, --force   Skip confirmation prompt
+			-f, --force   Skip confirmation prompt
 
 		Examples:
-		  $SCRIPT_NAME uninstall
-		  $SCRIPT_NAME uninstall --force
+			$SCRIPT_NAME uninstall
+			$SCRIPT_NAME uninstall --force
 	EOF
 }
 
@@ -271,10 +271,10 @@ show_client_help() {
 		Usage: $SCRIPT_NAME client <subcommand> [options]
 
 		Subcommands:
-		  add <name>     Add a new client
-		  list           List all clients
-		  revoke <name>  Revoke a client certificate
-		  renew <name>   Renew a client certificate
+			add <name>     Add a new client
+			list           List all clients
+			revoke <name>  Revoke a client certificate
+			renew <name>   Renew a client certificate
 
 		Run '$SCRIPT_NAME client <subcommand> --help' for more info.
 	EOF
@@ -287,14 +287,14 @@ show_client_add_help() {
 		Usage: $SCRIPT_NAME client add <name> [options]
 
 		Options:
-		  --password [pass]   Password-protect client (prompts if no value given)
-		  --cert-days <n>     Certificate validity in days (default: 3650)
-		  --output <path>     Output path for .ovpn file (default: ~/<name>.ovpn)
+			--password [pass]   Password-protect client (prompts if no value given)
+			--cert-days <n>     Certificate validity in days (default: 3650)
+			--output <path>     Output path for .ovpn file (default: ~/<name>.ovpn)
 
 		Examples:
-		  $SCRIPT_NAME client add alice
-		  $SCRIPT_NAME client add bob --password
-		  $SCRIPT_NAME client add charlie --cert-days 365 --output /tmp/charlie.ovpn
+			$SCRIPT_NAME client add alice
+			$SCRIPT_NAME client add bob --password
+			$SCRIPT_NAME client add charlie --cert-days 365 --output /tmp/charlie.ovpn
 	EOF
 }
 
@@ -305,11 +305,11 @@ show_client_list_help() {
 		Usage: $SCRIPT_NAME client list [options]
 
 		Options:
-		  --format <fmt>  Output format: table or json (default: table)
+			--format <fmt>  Output format: table or json (default: table)
 
 		Examples:
-		  $SCRIPT_NAME client list
-		  $SCRIPT_NAME client list --format json
+			$SCRIPT_NAME client list
+			$SCRIPT_NAME client list --format json
 	EOF
 }
 
@@ -320,11 +320,11 @@ show_client_revoke_help() {
 		Usage: $SCRIPT_NAME client revoke <name> [options]
 
 		Options:
-		  -f, --force   Skip confirmation prompt
+			-f, --force   Skip confirmation prompt
 
 		Examples:
-		  $SCRIPT_NAME client revoke alice
-		  $SCRIPT_NAME client revoke bob --force
+			$SCRIPT_NAME client revoke alice
+			$SCRIPT_NAME client revoke bob --force
 	EOF
 }
 
@@ -335,11 +335,11 @@ show_client_renew_help() {
 		Usage: $SCRIPT_NAME client renew <name> [options]
 
 		Options:
-		  --cert-days <n>   New certificate validity in days (default: 3650)
+			--cert-days <n>   New certificate validity in days (default: 3650)
 
 		Examples:
-		  $SCRIPT_NAME client renew alice
-		  $SCRIPT_NAME client renew bob --cert-days 365
+			$SCRIPT_NAME client renew alice
+			$SCRIPT_NAME client renew bob --cert-days 365
 	EOF
 }
 
@@ -350,8 +350,8 @@ show_server_help() {
 		Usage: $SCRIPT_NAME server <subcommand> [options]
 
 		Subcommands:
-		  status   List currently connected clients
-		  renew    Renew server certificate
+			status   List currently connected clients
+			renew    Renew server certificate
 
 		Run '$SCRIPT_NAME server <subcommand> --help' for more info.
 	EOF
@@ -364,11 +364,11 @@ show_server_status_help() {
 		Usage: $SCRIPT_NAME server status [options]
 
 		Options:
-		  --format <fmt>  Output format: table or json (default: table)
+			--format <fmt>  Output format: table or json (default: table)
 
 		Examples:
-		  $SCRIPT_NAME server status
-		  $SCRIPT_NAME server status --format json
+			$SCRIPT_NAME server status
+			$SCRIPT_NAME server status --format json
 	EOF
 }
 
@@ -379,12 +379,12 @@ show_server_renew_help() {
 		Usage: $SCRIPT_NAME server renew [options]
 
 		Options:
-		  --cert-days <n>   New certificate validity in days (default: 3650)
-		  -f, --force       Skip confirmation/warning
+			--cert-days <n>   New certificate validity in days (default: 3650)
+			-f, --force       Skip confirmation/warning
 
 		Examples:
-		  $SCRIPT_NAME server renew
-		  $SCRIPT_NAME server renew --cert-days 1825
+			$SCRIPT_NAME server renew
+			$SCRIPT_NAME server renew --cert-days 1825
 	EOF
 }
 
