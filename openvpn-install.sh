@@ -483,9 +483,9 @@ validate_subnet() {
 		log_fatal "Invalid subnet: $subnet. Octets must be 0-255."
 	fi
 	# Check for RFC1918 private address ranges
-	if ! ([[ "$octet1" -eq 10 ]] ||
+	if ! { [[ "$octet1" -eq 10 ]] ||
 		[[ "$octet1" -eq 172 && "$octet2" -ge 16 && "$octet2" -le 31 ]] ||
-		[[ "$octet1" -eq 192 && "$octet2" -eq 168 ]]); then
+		[[ "$octet1" -eq 192 && "$octet2" -eq 168 ]]; }; then
 		log_fatal "Invalid subnet: $subnet. Must be a private network (10.x.x.0, 172.16-31.x.0, or 192.168.x.0)."
 	fi
 }
