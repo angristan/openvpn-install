@@ -209,19 +209,18 @@ show_install_help() {
 
 		DNS Options:
 			--dns <provider>      DNS provider (default: cloudflare)
-			                      Providers: system, unbound, cloudflare, quad9,
-			                      quad9-uncensored, fdn, dnswatch, opendns, google,
-			                      yandex, adguard, nextdns, custom
+				Providers: system, unbound, cloudflare, quad9, quad9-uncensored,
+				fdn, dnswatch, opendns, google, yandex, adguard, nextdns, custom
 			--dns-primary <ip>    Custom primary DNS (requires --dns custom)
 			--dns-secondary <ip>  Custom secondary DNS (optional)
 
 		Security Options:
 			--cipher <cipher>     Data channel cipher (default: AES-128-GCM)
-			                      Ciphers: AES-128-GCM, AES-192-GCM, AES-256-GCM,
-			                      AES-128-CBC, AES-192-CBC, AES-256-CBC, CHACHA20-POLY1305
+				Ciphers: AES-128-GCM, AES-192-GCM, AES-256-GCM, AES-128-CBC,
+				AES-192-CBC, AES-256-CBC, CHACHA20-POLY1305
 			--cert-type <type>    Certificate type: ecdsa or rsa (default: ecdsa)
 			--cert-curve <curve>  ECDSA curve (default: prime256v1)
-			                      Curves: prime256v1, secp384r1, secp521r1
+				Curves: prime256v1, secp384r1, secp521r1
 			--rsa-bits <size>     RSA key size: 2048, 3072, 4096 (default: 2048)
 			--cc-cipher <cipher>  Control channel cipher (auto-selected)
 			--dh-type <type>      DH type: ecdh or dh (default: ecdh)
