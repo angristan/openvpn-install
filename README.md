@@ -63,6 +63,7 @@ When OpenVPN is installed, you can run the script again, and you will get the ch
 - Revoke a client
 - Renew certificates (client or server)
 - Uninstall OpenVPN
+- List connected clients (shows real-time connection status)
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
 
