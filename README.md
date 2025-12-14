@@ -110,6 +110,9 @@ If you have any question, head to the [FAQ](#faq) first. And if you need help, y
 
 ### CLI Mode
 
+> [!WARNING]
+> API compatibility is not guaranteed. Breaking changes may occur between versions. If you use this script programmatically (e.g., in automation or CI/CD), pin to a specific commit rather than using the master branch.
+
 For automation and scripting, use the CLI interface:
 
 ```bash
