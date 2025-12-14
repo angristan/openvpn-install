@@ -118,25 +118,27 @@ Run `./openvpn-install.sh <command> --help` for command-specific options.
 
 List all clients:
 
-```bash
+```
 $ ./openvpn-install.sh client list
-NAME      STATUS   EXPIRY
-alice     Valid    Jan 15 2035
-bob       Valid    Jan 15 2035
-charlie   Revoked  -
+══ Client Certificates ══
+[INFO] Found 3 client certificate(s)
+
+   Name                      Status     Expiry       Remaining
+   ----                      ------     ------       ---------
+   alice                     Valid      2035-01-15   3650 days
+   bob                       Valid      2035-01-15   3650 days
+   charlie                   Revoked    2035-01-15   unknown
 ```
 
 JSON output for scripting:
 
-```bash
+```
 $ ./openvpn-install.sh client list --format json
-{
-  "clients": [
-    {"name": "alice", "status": "valid", "expiry": "Jan 15 2035"},
-    {"name": "bob", "status": "valid", "expiry": "Jan 15 2035"},
-    {"name": "charlie", "status": "revoked", "expiry": null}
-  ]
-}
+{"clients":[
+{"name":"alice","status":"valid","expiry":"2035-01-15","days_remaining":3650}
+,{"name":"bob","status":"valid","expiry":"2035-01-15","days_remaining":3650}
+,{"name":"charlie","status":"revoked","expiry":"2035-01-15","days_remaining":null}
+]}
 ```
 
 #### Server Management
@@ -151,11 +153,15 @@ $ ./openvpn-install.sh client list --format json
 
 Show connected clients:
 
-```bash
+```
 $ ./openvpn-install.sh server status
-CLIENT    REMOTE IP        VPN IP      CONNECTED SINCE
-alice     203.0.113.45     10.8.0.2    Jan 15 2025 14:32
-bob       198.51.100.22    10.8.0.3    Jan 15 2025 09:15
+══ Connected Clients ══
+[INFO] Found 2 connected client(s)
+
+   Name                 Real Address           VPN IP           Connected Since      Transfer
+   ----                 ------------           ------           ---------------      --------
+   alice                203.0.113.45:52341     10.8.0.2         2025-01-15 14:32     ↓1.2M ↑500K
+   bob                  198.51.100.22:41892    10.8.0.3         2025-01-15 09:15     ↓800K ↑200K
 ```
 
 #### Install Options
