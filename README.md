@@ -50,17 +50,13 @@ You need to run the script as root and have the TUN module enabled.
 
 ### Interactive Mode
 
-The easiest way to get started is the interactive wizard:
-
-```bash
-./openvpn-install.sh install --interactive
-```
-
-This will guide you through all options with sensible defaults. After installation, run the interactive menu to manage clients:
+The easiest way to get started is the interactive menu:
 
 ```bash
 ./openvpn-install.sh interactive
 ```
+
+This will guide you through installation and client management.
 
 In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
 
