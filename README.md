@@ -133,12 +133,29 @@ $ ./openvpn-install.sh client list
 JSON output for scripting:
 
 ```
-$ ./openvpn-install.sh client list --format json
-{"clients":[
-{"name":"alice","status":"valid","expiry":"2035-01-15","days_remaining":3650}
-,{"name":"bob","status":"valid","expiry":"2035-01-15","days_remaining":3650}
-,{"name":"charlie","status":"revoked","expiry":"2035-01-15","days_remaining":null}
-]}
+$ ./openvpn-install.sh client list --format json | jq
+{
+  "clients": [
+    {
+      "name": "alice",
+      "status": "valid",
+      "expiry": "2035-01-15",
+      "days_remaining": 3650
+    },
+    {
+      "name": "bob",
+      "status": "valid",
+      "expiry": "2035-01-15",
+      "days_remaining": 3650
+    },
+    {
+      "name": "charlie",
+      "status": "revoked",
+      "expiry": "2035-01-15",
+      "days_remaining": null
+    }
+  ]
+}
 ```
 
 #### Server Management
