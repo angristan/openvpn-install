@@ -39,7 +39,7 @@ That said, OpenVPN still makes sense when you need:
 
 ## Usage
 
-First, on your server, get the script and make it executable:
+First, download the script on your server and make it executable:
 
 ```bash
 curl -O https://raw.githubusercontent.com/angristan/openvpn-install/master/openvpn-install.sh
@@ -48,21 +48,43 @@ chmod +x openvpn-install.sh
 
 You need to run the script as root and have the TUN module enabled.
 
-### Quick Start
+### Interactive Mode
 
-Install OpenVPN with sensible defaults:
-
-```bash
-./openvpn-install.sh install
-```
-
-Or use the interactive wizard:
+The easiest way to get started is the interactive wizard:
 
 ```bash
 ./openvpn-install.sh install --interactive
 ```
 
-### Commands
+This will guide you through all options with sensible defaults. After installation, run the interactive menu to manage clients:
+
+```bash
+./openvpn-install.sh interactive
+```
+
+In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
+
+If you have any question, head to the [FAQ](#faq) first. And if you need help, you can open a [discussion](https://github.com/angristan/openvpn-install/discussions). Please search existing issues and discussions first.
+
+### CLI Mode
+
+For automation and scripting, use the CLI interface:
+
+```bash
+# Install with defaults
+./openvpn-install.sh install
+
+# Add a client
+./openvpn-install.sh client add alice
+
+# List clients
+./openvpn-install.sh client list
+
+# Revoke a client
+./openvpn-install.sh client revoke alice
+```
+
+#### Commands
 
 ```
 openvpn-install <command> [options]
@@ -84,7 +106,7 @@ Global Options:
 
 Run `./openvpn-install.sh <command> --help` for command-specific options.
 
-### Managing Clients
+#### Client Management
 
 ```bash
 # Add a new client
@@ -106,7 +128,7 @@ Run `./openvpn-install.sh <command> --help` for command-specific options.
 ./openvpn-install.sh client renew bob --cert-days 365
 ```
 
-### Server Management
+#### Server Management
 
 ```bash
 # Show connected clients
@@ -119,11 +141,7 @@ Run `./openvpn-install.sh <command> --help` for command-specific options.
 ./openvpn-install.sh uninstall
 ```
 
-In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
-
-If you have any question, head to the [FAQ](#faq) first. And if you need help, you can open a [discussion](https://github.com/angristan/openvpn-install/discussions). Please search existing issues and discussions first.
-
-### Install Options
+#### Install Options
 
 The `install` command supports many options for customization:
 
@@ -194,7 +212,7 @@ The `install` command supports many options for customization:
 - `--compression <alg>` - Compression (default: `none`). Options: `none`, `lz4-v2`, `lz4`, `lzo`
 - `--multi-client` - Allow same cert on multiple devices (default: disabled)
 
-### Automation Examples
+#### Automation Examples
 
 **Batch client creation:**
 
@@ -222,18 +240,6 @@ done < users.txt
 
 # Get connected clients as JSON
 ./openvpn-install.sh server status --format json
-```
-
-### Interactive Mode
-
-For a guided experience, use the interactive mode:
-
-```bash
-# Interactive install wizard
-./openvpn-install.sh install --interactive
-
-# Or use the legacy menu interface
-./openvpn-install.sh interactive
 ```
 
 ## Features
