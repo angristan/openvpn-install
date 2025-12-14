@@ -38,13 +38,15 @@ That said, OpenVPN still makes sense when you need:
 ## Features
 
 - Installs and configures a ready-to-use OpenVPN server
+- CLI interface for automation and scripting (non-interactive mode with JSON output)
 - Certificate renewal for both client and server certificates
+- List and monitor connected clients
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
 - Configurable VPN subnet (default: `10.8.0.0/24`)
 - If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
-- OpenVPN 2.4 features, mainly encryption improvements (see [Security and Encryption](#security-and-encryption) below)
+- Uses latest OpenVPN features when available (see [Security and Encryption](#security-and-encryption) below)
 - Variety of DNS resolvers to be pushed to the clients
 - Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
 - Choice between TCP and UDP
