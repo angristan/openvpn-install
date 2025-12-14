@@ -1383,7 +1383,7 @@ function initialCheck() {
 
 	log_debug "Detecting operating system..."
 	checkOS
-	log_info "Detected OS: $OS (${PRETTY_NAME:-unknown})"
+	log_debug "Detected OS: $OS (${PRETTY_NAME:-unknown})"
 	checkArchPendingKernelUpgrade
 }
 
