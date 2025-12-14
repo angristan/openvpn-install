@@ -123,11 +123,11 @@ $ ./openvpn-install.sh client list
 ══ Client Certificates ══
 [INFO] Found 3 client certificate(s)
 
-   Name                      Status     Expiry       Remaining
-   ----                      ------     ------       ---------
-   alice                     Valid      2035-01-15   3650 days
-   bob                       Valid      2035-01-15   3650 days
-   charlie                   Revoked    2035-01-15   unknown
+   Name      Status   Expiry      Remaining
+   ----      ------   ------      ---------
+   alice     Valid    2035-01-15  3650 days
+   bob       Valid    2035-01-15  3650 days
+   charlie   Revoked  2035-01-15  unknown
 ```
 
 JSON output for scripting:
@@ -158,10 +158,10 @@ $ ./openvpn-install.sh server status
 ══ Connected Clients ══
 [INFO] Found 2 connected client(s)
 
-   Name                 Real Address           VPN IP           Connected Since      Transfer
-   ----                 ------------           ------           ---------------      --------
-   alice                203.0.113.45:52341     10.8.0.2         2025-01-15 14:32     ↓1.2M ↑500K
-   bob                  198.51.100.22:41892    10.8.0.3         2025-01-15 09:15     ↓800K ↑200K
+   Name    Real Address          VPN IP      Connected Since   Transfer
+   ----    ------------          ------      ---------------   --------
+   alice   203.0.113.45:52341    10.8.0.2    2025-01-15 14:32  ↓1.2M ↑500K
+   bob     198.51.100.22:41892   10.8.0.3    2025-01-15 09:15  ↓800K ↑200K
 ```
 
 #### Install Options
