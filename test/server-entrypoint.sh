@@ -596,7 +596,7 @@ STATUS_JSON_OUTPUT="/tmp/server-status-json-output.log"
 (bash /opt/openvpn-install.sh server status --format json) 2>&1 | tee "$STATUS_JSON_OUTPUT" || true
 
 # Validate JSON structure
-if echo "$STATUS_JSON_OUTPUT" | jq -e '.clients' >/dev/null 2>&1; then
+if jq -e '.clients' "$STATUS_JSON_OUTPUT" >/dev/null 2>&1; then
 	echo "PASS: Server status JSON is valid"
 else
 	echo "FAIL: Server status JSON is invalid"
