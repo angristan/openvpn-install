@@ -154,6 +154,7 @@ The `install` command supports many options for customization:
 ```
 
 **Network Options:**
+
 - `--endpoint <host>` - Public IP or hostname for clients (auto-detected)
 - `--ip <addr>` - Server listening IP (auto-detected)
 - `--ipv6` - Enable IPv6 support
@@ -163,11 +164,13 @@ The `install` command supports many options for customization:
 - `--protocol <udp|tcp>` - Protocol (default: udp)
 
 **DNS Options:**
+
 - `--dns <provider>` - DNS provider: `system`, `unbound`, `cloudflare`, `quad9`, `quad9-uncensored`, `fdn`, `dnswatch`, `opendns`, `google`, `yandex`, `adguard`, `nextdns`, `custom`
 - `--dns-primary <ip>` - Custom primary DNS (requires `--dns custom`)
 - `--dns-secondary <ip>` - Custom secondary DNS
 
 **Security Options:**
+
 - `--cipher <cipher>` - Data cipher: `AES-128-GCM`, `AES-192-GCM`, `AES-256-GCM`, `AES-128-CBC`, `AES-192-CBC`, `AES-256-CBC`, `CHACHA20-POLY1305`
 - `--cert-type <ecdsa|rsa>` - Certificate type (default: ecdsa)
 - `--cert-curve <curve>` - ECDSA curve: `prime256v1`, `secp384r1`, `secp521r1`
@@ -176,6 +179,7 @@ The `install` command supports many options for customization:
 - `--tls-sig <crypt-v2|crypt|auth>` - TLS mode (default: crypt-v2)
 
 **Other Options:**
+
 - `--compression <none|lz4-v2|lz4|lzo>` - Compression (default: none)
 - `--multi-client` - Allow same cert on multiple devices
 - `--client <name>` - Initial client name (default: client)

@@ -414,38 +414,38 @@ requireNoOpenVPN() {
 # Parse DNS provider string to DNS number
 parse_dns_provider() {
 	case "$1" in
-		system) DNS=1 ;;
-		unbound) DNS=2 ;;
-		cloudflare) DNS=3 ;;
-		quad9) DNS=4 ;;
-		quad9-uncensored) DNS=5 ;;
-		fdn) DNS=6 ;;
-		dnswatch) DNS=7 ;;
-		opendns) DNS=8 ;;
-		google) DNS=9 ;;
-		yandex) DNS=10 ;;
-		adguard) DNS=11 ;;
-		nextdns) DNS=12 ;;
-		custom) DNS=13 ;;
-		*) log_fatal "Invalid DNS provider: $1. See '$SCRIPT_NAME install --help' for valid providers." ;;
+	system) DNS=1 ;;
+	unbound) DNS=2 ;;
+	cloudflare) DNS=3 ;;
+	quad9) DNS=4 ;;
+	quad9-uncensored) DNS=5 ;;
+	fdn) DNS=6 ;;
+	dnswatch) DNS=7 ;;
+	opendns) DNS=8 ;;
+	google) DNS=9 ;;
+	yandex) DNS=10 ;;
+	adguard) DNS=11 ;;
+	nextdns) DNS=12 ;;
+	custom) DNS=13 ;;
+	*) log_fatal "Invalid DNS provider: $1. See '$SCRIPT_NAME install --help' for valid providers." ;;
 	esac
 }
 
 # Parse cipher string
 parse_cipher() {
 	case "$1" in
-		AES-128-GCM|AES-192-GCM|AES-256-GCM|AES-128-CBC|AES-192-CBC|AES-256-CBC|CHACHA20-POLY1305)
-			CIPHER="$1"
-			;;
-		*) log_fatal "Invalid cipher: $1. See '$SCRIPT_NAME install --help' for valid ciphers." ;;
+	AES-128-GCM | AES-192-GCM | AES-256-GCM | AES-128-CBC | AES-192-CBC | AES-256-CBC | CHACHA20-POLY1305)
+		CIPHER="$1"
+		;;
+	*) log_fatal "Invalid cipher: $1. See '$SCRIPT_NAME install --help' for valid ciphers." ;;
 	esac
 }
 
 # Parse curve string
 parse_curve() {
 	case "$1" in
-		prime256v1|secp384r1|secp521r1) echo "$1" ;;
-		*) log_fatal "Invalid curve: $1. Valid curves: prime256v1, secp384r1, secp521r1" ;;
+	prime256v1 | secp384r1 | secp521r1) echo "$1" ;;
+	*) log_fatal "Invalid curve: $1. Valid curves: prime256v1, secp384r1, secp521r1" ;;
 	esac
 }
 
@@ -470,197 +470,212 @@ cmd_install() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			-i|--interactive)
-				interactive=true
+		-i | --interactive)
+			interactive=true
+			shift
+			;;
+		--endpoint)
+			[[ -z "${2:-}" ]] && log_fatal "--endpoint requires an argument"
+			ENDPOINT="$2"
+			shift 2
+			;;
+		--ip)
+			[[ -z "${2:-}" ]] && log_fatal "--ip requires an argument"
+			IP="$2"
+			APPROVE_IP=y
+			shift 2
+			;;
+		--ipv6)
+			IPV6_SUPPORT=y
+			shift
+			;;
+		--subnet)
+			[[ -z "${2:-}" ]] && log_fatal "--subnet requires an argument"
+			VPN_SUBNET="$2"
+			SUBNET_CHOICE=2
+			shift 2
+			;;
+		--port)
+			[[ -z "${2:-}" ]] && log_fatal "--port requires an argument"
+			PORT="$2"
+			PORT_CHOICE=2
+			shift 2
+			;;
+		--port-random)
+			PORT_CHOICE=3
+			shift
+			;;
+		--protocol)
+			[[ -z "${2:-}" ]] && log_fatal "--protocol requires an argument"
+			case "$2" in
+			udp)
+				PROTOCOL=udp
+				PROTOCOL_CHOICE=1
+				;;
+			tcp)
+				PROTOCOL=tcp
+				PROTOCOL_CHOICE=2
+				;;
+			*) log_fatal "Invalid protocol: $2. Use 'udp' or 'tcp'." ;;
+			esac
+			shift 2
+			;;
+		--dns)
+			[[ -z "${2:-}" ]] && log_fatal "--dns requires an argument"
+			parse_dns_provider "$2"
+			shift 2
+			;;
+		--dns-primary)
+			[[ -z "${2:-}" ]] && log_fatal "--dns-primary requires an argument"
+			DNS1="$2"
+			shift 2
+			;;
+		--dns-secondary)
+			[[ -z "${2:-}" ]] && log_fatal "--dns-secondary requires an argument"
+			DNS2="$2"
+			shift 2
+			;;
+		--compression)
+			[[ -z "${2:-}" ]] && log_fatal "--compression requires an argument"
+			case "$2" in
+			none) COMPRESSION_ENABLED=n ;;
+			lz4-v2)
+				COMPRESSION_ENABLED=y
+				COMPRESSION_ALG=lz4-v2
+				;;
+			lz4)
+				COMPRESSION_ENABLED=y
+				COMPRESSION_ALG=lz4
+				;;
+			lzo)
+				COMPRESSION_ENABLED=y
+				COMPRESSION_ALG=lzo
+				;;
+			*) log_fatal "Invalid compression: $2. Use 'none', 'lz4-v2', 'lz4', or 'lzo'." ;;
+			esac
+			shift 2
+			;;
+		--multi-client)
+			MULTI_CLIENT=y
+			shift
+			;;
+		--cipher)
+			[[ -z "${2:-}" ]] && log_fatal "--cipher requires an argument"
+			parse_cipher "$2"
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--cert-type)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-type requires an argument"
+			case "$2" in
+			ecdsa) CERT_TYPE=1 ;;
+			rsa) CERT_TYPE=2 ;;
+			*) log_fatal "Invalid cert-type: $2. Use 'ecdsa' or 'rsa'." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--cert-curve)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-curve requires an argument"
+			CERT_CURVE=$(parse_curve "$2")
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--rsa-bits)
+			[[ -z "${2:-}" ]] && log_fatal "--rsa-bits requires an argument"
+			case "$2" in
+			2048 | 3072 | 4096) RSA_KEY_SIZE="$2" ;;
+			*) log_fatal "Invalid RSA key size: $2. Use 2048, 3072, or 4096." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--cc-cipher)
+			[[ -z "${2:-}" ]] && log_fatal "--cc-cipher requires an argument"
+			CC_CIPHER="$2"
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--dh-type)
+			[[ -z "${2:-}" ]] && log_fatal "--dh-type requires an argument"
+			case "$2" in
+			ecdh) DH_TYPE=1 ;;
+			dh) DH_TYPE=2 ;;
+			*) log_fatal "Invalid dh-type: $2. Use 'ecdh' or 'dh'." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--dh-curve)
+			[[ -z "${2:-}" ]] && log_fatal "--dh-curve requires an argument"
+			DH_CURVE=$(parse_curve "$2")
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--dh-bits)
+			[[ -z "${2:-}" ]] && log_fatal "--dh-bits requires an argument"
+			case "$2" in
+			2048 | 3072 | 4096) DH_KEY_SIZE="$2" ;;
+			*) log_fatal "Invalid DH key size: $2. Use 2048, 3072, or 4096." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--hmac)
+			[[ -z "${2:-}" ]] && log_fatal "--hmac requires an argument"
+			case "$2" in
+			SHA256 | SHA384 | SHA512) HMAC_ALG="$2" ;;
+			*) log_fatal "Invalid HMAC algorithm: $2. Use SHA256, SHA384, or SHA512." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--tls-sig)
+			[[ -z "${2:-}" ]] && log_fatal "--tls-sig requires an argument"
+			case "$2" in
+			crypt-v2) TLS_SIG=1 ;;
+			crypt) TLS_SIG=2 ;;
+			auth) TLS_SIG=3 ;;
+			*) log_fatal "Invalid TLS mode: $2. Use 'crypt-v2', 'crypt', or 'auth'." ;;
+			esac
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--server-cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--server-cert-days requires an argument"
+			SERVER_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		--client)
+			[[ -z "${2:-}" ]] && log_fatal "--client requires an argument"
+			CLIENT="$2"
+			shift 2
+			;;
+		--client-password)
+			client_password_flag=true
+			# Check if next arg is a value or another flag
+			if [[ -n "${2:-}" ]] && [[ ! "$2" =~ ^- ]]; then
+				client_password_value="$2"
 				shift
-				;;
-			--endpoint)
-				[[ -z "${2:-}" ]] && log_fatal "--endpoint requires an argument"
-				ENDPOINT="$2"
-				shift 2
-				;;
-			--ip)
-				[[ -z "${2:-}" ]] && log_fatal "--ip requires an argument"
-				IP="$2"
-				APPROVE_IP=y
-				shift 2
-				;;
-			--ipv6)
-				IPV6_SUPPORT=y
-				shift
-				;;
-			--subnet)
-				[[ -z "${2:-}" ]] && log_fatal "--subnet requires an argument"
-				VPN_SUBNET="$2"
-				SUBNET_CHOICE=2
-				shift 2
-				;;
-			--port)
-				[[ -z "${2:-}" ]] && log_fatal "--port requires an argument"
-				PORT="$2"
-				PORT_CHOICE=2
-				shift 2
-				;;
-			--port-random)
-				PORT_CHOICE=3
-				shift
-				;;
-			--protocol)
-				[[ -z "${2:-}" ]] && log_fatal "--protocol requires an argument"
-				case "$2" in
-					udp) PROTOCOL=udp; PROTOCOL_CHOICE=1 ;;
-					tcp) PROTOCOL=tcp; PROTOCOL_CHOICE=2 ;;
-					*) log_fatal "Invalid protocol: $2. Use 'udp' or 'tcp'." ;;
-				esac
-				shift 2
-				;;
-			--dns)
-				[[ -z "${2:-}" ]] && log_fatal "--dns requires an argument"
-				parse_dns_provider "$2"
-				shift 2
-				;;
-			--dns-primary)
-				[[ -z "${2:-}" ]] && log_fatal "--dns-primary requires an argument"
-				DNS1="$2"
-				shift 2
-				;;
-			--dns-secondary)
-				[[ -z "${2:-}" ]] && log_fatal "--dns-secondary requires an argument"
-				DNS2="$2"
-				shift 2
-				;;
-			--compression)
-				[[ -z "${2:-}" ]] && log_fatal "--compression requires an argument"
-				case "$2" in
-					none) COMPRESSION_ENABLED=n ;;
-					lz4-v2) COMPRESSION_ENABLED=y; COMPRESSION_ALG=lz4-v2 ;;
-					lz4) COMPRESSION_ENABLED=y; COMPRESSION_ALG=lz4 ;;
-					lzo) COMPRESSION_ENABLED=y; COMPRESSION_ALG=lzo ;;
-					*) log_fatal "Invalid compression: $2. Use 'none', 'lz4-v2', 'lz4', or 'lzo'." ;;
-				esac
-				shift 2
-				;;
-			--multi-client)
-				MULTI_CLIENT=y
-				shift
-				;;
-			--cipher)
-				[[ -z "${2:-}" ]] && log_fatal "--cipher requires an argument"
-				parse_cipher "$2"
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--cert-type)
-				[[ -z "${2:-}" ]] && log_fatal "--cert-type requires an argument"
-				case "$2" in
-					ecdsa) CERT_TYPE=1 ;;
-					rsa) CERT_TYPE=2 ;;
-					*) log_fatal "Invalid cert-type: $2. Use 'ecdsa' or 'rsa'." ;;
-				esac
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--cert-curve)
-				[[ -z "${2:-}" ]] && log_fatal "--cert-curve requires an argument"
-				CERT_CURVE=$(parse_curve "$2")
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--rsa-bits)
-				[[ -z "${2:-}" ]] && log_fatal "--rsa-bits requires an argument"
-				case "$2" in
-					2048|3072|4096) RSA_KEY_SIZE="$2" ;;
-					*) log_fatal "Invalid RSA key size: $2. Use 2048, 3072, or 4096." ;;
-				esac
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--cc-cipher)
-				[[ -z "${2:-}" ]] && log_fatal "--cc-cipher requires an argument"
-				CC_CIPHER="$2"
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--dh-type)
-				[[ -z "${2:-}" ]] && log_fatal "--dh-type requires an argument"
-				case "$2" in
-					ecdh) DH_TYPE=1 ;;
-					dh) DH_TYPE=2 ;;
-					*) log_fatal "Invalid dh-type: $2. Use 'ecdh' or 'dh'." ;;
-				esac
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--dh-curve)
-				[[ -z "${2:-}" ]] && log_fatal "--dh-curve requires an argument"
-				DH_CURVE=$(parse_curve "$2")
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--dh-bits)
-				[[ -z "${2:-}" ]] && log_fatal "--dh-bits requires an argument"
-				case "$2" in
-					2048|3072|4096) DH_KEY_SIZE="$2" ;;
-					*) log_fatal "Invalid DH key size: $2. Use 2048, 3072, or 4096." ;;
-				esac
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--hmac)
-				[[ -z "${2:-}" ]] && log_fatal "--hmac requires an argument"
-				case "$2" in
-					SHA256|SHA384|SHA512) HMAC_ALG="$2" ;;
-					*) log_fatal "Invalid HMAC algorithm: $2. Use SHA256, SHA384, or SHA512." ;;
-				esac
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--tls-sig)
-				[[ -z "${2:-}" ]] && log_fatal "--tls-sig requires an argument"
-				case "$2" in
-					crypt-v2) TLS_SIG=1 ;;
-					crypt) TLS_SIG=2 ;;
-					auth) TLS_SIG=3 ;;
-					*) log_fatal "Invalid TLS mode: $2. Use 'crypt-v2', 'crypt', or 'auth'." ;;
-				esac
-				CUSTOMIZE_ENC=y
-				shift 2
-				;;
-			--server-cert-days)
-				[[ -z "${2:-}" ]] && log_fatal "--server-cert-days requires an argument"
-				SERVER_CERT_DURATION_DAYS="$2"
-				shift 2
-				;;
-			--client)
-				[[ -z "${2:-}" ]] && log_fatal "--client requires an argument"
-				CLIENT="$2"
-				shift 2
-				;;
-			--client-password)
-				client_password_flag=true
-				# Check if next arg is a value or another flag
-				if [[ -n "${2:-}" ]] && [[ ! "$2" =~ ^- ]]; then
-					client_password_value="$2"
-					shift
-				fi
-				shift
-				;;
-			--client-cert-days)
-				[[ -z "${2:-}" ]] && log_fatal "--client-cert-days requires an argument"
-				CLIENT_CERT_DURATION_DAYS="$2"
-				shift 2
-				;;
-			--no-client)
-				no_client=true
-				shift
-				;;
-			-h|--help)
-				show_install_help
-				exit 0
-				;;
-			*)
-				log_fatal "Unknown option: $1. See '$SCRIPT_NAME install --help' for usage."
-				;;
+			fi
+			shift
+			;;
+		--client-cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--client-cert-days requires an argument"
+			CLIENT_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		--no-client)
+			no_client=true
+			shift
+			;;
+		-h | --help)
+			show_install_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME install --help' for usage."
+			;;
 		esac
 	done
 
@@ -738,17 +753,17 @@ cmd_uninstall() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			-f|--force)
-				force=true
-				shift
-				;;
-			-h|--help)
-				show_uninstall_help
-				exit 0
-				;;
-			*)
-				log_fatal "Unknown option: $1. See '$SCRIPT_NAME uninstall --help' for usage."
-				;;
+		-f | --force)
+			force=true
+			shift
+			;;
+		-h | --help)
+			show_uninstall_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME uninstall --help' for usage."
+			;;
 		esac
 	done
 
@@ -767,25 +782,25 @@ cmd_client() {
 	shift || true
 
 	case "$subcmd" in
-		""|"-h"|"--help")
-			show_client_help
-			exit 0
-			;;
-		add)
-			cmd_client_add "$@"
-			;;
-		list)
-			cmd_client_list "$@"
-			;;
-		revoke)
-			cmd_client_revoke "$@"
-			;;
-		renew)
-			cmd_client_renew "$@"
-			;;
-		*)
-			log_fatal "Unknown client subcommand: $subcmd. See '$SCRIPT_NAME client --help' for usage."
-			;;
+	"" | "-h" | "--help")
+		show_client_help
+		exit 0
+		;;
+	add)
+		cmd_client_add "$@"
+		;;
+	list)
+		cmd_client_list "$@"
+		;;
+	revoke)
+		cmd_client_revoke "$@"
+		;;
+	renew)
+		cmd_client_renew "$@"
+		;;
+	*)
+		log_fatal "Unknown client subcommand: $subcmd. See '$SCRIPT_NAME client --help' for usage."
+		;;
 	esac
 }
 
@@ -798,40 +813,40 @@ cmd_client_add() {
 	# First non-flag argument is the client name
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			--password)
-				password_flag=true
-				# Check if next arg is a value or another flag
-				if [[ -n "${2:-}" ]] && [[ ! "$2" =~ ^- ]]; then
-					password_value="$2"
-					shift
-				fi
+		--password)
+			password_flag=true
+			# Check if next arg is a value or another flag
+			if [[ -n "${2:-}" ]] && [[ ! "$2" =~ ^- ]]; then
+				password_value="$2"
 				shift
-				;;
-			--cert-days)
-				[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
-				CLIENT_CERT_DURATION_DAYS="$2"
-				shift 2
-				;;
-			--output)
-				[[ -z "${2:-}" ]] && log_fatal "--output requires an argument"
-				CLIENT_FILEPATH="$2"
-				shift 2
-				;;
-			-h|--help)
-				show_client_add_help
-				exit 0
-				;;
-			-*)
-				log_fatal "Unknown option: $1. See '$SCRIPT_NAME client add --help' for usage."
-				;;
-			*)
-				if [[ -z "$client_name" ]]; then
-					client_name="$1"
-				else
-					log_fatal "Unexpected argument: $1"
-				fi
-				shift
-				;;
+			fi
+			shift
+			;;
+		--cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			CLIENT_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		--output)
+			[[ -z "${2:-}" ]] && log_fatal "--output requires an argument"
+			CLIENT_FILEPATH="$2"
+			shift 2
+			;;
+		-h | --help)
+			show_client_add_help
+			exit 0
+			;;
+		-*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME client add --help' for usage."
+			;;
+		*)
+			if [[ -z "$client_name" ]]; then
+				client_name="$1"
+			else
+				log_fatal "Unexpected argument: $1"
+			fi
+			shift
+			;;
 		esac
 	done
 
@@ -861,21 +876,21 @@ cmd_client_list() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			--format)
-				[[ -z "${2:-}" ]] && log_fatal "--format requires an argument"
-				case "$2" in
-					table|json) format="$2" ;;
-					*) log_fatal "Invalid format: $2. Use 'table' or 'json'." ;;
-				esac
-				shift 2
-				;;
-			-h|--help)
-				show_client_list_help
-				exit 0
-				;;
-			*)
-				log_fatal "Unknown option: $1. See '$SCRIPT_NAME client list --help' for usage."
-				;;
+		--format)
+			[[ -z "${2:-}" ]] && log_fatal "--format requires an argument"
+			case "$2" in
+			table | json) format="$2" ;;
+			*) log_fatal "Invalid format: $2. Use 'table' or 'json'." ;;
+			esac
+			shift 2
+			;;
+		-h | --help)
+			show_client_list_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME client list --help' for usage."
+			;;
 		esac
 	done
 
@@ -891,25 +906,25 @@ cmd_client_revoke() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			-f|--force)
-				force=true
-				shift
-				;;
-			-h|--help)
-				show_client_revoke_help
-				exit 0
-				;;
-			-*)
-				log_fatal "Unknown option: $1. See '$SCRIPT_NAME client revoke --help' for usage."
-				;;
-			*)
-				if [[ -z "$client_name" ]]; then
-					client_name="$1"
-				else
-					log_fatal "Unexpected argument: $1"
-				fi
-				shift
-				;;
+		-f | --force)
+			force=true
+			shift
+			;;
+		-h | --help)
+			show_client_revoke_help
+			exit 0
+			;;
+		-*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME client revoke --help' for usage."
+			;;
+		*)
+			if [[ -z "$client_name" ]]; then
+				client_name="$1"
+			else
+				log_fatal "Unexpected argument: $1"
+			fi
+			shift
+			;;
 		esac
 	done
 
@@ -931,26 +946,26 @@ cmd_client_renew() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			--cert-days)
-				[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
-				CLIENT_CERT_DURATION_DAYS="$2"
-				shift 2
-				;;
-			-h|--help)
-				show_client_renew_help
-				exit 0
-				;;
-			-*)
-				log_fatal "Unknown option: $1. See '$SCRIPT_NAME client renew --help' for usage."
-				;;
-			*)
-				if [[ -z "$client_name" ]]; then
-					client_name="$1"
-				else
-					log_fatal "Unexpected argument: $1"
-				fi
-				shift
-				;;
+		--cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			CLIENT_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		-h | --help)
+			show_client_renew_help
+			exit 0
+			;;
+		-*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME client renew --help' for usage."
+			;;
+		*)
+			if [[ -z "$client_name" ]]; then
+				client_name="$1"
+			else
+				log_fatal "Unexpected argument: $1"
+			fi
+			shift
+			;;
 		esac
 	done
 
@@ -970,19 +985,19 @@ cmd_server() {
 	shift || true
 
 	case "$subcmd" in
-		""|"-h"|"--help")
-			show_server_help
-			exit 0
-			;;
-		status)
-			cmd_server_status "$@"
-			;;
-		renew)
-			cmd_server_renew "$@"
-			;;
-		*)
-			log_fatal "Unknown server subcommand: $subcmd. See '$SCRIPT_NAME server --help' for usage."
-			;;
+	"" | "-h" | "--help")
+		show_server_help
+		exit 0
+		;;
+	status)
+		cmd_server_status "$@"
+		;;
+	renew)
+		cmd_server_renew "$@"
+		;;
+	*)
+		log_fatal "Unknown server subcommand: $subcmd. See '$SCRIPT_NAME server --help' for usage."
+		;;
 	esac
 }
 
@@ -992,21 +1007,21 @@ cmd_server_status() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			--format)
-				[[ -z "${2:-}" ]] && log_fatal "--format requires an argument"
-				case "$2" in
-					table|json) format="$2" ;;
-					*) log_fatal "Invalid format: $2. Use 'table' or 'json'." ;;
-				esac
-				shift 2
-				;;
-			-h|--help)
-				show_server_status_help
-				exit 0
-				;;
-			*)
-				log_fatal "Unknown option: $1. See '$SCRIPT_NAME server status --help' for usage."
-				;;
+		--format)
+			[[ -z "${2:-}" ]] && log_fatal "--format requires an argument"
+			case "$2" in
+			table | json) format="$2" ;;
+			*) log_fatal "Invalid format: $2. Use 'table' or 'json'." ;;
+			esac
+			shift 2
+			;;
+		-h | --help)
+			show_server_status_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME server status --help' for usage."
+			;;
 		esac
 	done
 
@@ -1021,22 +1036,22 @@ cmd_server_renew() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			--cert-days)
-				[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
-				SERVER_CERT_DURATION_DAYS="$2"
-				shift 2
-				;;
-			-f|--force)
-				force=true
-				shift
-				;;
-			-h|--help)
-				show_server_renew_help
-				exit 0
-				;;
-			*)
-				log_fatal "Unknown option: $1. See '$SCRIPT_NAME server renew --help' for usage."
-				;;
+		--cert-days)
+			[[ -z "${2:-}" ]] && log_fatal "--cert-days requires an argument"
+			SERVER_CERT_DURATION_DAYS="$2"
+			shift 2
+			;;
+		-f | --force)
+			force=true
+			shift
+			;;
+		-h | --help)
+			show_server_renew_help
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1. See '$SCRIPT_NAME server renew --help' for usage."
+			;;
 		esac
 	done
 
@@ -1054,15 +1069,15 @@ cmd_server_renew() {
 cmd_interactive() {
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			-h|--help)
-				echo "Launch interactive menu for OpenVPN management"
-				echo ""
-				echo "Usage: $SCRIPT_NAME interactive"
-				exit 0
-				;;
-			*)
-				log_fatal "Unknown option: $1"
-				;;
+		-h | --help)
+			echo "Launch interactive menu for OpenVPN management"
+			echo ""
+			echo "Usage: $SCRIPT_NAME interactive"
+			exit 0
+			;;
+		*)
+			log_fatal "Unknown option: $1"
+			;;
 		esac
 	done
 
@@ -1079,43 +1094,43 @@ parse_args() {
 	# Parse global options first
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
-			--verbose)
-				VERBOSE=1
-				shift
-				;;
-			--log)
-				[[ -z "${2:-}" ]] && log_fatal "--log requires an argument"
-				LOG_FILE="$2"
-				shift 2
-				;;
-			--no-log)
-				LOG_FILE=""
-				shift
-				;;
-			--no-color)
-				# Colors already set at script start, but we can unset them
-				COLOR_RESET=''
-				COLOR_RED=''
-				COLOR_GREEN=''
-				COLOR_YELLOW=''
-				COLOR_BLUE=''
-				COLOR_CYAN=''
-				COLOR_DIM=''
-				COLOR_BOLD=''
-				shift
-				;;
-			-h|--help)
-				show_help
-				exit 0
-				;;
-			-*)
-				# Could be a command-specific option, let command handle it
-				break
-				;;
-			*)
-				# First non-option is the command
-				break
-				;;
+		--verbose)
+			VERBOSE=1
+			shift
+			;;
+		--log)
+			[[ -z "${2:-}" ]] && log_fatal "--log requires an argument"
+			LOG_FILE="$2"
+			shift 2
+			;;
+		--no-log)
+			LOG_FILE=""
+			shift
+			;;
+		--no-color)
+			# Colors already set at script start, but we can unset them
+			COLOR_RESET=''
+			COLOR_RED=''
+			COLOR_GREEN=''
+			COLOR_YELLOW=''
+			COLOR_BLUE=''
+			COLOR_CYAN=''
+			COLOR_DIM=''
+			COLOR_BOLD=''
+			shift
+			;;
+		-h | --help)
+			show_help
+			exit 0
+			;;
+		-*)
+			# Could be a command-specific option, let command handle it
+			break
+			;;
+		*)
+			# First non-option is the command
+			break
+			;;
 		esac
 	done
 
@@ -1134,33 +1149,33 @@ parse_args() {
 
 	# Dispatch to command handler
 	case "$cmd" in
-		"")
-			show_help
-			exit 0
-			;;
-		install)
-			[[ $wants_help == false ]] && initialCheck
-			cmd_install "$@"
-			;;
-		uninstall)
-			[[ $wants_help == false ]] && initialCheck
-			cmd_uninstall "$@"
-			;;
-		client)
-			[[ $wants_help == false ]] && initialCheck
-			cmd_client "$@"
-			;;
-		server)
-			[[ $wants_help == false ]] && initialCheck
-			cmd_server "$@"
-			;;
-		interactive)
-			[[ $wants_help == false ]] && initialCheck
-			cmd_interactive "$@"
-			;;
-		*)
-			log_fatal "Unknown command: $cmd. See '$SCRIPT_NAME --help' for usage."
-			;;
+	"")
+		show_help
+		exit 0
+		;;
+	install)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_install "$@"
+		;;
+	uninstall)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_uninstall "$@"
+		;;
+	client)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_client "$@"
+		;;
+	server)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_server "$@"
+		;;
+	interactive)
+		[[ $wants_help == false ]] && initialCheck
+		cmd_interactive "$@"
+		;;
+	*)
+		log_fatal "Unknown command: $cmd. See '$SCRIPT_NAME --help' for usage."
+		;;
 	esac
 }
 
@@ -2894,7 +2909,7 @@ function listClients() {
 		echo '{"clients":['
 		local first=true
 		for client_entry in "${clients_data[@]}"; do
-			IFS='|' read -r name status expiry days <<< "$client_entry"
+			IFS='|' read -r name status expiry days <<<"$client_entry"
 			if [[ $first == true ]]; then
 				first=false
 			else
@@ -2913,7 +2928,7 @@ function listClients() {
 		printf "   %-25s %-10s %-12s %s\n" "----" "------" "------" "---------"
 
 		for client_entry in "${clients_data[@]}"; do
-			IFS='|' read -r name status expiry days <<< "$client_entry"
+			IFS='|' read -r name status expiry days <<<"$client_entry"
 			local relative
 			if [[ $days == "null" ]]; then
 				relative="unknown"
@@ -2989,7 +3004,7 @@ function listConnectedClients() {
 		echo '{"clients":['
 		local first=true
 		for client_entry in "${clients_data[@]}"; do
-			IFS='|' read -r name real_addr vpn_ip bytes_recv bytes_sent connected_since <<< "$client_entry"
+			IFS='|' read -r name real_addr vpn_ip bytes_recv bytes_sent connected_since <<<"$client_entry"
 			if [[ $first == true ]]; then
 				first=false
 			else
@@ -3007,7 +3022,7 @@ function listConnectedClients() {
 		printf "   %-20s %-22s %-16s %-20s %s\n" "----" "------------" "------" "---------------" "--------"
 
 		for client_entry in "${clients_data[@]}"; do
-			IFS='|' read -r name real_addr vpn_ip bytes_recv bytes_sent connected_since <<< "$client_entry"
+			IFS='|' read -r name real_addr vpn_ip bytes_recv bytes_sent connected_since <<<"$client_entry"
 			local recv_human sent_human
 			recv_human=$(formatBytes "$bytes_recv")
 			sent_human=$(formatBytes "$bytes_sent")
