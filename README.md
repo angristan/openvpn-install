@@ -4,7 +4,7 @@
 
 OpenVPN installer for Debian, Ubuntu, Fedora, openSUSE, CentOS, Amazon Linux, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
 
-This script will let you setup your own secure VPN server in just a few seconds.
+This script will let you setup and manage your own secure VPN server in just a few seconds.
 
 ## What is this?
 
