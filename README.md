@@ -35,6 +35,52 @@ That said, OpenVPN still makes sense when you need:
 - **Password-protected private keys**: WireGuard configs store the private key in plain text
 - **Legacy compatibility**: clients exist for pretty much every platform, including older systems
 
+## Features
+
+- Installs and configures a ready-to-use OpenVPN server
+- Certificate renewal for both client and server certificates
+- Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
+- Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
+- Configurable VPN subnet (default: `10.8.0.0/24`)
+- If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
+- Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
+- OpenVPN 2.4 features, mainly encryption improvements (see [Security and Encryption](#security-and-encryption) below)
+- Variety of DNS resolvers to be pushed to the clients
+- Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
+- Choice between TCP and UDP
+- NATed IPv6 support
+- Compression disabled by default to prevent VORACLE. LZ4 (v1/v2) and LZ0 algorithms available otherwise.
+- Unprivileged mode: run as `nobody`/`nogroup`
+- Block DNS leaks on Windows 10
+- Randomised server certificate name
+- Choice to protect clients with a password (private key encryption)
+- Option to allow multiple devices to use the same client profile simultaneously (disables persistent IP addresses)
+- Many other little things!
+
+## Compatibility
+
+The script supports these Linux distributions:
+
+|                     | Support |
+| ------------------- | ------- |
+| AlmaLinux >= 8      | ✅ 🤖   |
+| Amazon Linux 2023   | ✅ 🤖   |
+| Arch Linux          | ✅ 🤖   |
+| CentOS Stream >= 8  | ✅ 🤖   |
+| Debian >= 11        | ✅ 🤖   |
+| Fedora >= 40        | ✅ 🤖   |
+| openSUSE Leap >= 16 | ✅ 🤖   |
+| openSUSE Tumbleweed | ✅ 🤖   |
+| Oracle Linux >= 8   | ✅ 🤖   |
+| Rocky Linux >= 8    | ✅ 🤖   |
+| Ubuntu >= 18.04     | ✅ 🤖   |
+
+To be noted:
+
+- The script is regularly tested against the distributions marked with a 🤖 only.
+  - It's only tested on `amd64` architecture.
+- The script requires `systemd`.
+
 ## Usage
 
 First, download the script on your server and make it executable:
@@ -281,52 +327,6 @@ done < users.txt
 # Get connected clients as JSON
 ./openvpn-install.sh server status --format json
 ```
-
-## Features
-
-- Installs and configures a ready-to-use OpenVPN server
-- Certificate renewal for both client and server certificates
-- Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
-- Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
-- Configurable VPN subnet (default: `10.8.0.0/24`)
-- If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
-- Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
-- OpenVPN 2.4 features, mainly encryption improvements (see [Security and Encryption](#security-and-encryption) below)
-- Variety of DNS resolvers to be pushed to the clients
-- Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
-- Choice between TCP and UDP
-- NATed IPv6 support
-- Compression disabled by default to prevent VORACLE. LZ4 (v1/v2) and LZ0 algorithms available otherwise.
-- Unprivileged mode: run as `nobody`/`nogroup`
-- Block DNS leaks on Windows 10
-- Randomised server certificate name
-- Choice to protect clients with a password (private key encryption)
-- Option to allow multiple devices to use the same client profile simultaneously (disables persistent IP addresses)
-- Many other little things!
-
-## Compatibility
-
-The script supports these Linux distributions:
-
-|                     | Support |
-| ------------------- | ------- |
-| AlmaLinux >= 8      | ✅ 🤖   |
-| Amazon Linux 2023   | ✅ 🤖   |
-| Arch Linux          | ✅ 🤖   |
-| CentOS Stream >= 8  | ✅ 🤖   |
-| Debian >= 11        | ✅ 🤖   |
-| Fedora >= 40        | ✅ 🤖   |
-| openSUSE Leap >= 16 | ✅ 🤖   |
-| openSUSE Tumbleweed | ✅ 🤖   |
-| Oracle Linux >= 8   | ✅ 🤖   |
-| Rocky Linux >= 8    | ✅ 🤖   |
-| Ubuntu >= 18.04     | ✅ 🤖   |
-
-To be noted:
-
-- The script is regularly tested against the distributions marked with a 🤖 only.
-  - It's only tested on `amd64` architecture.
-- The script requires `systemd`.
 
 ## Fork
 
