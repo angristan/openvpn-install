@@ -95,14 +95,37 @@ done
 if [ $MISSING_FILES -gt 0 ]; then
 	echo "ERROR: $MISSING_FILES required files are missing"
 	exit 1
-fi
+	fi
+	
+	echo "All required files present"
 
-echo "All required files present"
+	# =====================================================
+	# Test duplicate client name handling
+	# =====================================================
+	echo ""
+	echo "=== Testing Duplicate Client Name Handling ==="
+	DUPLICATE_CLIENT="testclient"
+	DUPLICATE_OUTPUT="/tmp/duplicate-client-output.log"
+	(bash /opt/openvpn-install.sh client add "$DUPLICATE_CLIENT" --cert-days 3650) 2>&1 | tee "$DUPLICATE_OUTPUT" || true
+	DUPLICATE_EXIT_CODE=${PIPESTATUS[0]}
 
-# Copy client config to shared volume for the client container
-cp /root/testclient.ovpn /shared/client.ovpn
-sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
-echo "Client config copied to /shared/client.ovpn"
+	if [ "$DUPLICATE_EXIT_CODE" -ne 1 ]; then
+		echo "FAIL: Expected exit code 1 for duplicate client name, got $DUPLICATE_EXIT_CODE"
+		cat "$DUPLICATE_OUTPUT"
+		exit 1
+	fi
+	if grep -q "The specified client CN was already found in easy-rsa" "$DUPLICATE_OUTPUT"; then
+		echo "PASS: Duplicate client name correctly rejected with exit code 1"
+	else
+		echo "FAIL: Expected error message for duplicate client name not found"
+		cat "$DUPLICATE_OUTPUT"
+		exit 1
+	fi
+	
+	# Copy client config to shared volume for the client container
+	cp /root/testclient.ovpn /shared/client.ovpn
+	sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
+	echo "Client config copied to /shared/client.ovpn"
 
 # Write VPN network info to shared volume for client tests
 echo "VPN_SUBNET=$VPN_SUBNET" >/shared/vpn-config.env
