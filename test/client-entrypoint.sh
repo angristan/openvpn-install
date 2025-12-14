@@ -30,6 +30,17 @@ fi
 echo "Client config found!"
 cat /shared/client.ovpn
 
+# Load VPN network config from server
+if [ -f /shared/vpn-config.env ]; then
+	# shellcheck source=/dev/null
+	source /shared/vpn-config.env
+	echo "VPN config loaded: VPN_SUBNET=$VPN_SUBNET, VPN_GATEWAY=$VPN_GATEWAY"
+else
+	echo "WARNING: vpn-config.env not found, using defaults"
+	VPN_SUBNET="10.8.0.0"
+	VPN_GATEWAY="10.8.0.1"
+fi
+
 # Connect to VPN
 echo "Connecting to OpenVPN server..."
 openvpn --config /shared/client.ovpn --daemon --log /var/log/openvpn.log
@@ -65,16 +76,18 @@ echo "=== Running connectivity tests ==="
 
 # Test 1: Check tun0 interface
 echo "Test 1: Checking tun0 interface..."
-if ip addr show tun0 | grep -q "10.8.0"; then
-	echo "PASS: tun0 interface has correct IP range (10.8.0.x)"
+# Extract base of subnet (e.g., "10.9.0" from "10.9.0.0")
+VPN_SUBNET_BASE="${VPN_SUBNET%.*}"
+if ip addr show tun0 | grep -q "$VPN_SUBNET_BASE"; then
+	echo "PASS: tun0 interface has correct IP range (${VPN_SUBNET_BASE}.x)"
 else
 	echo "FAIL: tun0 interface doesn't have expected IP"
 	exit 1
 fi
 
 # Test 2: Ping VPN gateway
-echo "Test 2: Pinging VPN gateway (10.8.0.1)..."
-if ping -c 10 10.8.0.1; then
+echo "Test 2: Pinging VPN gateway ($VPN_GATEWAY)..."
+if ping -c 10 "$VPN_GATEWAY"; then
 	echo "PASS: Can ping VPN gateway"
 else
 	echo "FAIL: Cannot ping VPN gateway"
@@ -82,11 +95,11 @@ else
 fi
 
 # Test 3: DNS resolution through Unbound
-echo "Test 3: Testing DNS resolution via Unbound (10.8.0.1)..."
+echo "Test 3: Testing DNS resolution via Unbound ($VPN_GATEWAY)..."
 DNS_SUCCESS=false
 DNS_MAX_RETRIES=10
 for i in $(seq 1 $DNS_MAX_RETRIES); do
-	DIG_OUTPUT=$(dig @10.8.0.1 example.com +short +time=5 2>&1)
+	DIG_OUTPUT=$(dig @"$VPN_GATEWAY" example.com +short +time=5 2>&1)
 	if [ -n "$DIG_OUTPUT" ] && ! echo "$DIG_OUTPUT" | grep -qi "timed out\|SERVFAIL\|connection refused"; then
 		DNS_SUCCESS=true
 		break
@@ -97,10 +110,10 @@ for i in $(seq 1 $DNS_MAX_RETRIES); do
 done
 if [ "$DNS_SUCCESS" = true ]; then
 	echo "PASS: DNS resolution through Unbound works"
-	echo "Resolved example.com to: $(dig @10.8.0.1 example.com +short +time=5)"
+	echo "Resolved example.com to: $(dig @"$VPN_GATEWAY" example.com +short +time=5)"
 else
 	echo "FAIL: DNS resolution through Unbound failed after $DNS_MAX_RETRIES attempts"
-	dig @10.8.0.1 example.com +time=5 || true
+	dig @"$VPN_GATEWAY" example.com +time=5 || true
 	exit 1
 fi
 
@@ -172,7 +185,7 @@ echo "PASS: Connected with '$REVOKE_CLIENT' certificate"
 ip addr show tun0
 
 # Verify connectivity
-if ping -c 2 10.8.0.1 >/dev/null 2>&1; then
+if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
 	echo "PASS: Can ping VPN gateway with revoke test client"
 else
 	echo "FAIL: Cannot ping VPN gateway with revoke test client"
@@ -346,7 +359,7 @@ echo "PASS: Connected with new '$REVOKE_CLIENT' certificate"
 ip addr show tun0
 
 # Verify connectivity
-if ping -c 2 10.8.0.1 >/dev/null 2>&1; then
+if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
 	echo "PASS: Can ping VPN gateway with new certificate"
 else
 	echo "FAIL: Cannot ping VPN gateway with new certificate"
@@ -426,7 +439,7 @@ echo "PASS: Connected with passphrase-protected '$PASSPHRASE_CLIENT' certificate
 ip addr show tun0
 
 # Verify connectivity
-if ping -c 2 10.8.0.1 >/dev/null 2>&1; then
+if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
 	echo "PASS: Can ping VPN gateway with passphrase-protected client"
 else
 	echo "FAIL: Cannot ping VPN gateway with passphrase-protected client"

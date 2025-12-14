@@ -90,6 +90,7 @@ If you want to customise your installation, you can export them or specify them 
 - `APPROVE_INSTALL=y`
 - `APPROVE_IP=y`
 - `IPV6_SUPPORT=n`
+- `VPN_SUBNET=10.8.0.0` (VPN subnet, must be a valid RFC1918 /24 network like `10.8.0.0`, `10.9.0.0`, `172.16.0.0`, or `192.168.1.0`)
 - `PORT_CHOICE=1`
 - `PROTOCOL_CHOICE=1`
 - `DNS=1`
@@ -154,6 +155,7 @@ export CLIENTNUMBER="1"  # Revokes the first client in the list
 - Certificate renewal for both client and server certificates
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
+- Configurable VPN subnet (default: `10.8.0.0/24`)
 - If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
 - OpenVPN 2.4 features, mainly encryption improvements (see [Security and Encryption](#security-and-encryption) below)

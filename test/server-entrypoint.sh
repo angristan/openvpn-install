@@ -18,6 +18,7 @@ export FORCE_COLOR=1
 export APPROVE_INSTALL=y
 export APPROVE_IP=y
 export IPV6_SUPPORT=n
+export VPN_SUBNET=10.9.0.0 # Custom subnet to test configurability
 export PORT_CHOICE=1
 export PROTOCOL_CHOICE=1
 export DNS=2 # Self-hosted Unbound DNS resolver
@@ -25,6 +26,10 @@ export COMPRESSION_ENABLED=n
 export CLIENT=testclient
 export PASS=1
 export ENDPOINT=openvpn-server
+
+# Calculate VPN gateway from subnet (first usable IP)
+VPN_GATEWAY="${VPN_SUBNET%.*}.1"
+export VPN_GATEWAY
 
 # TLS key type configuration (default: tls-crypt-v2)
 # TLS_SIG: 1=tls-crypt-v2, 2=tls-crypt, 3=tls-auth
@@ -112,6 +117,11 @@ echo "All required files present"
 cp /root/testclient.ovpn /shared/client.ovpn
 sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
 echo "Client config copied to /shared/client.ovpn"
+
+# Write VPN network info to shared volume for client tests
+echo "VPN_SUBNET=$VPN_SUBNET" >/shared/vpn-config.env
+echo "VPN_GATEWAY=$VPN_GATEWAY" >>/shared/vpn-config.env
+echo "VPN config written to /shared/vpn-config.env"
 
 # =====================================================
 # Verify systemd service file configuration
@@ -366,16 +376,16 @@ else
 fi
 
 # Verify Unbound listens on VPN gateway
-if grep -q "interface: 10.8.0.1" "$UNBOUND_OPENVPN_CONF"; then
-	echo "PASS: Unbound configured to listen on 10.8.0.1"
+if grep -q "interface: $VPN_GATEWAY" "$UNBOUND_OPENVPN_CONF"; then
+	echo "PASS: Unbound configured to listen on $VPN_GATEWAY"
 else
-	echo "FAIL: Unbound not configured for 10.8.0.1"
+	echo "FAIL: Unbound not configured for $VPN_GATEWAY"
 	cat "$UNBOUND_OPENVPN_CONF"
 	exit 1
 fi
 
 # Verify OpenVPN pushes correct DNS
-if grep -q 'push "dhcp-option DNS 10.8.0.1"' /etc/openvpn/server/server.conf; then
+if grep -q "push \"dhcp-option DNS $VPN_GATEWAY\"" /etc/openvpn/server/server.conf; then
 	echo "PASS: OpenVPN configured to push Unbound DNS"
 else
 	echo "FAIL: OpenVPN not configured to push Unbound DNS"
@@ -416,7 +426,7 @@ if systemctl is-active --quiet firewalld; then
 		exit 1
 	fi
 	# Verify VPN subnet rich rule exists
-	if firewall-cmd --list-rich-rules | grep -q 'source address="10.8.0.0/24"'; then
+	if firewall-cmd --list-rich-rules | grep -q "source address=\"$VPN_SUBNET/24\""; then
 		echo "PASS: VPN subnet rich rule is configured"
 	else
 		echo "FAIL: VPN subnet rich rule not found in firewalld"
@@ -468,14 +478,14 @@ else
 	# iptables mode - verify NAT rules
 	echo "iptables mode, checking NAT rules..."
 	for _ in $(seq 1 10); do
-		if iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
-			echo "PASS: NAT POSTROUTING rule for 10.8.0.0/24 exists"
+		if iptables -t nat -L POSTROUTING -n | grep -q "$VPN_SUBNET"; then
+			echo "PASS: NAT POSTROUTING rule for $VPN_SUBNET/24 exists"
 			break
 		fi
 		sleep 1
 	done
-	if ! iptables -t nat -L POSTROUTING -n | grep -q "10.8.0.0"; then
-		echo "FAIL: NAT POSTROUTING rule for 10.8.0.0/24 not found"
+	if ! iptables -t nat -L POSTROUTING -n | grep -q "$VPN_SUBNET"; then
+		echo "FAIL: NAT POSTROUTING rule for $VPN_SUBNET/24 not found"
 		echo "Current NAT rules:"
 		iptables -t nat -L POSTROUTING -n -v
 		systemctl status iptables-openvpn 2>&1 || true
