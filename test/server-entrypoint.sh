@@ -26,26 +26,26 @@ export VPN_GATEWAY
 TLS_SIG="${TLS_SIG:-crypt-v2}"
 TLS_KEY_FILE="${TLS_KEY_FILE:-tls-crypt-v2.key}"
 
-# Build install command with CLI flags
-INSTALL_CMD="/opt/openvpn-install.sh install"
-INSTALL_CMD+=" --endpoint openvpn-server"
-INSTALL_CMD+=" --dns unbound"
-INSTALL_CMD+=" --subnet $VPN_SUBNET"
-INSTALL_CMD+=" --client testclient"
+# Build install command with CLI flags (using array for proper quoting)
+INSTALL_CMD=(/opt/openvpn-install.sh install)
+INSTALL_CMD+=(--endpoint openvpn-server)
+INSTALL_CMD+=(--dns unbound)
+INSTALL_CMD+=(--subnet "$VPN_SUBNET")
+INSTALL_CMD+=(--client testclient)
 
 # Add TLS signature mode if non-default
 if [ "$TLS_SIG" != "crypt-v2" ]; then
-	INSTALL_CMD+=" --tls-sig $TLS_SIG"
+	INSTALL_CMD+=(--tls-sig "$TLS_SIG")
 	echo "Testing TLS key type: $TLS_SIG (key file: $TLS_KEY_FILE)"
 fi
 
 echo "Running OpenVPN install script..."
-echo "Command: $INSTALL_CMD"
+echo "Command: ${INSTALL_CMD[*]}"
 # Run in subshell because the script calls 'exit 0' after generating client config
 # Capture output to validate logging format, while still displaying it
 # Use || true to prevent set -e from exiting on failure, then check exit code
 INSTALL_OUTPUT="/tmp/install-output.log"
-(bash $INSTALL_CMD) 2>&1 | tee "$INSTALL_OUTPUT"
+("${INSTALL_CMD[@]}") 2>&1 | tee "$INSTALL_OUTPUT"
 INSTALL_EXIT_CODE=${PIPESTATUS[0]}
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
