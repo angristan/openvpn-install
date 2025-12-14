@@ -80,7 +80,7 @@ For automation and scripting, use the CLI interface:
 
 #### Commands
 
-```
+```text
 openvpn-install <command> [options]
 
 Commands:
@@ -118,7 +118,7 @@ Run `./openvpn-install.sh <command> --help` for command-specific options.
 
 List all clients:
 
-```
+```text
 $ ./openvpn-install.sh client list
 ══ Client Certificates ══
 [INFO] Found 3 client certificate(s)
@@ -132,7 +132,7 @@ $ ./openvpn-install.sh client list
 
 JSON output for scripting:
 
-```
+```text
 $ ./openvpn-install.sh client list --format json | jq
 {
   "clients": [
@@ -170,7 +170,7 @@ $ ./openvpn-install.sh client list --format json | jq
 
 Show connected clients:
 
-```
+```text
 $ ./openvpn-install.sh server status
 ══ Connected Clients ══
 [INFO] Found 2 connected client(s)
