@@ -361,6 +361,8 @@ show_server_status_help() {
 	cat <<-EOF
 		List currently connected clients
 
+		Note: Client data is updated every 60 seconds by OpenVPN.
+
 		Usage: $SCRIPT_NAME server status [options]
 
 		Options:

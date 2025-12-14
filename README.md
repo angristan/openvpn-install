@@ -216,7 +216,7 @@ $ ./openvpn-install.sh client list --format json | jq
 ./openvpn-install.sh uninstall
 ```
 
-Show connected clients:
+Show connected clients (data refreshes every 60 seconds):
 
 ```text
 $ ./openvpn-install.sh server status
