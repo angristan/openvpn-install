@@ -1,7 +1,5 @@
 # openvpn-install
 
-![Test](https://github.com/angristan/openvpn-install/workflows/Test/badge.svg)
-![Lint](https://github.com/angristan/openvpn-install/workflows/Lint/badge.svg)
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/angristan)
 
 OpenVPN installer for Debian, Ubuntu, Fedora, openSUSE, CentOS, Amazon Linux, Arch Linux, Oracle Linux, Rocky Linux and AlmaLinux.
@@ -58,7 +56,7 @@ The easiest way to get started is the interactive menu:
 
 This will guide you through installation and client management.
 
-In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server and connect using your favorite OpenVPN client.
+In your home directory, you will have `.ovpn` files. These are the client configuration files. Download them from your server (using `scp` for example) and connect using your favorite OpenVPN client.
 
 If you have any question, head to the [FAQ](#faq) first. And if you need help, you can open a [discussion](https://github.com/angristan/openvpn-install/discussions). Please search existing issues and discussions first.
 
@@ -324,7 +322,7 @@ More Q&A in [FAQ.md](FAQ.md).
 
 **Q:** Is there an OpenVPN documentation?
 
-**A:** Yes, please head to the [OpenVPN Manual](https://community.openvpn.net/openvpn/wiki/Openvpn24ManPage), which references all the options.
+**A:** Yes, please head to the [OpenVPN Manual](https://openvpn.net/community-docs/community-articles/openvpn-2-6-manual.html), which references all the options.
 
 ---
 
@@ -332,13 +330,9 @@ More Q&A in [FAQ.md](FAQ.md).
 
 ## Contributing
 
-## Discuss changes
+### Discuss changes
 
 Please open an issue before submitting a PR if you want to discuss a change, especially if it's a big one.
-
-### Code formatting
-
-We use [shellcheck](https://github.com/koalaman/shellcheck) and [shfmt](https://github.com/mvdan/sh) to enforce Bash styling guidelines and good practices. They are executed for each commit / PR with GitHub Actions, so you can check the [lint workflow configuration](https://github.com/angristan/openvpn-install/blob/master/.github/workflows/lint.yml).
 
 ## Security and Encryption
 

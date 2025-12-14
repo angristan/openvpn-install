@@ -72,20 +72,6 @@ down /usr/share/openvpn/contrib/pull-resolv-conf/client.down
 
 ---
 
-**Q:** Can I use an OpenVPN 2.3 client?
-
-**A:** Yes. I really recommend using an up-to-date client, but if you really need it, choose the following options:
-
-- No compression or LZ0
-- RSA certificate
-- DH Key
-- AES CBC
-- tls-auth
-
-If your client is <2.3.3, remove `tls-version-min 1.2` from your `/etc/openvpn/server/server.conf` and `.ovpn` files.
-
----
-
 **Q:** IPv6 is not working on my Hetzner VM
 
 **A:** This an issue on their side. See <https://angristan.xyz/fix-ipv6-hetzner-cloud/>
@@ -119,10 +105,6 @@ Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
 - `Options error: No closing quotation (") in config.ovpn:46` :
 
   type `yes` when asked to customize encryption settings and choose `tls-auth`
-
-- `Options error: Unrecognized option or missing parameter(s) in config.ovpn:36: tls-version-min (2.3.2)` :
-
-  see question "Can I use an OpenVPN 2.3 client?"
 
 ---
 
