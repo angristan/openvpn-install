@@ -227,6 +227,8 @@ $ ./openvpn-install.sh server status
    ----    ------------          ------      ---------------   --------
    alice   203.0.113.45:52341    10.8.0.2    2025-01-15 14:32  ↓1.2M ↑500K
    bob     198.51.100.22:41892   10.8.0.3    2025-01-15 09:15  ↓800K ↑200K
+
+[INFO] Note: Data refreshes every 60 seconds.
 ```
 
 #### Install Options

@@ -3056,6 +3056,7 @@ function listConnectedClients() {
 		else
 			log_header "Connected Clients"
 			log_info "No clients currently connected."
+			log_info "Note: Data refreshes every 60 seconds."
 		fi
 		return
 	fi
@@ -3093,6 +3094,7 @@ function listConnectedClients() {
 			printf "   %-20s %-22s %-16s %-20s %s\n" "$name" "$real_addr" "$vpn_ip" "$connected_since" "$transfer"
 		done
 		log_menu ""
+		log_info "Note: Data refreshes every 60 seconds."
 	fi
 }
 
