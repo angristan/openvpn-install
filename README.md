@@ -44,6 +44,7 @@ That said, OpenVPN still makes sense when you need:
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
 - Configurable VPN subnet (default: `10.8.0.0/24`)
+- Configurable tunnel MTU (default: `1500`)
 - If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
 - Uses latest OpenVPN features when available (see [Security and Encryption](#security-and-encryption) below)
