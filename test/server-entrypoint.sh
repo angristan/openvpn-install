@@ -571,7 +571,7 @@ if systemctl is-active --quiet firewalld; then
 		firewall-cmd --list-ports
 		exit 1
 	fi
-	# Verify VPN subnet rich rule exists
+	# Verify VPN subnet rich rule exists (source-based rules work reliably across firewalld backends)
 	if firewall-cmd --list-rich-rules | grep -q "source address=\"$VPN_SUBNET_IPV4/24\""; then
 		echo "PASS: VPN subnet rich rule is configured"
 	else
