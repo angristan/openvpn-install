@@ -43,7 +43,7 @@ That said, OpenVPN still makes sense when you need:
 - List and monitor connected clients
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
-- Configurable VPN subnet (default: `10.8.0.0/24`)
+- Configurable VPN subnets (IPv4: default `10.8.0.0/24`, IPv6: default `fd42:42:42:42::/112`)
 - Configurable tunnel MTU (default: `1500`)
 - If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
@@ -51,7 +51,10 @@ That said, OpenVPN still makes sense when you need:
 - Variety of DNS resolvers to be pushed to the clients
 - Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
 - Choice between TCP and UDP
-- NATed IPv6 support
+- Flexible IPv4/IPv6 support:
+  - IPv4 or IPv6 server endpoint (how clients connect)
+  - IPv4-only, IPv6-only, or dual-stack clients (VPN addressing and internet access)
+  - All combinations supported: 4→4, 4→4/6, 6→4, 6→6, 6→4/6
 - Unprivileged mode: run as `nobody`/`nogroup`
 - Block DNS leaks on Windows 10
 - Randomised server certificate name
@@ -249,7 +252,19 @@ The `install` command supports many options for customization:
 ./openvpn-install.sh install --cipher AES-256-GCM --cert-type rsa --rsa-bits 4096
 
 # Custom VPN subnet
-./openvpn-install.sh install --subnet 10.9.0.0
+./openvpn-install.sh install --subnet-ipv4 10.9.0.0
+
+# Enable dual-stack (IPv4 + IPv6) for clients
+./openvpn-install.sh install --client-ipv4 --client-ipv6
+
+# IPv6-only clients (no IPv4)
+./openvpn-install.sh install --no-client-ipv4 --client-ipv6
+
+# IPv6 endpoint (server listens on IPv6, clients connect via IPv6)
+./openvpn-install.sh install --endpoint-type 6 --endpoint 2001:db8::1
+
+# Custom IPv6 subnet for dual-stack setup
+./openvpn-install.sh install --client-ipv6 --subnet-ipv6 fd00:1234:5678::
 
 # Skip initial client creation
 ./openvpn-install.sh install --no-client
@@ -267,9 +282,14 @@ The `install` command supports many options for customization:
 **Network Options:**
 
 - `--endpoint <host>` - Public IP or hostname for clients (default: auto-detected)
+- `--endpoint-type <4|6>` - Endpoint IP version (default: `4`)
 - `--ip <addr>` - Server listening IP (default: auto-detected)
-- `--ipv6` - Enable IPv6 support (default: disabled)
-- `--subnet <x.x.x.0>` - VPN subnet (default: `10.8.0.0`)
+- `--client-ipv4` - Enable IPv4 for VPN clients (default: enabled)
+- `--no-client-ipv4` - Disable IPv4 for VPN clients
+- `--client-ipv6` - Enable IPv6 for VPN clients (default: disabled)
+- `--no-client-ipv6` - Disable IPv6 for VPN clients
+- `--subnet-ipv4 <x.x.x.0>` - IPv4 VPN subnet (default: `10.8.0.0`)
+- `--subnet-ipv6 <prefix>` - IPv6 VPN subnet (default: `fd42:42:42:42::`)
 - `--port <num>` - OpenVPN port (default: `1194`)
 - `--port-random` - Use random port (49152-65535)
 - `--protocol <udp|tcp>` - Protocol (default: `udp`)

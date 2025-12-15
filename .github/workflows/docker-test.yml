@@ -109,6 +109,15 @@ jobs:
               name: tls-crypt-v2
               sig: crypt-v2
               key_file: tls-crypt-v2.key
+          # Test IPv6 dual-stack support on Ubuntu
+          - os:
+              name: ubuntu-24.04-dual-stack
+              image: ubuntu:24.04
+              client_ipv6: true
+            tls:
+              name: tls-crypt-v2
+              sig: crypt-v2
+              key_file: tls-crypt-v2.key
 
     name: ${{ matrix.os.name }}
     steps:
@@ -146,6 +155,7 @@ jobs:
             --cgroupns=host \
             --device=/dev/net/tun:/dev/net/tun \
             --sysctl net.ipv4.ip_forward=1 \
+            --sysctl net.ipv6.conf.all.forwarding=1 \
             --network vpn-test \
             --ip 172.28.0.10 \
             -v shared-config:/shared \
@@ -155,6 +165,7 @@ jobs:
             --stop-signal SIGRTMIN+3 \
             -e TLS_SIG=${{ matrix.tls.sig }} \
             -e TLS_KEY_FILE=${{ matrix.tls.key_file }} \
+            -e CLIENT_IPV6=${{ matrix.os.client_ipv6 && 'y' || 'n' }} \
             openvpn-server
 
       - name: Wait for server installation and startup
