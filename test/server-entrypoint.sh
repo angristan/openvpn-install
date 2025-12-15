@@ -429,6 +429,35 @@ echo ""
 echo "=== All Certificate Renewal Tests PASSED ==="
 echo ""
 
+# Wait for OpenVPN to be fully ready after server certificate renewal
+# The renewal process restarts OpenVPN, so we need to verify it's back up
+echo "Verifying OpenVPN is running after certificate renewal..."
+for _ in $(seq 1 30); do
+	if pgrep -f "openvpn.*server.conf" >/dev/null; then
+		break
+	fi
+	sleep 1
+done
+
+if ! pgrep -f "openvpn.*server.conf" >/dev/null; then
+	echo "FAIL: OpenVPN not running after server certificate renewal"
+	systemctl status openvpn-server@server 2>&1 || true
+	exit 1
+fi
+
+# Wait for tun0 to be ready after restart
+echo "Waiting for tun0 to be ready after certificate renewal..."
+for i in $(seq 1 30); do
+	if ip addr show tun0 2>/dev/null | grep -q "inet $VPN_GATEWAY"; then
+		echo "OpenVPN tun0 interface ready after renewal"
+		break
+	fi
+	sleep 1
+done
+
+# Allow routing to stabilize after renewal restart
+sleep 3
+
 # =====================================================
 # Verify Unbound DNS resolver (started by systemd via install script)
 # =====================================================
@@ -610,6 +639,30 @@ if ! pgrep -f "openvpn.*server.conf" >/dev/null; then
 	journalctl -u openvpn-server@server --no-pager -n 50 2>&1 || true
 	exit 1
 fi
+
+# Wait for server tun interface to be ready with correct IP
+# This prevents race conditions where OpenVPN is running but tun0 isn't configured
+echo "Waiting for server tun0 interface to be ready..."
+TUN_READY=false
+for i in $(seq 1 30); do
+	if ip addr show tun0 2>/dev/null | grep -q "inet $VPN_GATEWAY"; then
+		echo "PASS: Server tun0 interface ready with $VPN_GATEWAY"
+		TUN_READY=true
+		break
+	fi
+	echo "Waiting for tun0... ($i/30)"
+	sleep 1
+done
+
+if [ "$TUN_READY" = false ]; then
+	echo "FAIL: Server tun0 interface not ready after 30 seconds"
+	ip addr show 2>&1 || true
+	exit 1
+fi
+
+# Allow routing tables to stabilize
+echo "Allowing routing to stabilize..."
+sleep 3
 
 # =====================================================
 # Wait for initial client tests to complete

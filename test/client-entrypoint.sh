@@ -3,6 +3,23 @@ set -e
 
 echo "=== OpenVPN Client Container ==="
 
+# Helper function for connectivity checks with retries
+# Usage: wait_for_ping <host> [max_retries] [retry_delay]
+wait_for_ping() {
+	local host="$1"
+	local max_retries="${2:-10}"
+	local retry_delay="${3:-3}"
+
+	for i in $(seq 1 $max_retries); do
+		if ping -c 3 -W 2 "$host" >/dev/null 2>&1; then
+			return 0
+		fi
+		echo "Ping attempt $i/$max_retries to $host failed, retrying in ${retry_delay}s..."
+		sleep "$retry_delay"
+	done
+	return 1
+}
+
 # Create TUN device if it doesn't exist
 if [ ! -c /dev/net/tun ]; then
 	mkdir -p /dev/net
@@ -70,6 +87,11 @@ fi
 echo "=== VPN Connected! ==="
 ip addr show tun0
 
+# Allow routing tables to stabilize before running tests
+# This prevents race conditions where tun0 is up but routing isn't ready
+echo "Waiting for routing to stabilize..."
+sleep 5
+
 # Run connectivity tests
 echo ""
 echo "=== Running connectivity tests ==="
@@ -85,12 +107,14 @@ else
 	exit 1
 fi
 
-# Test 2: Ping VPN gateway
+# Test 2: Ping VPN gateway (with retries for CI stability)
 echo "Test 2: Pinging VPN gateway ($VPN_GATEWAY)..."
-if ping -c 10 "$VPN_GATEWAY"; then
+if wait_for_ping "$VPN_GATEWAY" 10 3; then
 	echo "PASS: Can ping VPN gateway"
 else
-	echo "FAIL: Cannot ping VPN gateway"
+	echo "FAIL: Cannot ping VPN gateway after retries"
+	echo "Final ping attempt output:"
+	ping -c 3 "$VPN_GATEWAY" || true
 	exit 1
 fi
 
@@ -184,8 +208,8 @@ fi
 echo "PASS: Connected with '$REVOKE_CLIENT' certificate"
 ip addr show tun0
 
-# Verify connectivity
-if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
+# Verify connectivity (with retries for CI stability)
+if wait_for_ping "$VPN_GATEWAY" 5 2; then
 	echo "PASS: Can ping VPN gateway with revoke test client"
 else
 	echo "FAIL: Cannot ping VPN gateway with revoke test client"
@@ -358,8 +382,8 @@ fi
 echo "PASS: Connected with new '$REVOKE_CLIENT' certificate"
 ip addr show tun0
 
-# Verify connectivity
-if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
+# Verify connectivity (with retries for CI stability)
+if wait_for_ping "$VPN_GATEWAY" 5 2; then
 	echo "PASS: Can ping VPN gateway with new certificate"
 else
 	echo "FAIL: Cannot ping VPN gateway with new certificate"
@@ -438,8 +462,8 @@ fi
 echo "PASS: Connected with passphrase-protected '$PASSPHRASE_CLIENT' certificate"
 ip addr show tun0
 
-# Verify connectivity
-if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
+# Verify connectivity (with retries for CI stability)
+if wait_for_ping "$VPN_GATEWAY" 5 2; then
 	echo "PASS: Can ping VPN gateway with passphrase-protected client"
 else
 	echo "FAIL: Cannot ping VPN gateway with passphrase-protected client"
