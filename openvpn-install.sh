@@ -1475,7 +1475,7 @@ function installOpenVPNRepo() {
 	log_info "Setting up official OpenVPN repository..."
 
 	if [[ $OS =~ (debian|ubuntu) ]]; then
-		run_cmd "Update package lists" apt-get update
+		run_cmd_fatal "Update package lists" apt-get update
 		run_cmd_fatal "Installing prerequisites" apt-get install -y ca-certificates curl
 
 		# Create keyrings directory
@@ -1493,7 +1493,7 @@ function installOpenVPNRepo() {
 		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/openvpn-repo-public.asc] https://build.openvpn.net/debian/openvpn/stable ${VERSION_CODENAME} main" >/etc/apt/sources.list.d/openvpn-aptrepo.list
 
 		log_info "Updating package lists with new repository..."
-		run_cmd "Update package lists" apt-get update
+		run_cmd_fatal "Update package lists" apt-get update
 
 		log_info "OpenVPN official repository configured"
 
@@ -3476,7 +3476,7 @@ function removeOpenVPN() {
 			if [[ -e /etc/apt/keyrings/openvpn-repo-public.asc ]]; then
 				run_cmd "Removing OpenVPN GPG key" rm /etc/apt/keyrings/openvpn-repo-public.asc
 			fi
-			run_cmd "Updating package lists" apt-get update
+			run_cmd_fatal "Updating package lists" apt-get update
 		elif [[ $OS == 'arch' ]]; then
 			run_cmd "Removing OpenVPN" pacman --noconfirm -R openvpn
 		elif [[ $OS =~ (centos|oracle) ]]; then
