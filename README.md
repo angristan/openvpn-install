@@ -51,7 +51,6 @@ That said, OpenVPN still makes sense when you need:
 - Choice to use a self-hosted resolver with Unbound (supports already existing Unbound installations)
 - Choice between TCP and UDP
 - NATed IPv6 support
-- Compression disabled by default to prevent VORACLE. LZ4 (v1/v2) and LZ0 algorithms available otherwise.
 - Unprivileged mode: run as `nobody`/`nogroup`
 - Block DNS leaks on Windows 10
 - Randomised server certificate name
@@ -302,7 +301,6 @@ The `install` command supports many options for customization:
 
 **Other Options:**
 
-- `--compression <alg>` - Compression (default: `none`). Options: `none`, `lz4-v2`, `lz4`, `lzo`
 - `--multi-client` - Allow same cert on multiple devices (default: disabled)
 
 #### Automation Examples
@@ -404,12 +402,9 @@ Certificate and PKI management is handled by [Easy-RSA](https://github.com/OpenV
 
 ### Compression
 
-> [!NOTE]
-> OpenVPN 2.6+ defaults `--allow-compression` to `no`, which blocks even server-pushed compression. Prior versions allowed servers to push compression settings to clients.
+This script used to support LZ4 and LZO compression algorithms, but discouraged their use due to the [VORACLE attack](https://community.openvpn.net/Security%20Announcements/VORACLE) vulnerability.
 
-By default, OpenVPN doesn't enable compression. This script provides support for LZ0 and LZ4 (v1/v2) algorithms, the latter being more efficient.
-
-However, it is discouraged to use compression since the [VORACLE attack](https://protonvpn.com/blog/voracle-attack/) makes use of it.
+OpenVPN 2.6+ defaults `--allow-compression` to `no`, blocking even server-pushed compression. Now that OpenVPN is removing compression support entirely, this script no longer supports it.
 
 ### TLS version
 
@@ -575,9 +570,8 @@ DCO was merged into the Linux kernel 6.16 (April 2025).
 - Linux kernel 6.16+ (built-in) or `ovpn-dco` kernel module
 - UDP protocol (TCP is not supported)
 - AEAD cipher (`AES-128-GCM`, `AES-256-GCM`, or `CHACHA20-POLY1305`)
-- Compression disabled
 
-The script's default settings (AES-128-GCM, UDP, no compression) are DCO-compatible. When DCO is available and the configuration is compatible, OpenVPN will automatically use it for improved performance.
+The script's default settings (AES-128-GCM, UDP) are DCO-compatible. When DCO is available and the configuration is compatible, OpenVPN will automatically use it for improved performance.
 
 **Note:** DCO must be supported on both the server and the client for full acceleration. Client support is available in OpenVPN 2.6+ (Linux, Windows, FreeBSD) and OpenVPN Connect 3.4+ (Windows). macOS does not currently support DCO, but clients can still connect to DCO-enabled servers with partial performance benefits on the server-side.
 

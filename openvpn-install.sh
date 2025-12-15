@@ -235,7 +235,6 @@ show_install_help() {
 			--server-cert-days <n>  Server cert validity in days (default: 3650)
 
 		Other Options:
-			--compression <alg>   Compression: lz4-v2, lz4, lzo, none (default: none)
 			--multi-client        Allow same cert on multiple devices
 
 		Initial Client Options:
@@ -579,26 +578,6 @@ cmd_install() {
 			DNS2="$2"
 			shift 2
 			;;
-		--compression)
-			[[ -z "${2:-}" ]] && log_fatal "--compression requires an argument"
-			case "$2" in
-			none) COMPRESSION_ENABLED=n ;;
-			lz4-v2)
-				COMPRESSION_ENABLED=y
-				COMPRESSION_ALG=lz4-v2
-				;;
-			lz4)
-				COMPRESSION_ENABLED=y
-				COMPRESSION_ALG=lz4
-				;;
-			lzo)
-				COMPRESSION_ENABLED=y
-				COMPRESSION_ALG=lzo
-				;;
-			*) log_fatal "Invalid compression: $2. Use 'none', 'lz4-v2', 'lz4', or 'lzo'." ;;
-			esac
-			shift 2
-			;;
 		--multi-client)
 			MULTI_CLIENT=y
 			shift
@@ -760,9 +739,6 @@ cmd_install() {
 
 		# DNS
 		DNS=${DNS:-3}
-
-		# Compression
-		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
 
 		# Multi-client
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
@@ -1813,31 +1789,6 @@ function installQuestions() {
 		read -rp "Allow multiple devices per client? [y/n]: " -e -i n MULTI_CLIENT
 	done
 	log_menu ""
-	log_prompt "Do you want to use compression? It is not recommended since the VORACLE attack makes use of it."
-	until [[ $COMPRESSION_ENABLED =~ (y|n) ]]; do
-		read -rp "Enable compression? [y/n]: " -e -i n COMPRESSION_ENABLED
-	done
-	if [[ $COMPRESSION_ENABLED == "y" ]]; then
-		log_prompt "Choose which compression algorithm you want to use: (they are ordered by efficiency)"
-		log_menu "   1) LZ4-v2"
-		log_menu "   2) LZ4"
-		log_menu "   3) LZ0"
-		until [[ $COMPRESSION_CHOICE =~ ^[1-3]$ ]]; do
-			read -rp "Compression algorithm [1-3]: " -e -i 1 COMPRESSION_CHOICE
-		done
-		case $COMPRESSION_CHOICE in
-		1)
-			COMPRESSION_ALG="lz4-v2"
-			;;
-		2)
-			COMPRESSION_ALG="lz4"
-			;;
-		3)
-			COMPRESSION_ALG="lzo"
-			;;
-		esac
-	fi
-	log_menu ""
 	log_prompt "Do you want to customize encryption settings?"
 	log_prompt "Unless you know what you're doing, you should stick with the default parameters provided by the script."
 	log_prompt "Note that whatever you choose, all the choices presented in the script are safe (unlike OpenVPN's defaults)."
@@ -2095,7 +2046,6 @@ function installOpenVPN() {
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
 		DNS=${DNS:-3}
-		COMPRESSION_ENABLED=${COMPRESSION_ENABLED:-n}
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		CLIENT=${CLIENT:-client}
@@ -2118,7 +2068,6 @@ function installOpenVPN() {
 		log_info "  PORT_CHOICE=$PORT_CHOICE"
 		log_info "  PROTOCOL_CHOICE=$PROTOCOL_CHOICE"
 		log_info "  DNS=$DNS"
-		log_info "  COMPRESSION_ENABLED=$COMPRESSION_ENABLED"
 		log_info "  MULTI_CLIENT=$MULTI_CLIENT"
 		log_info "  CUSTOMIZE_ENC=$CUSTOMIZE_ENC"
 		log_info "  CLIENT=$CLIENT"
@@ -2187,10 +2136,10 @@ function installOpenVPN() {
 		# Check Data Channel Offload (DCO) availability
 		if isDCOAvailable; then
 			# Check if configuration is DCO-compatible
-			if [[ $PROTOCOL == "udp" ]] && [[ $COMPRESSION_ENABLED == "n" ]] && [[ $CIPHER =~ (GCM|CHACHA20-POLY1305) ]]; then
+			if [[ $PROTOCOL == "udp" ]] && [[ $CIPHER =~ (GCM|CHACHA20-POLY1305) ]]; then
 				log_info "Data Channel Offload (DCO) is available and will be used for improved performance"
 			else
-				log_info "Data Channel Offload (DCO) is available but not enabled (requires UDP, AEAD cipher, no compression)"
+				log_info "Data Channel Offload (DCO) is available but not enabled (requires UDP, AEAD cipher)"
 			fi
 		else
 			log_info "Data Channel Offload (DCO) is not available (requires OpenVPN 2.6+ and kernel support)"
@@ -2420,10 +2369,6 @@ tun-ipv6
 push tun-ipv6
 push "route-ipv6 2000::/3"
 push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
-	fi
-
-	if [[ $COMPRESSION_ENABLED == "y" ]]; then
-		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ $DH_TYPE == "1" ]]; then
@@ -2690,10 +2635,6 @@ tls-cipher $CC_CIPHER
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
 verb 3" >>/etc/openvpn/server/client-template.txt
-
-	if [[ $COMPRESSION_ENABLED == "y" ]]; then
-		echo "compress $COMPRESSION_ALG" >>/etc/openvpn/server/client-template.txt
-	fi
 
 	# Generate the custom client.ovpn
 	if [[ $NEW_CLIENT == "n" ]]; then
