@@ -3,23 +3,6 @@ set -e
 
 echo "=== OpenVPN Client Container ==="
 
-# Helper function for connectivity checks - retries indefinitely
-# Relies on job-level timeout (5min) to fail if connectivity never works
-# Usage: wait_for_ping <host>
-wait_for_ping() {
-	local host="$1"
-	local attempt=1
-
-	while true; do
-		if ping -c 3 -W 2 "$host" >/dev/null 2>&1; then
-			return 0
-		fi
-		echo "Ping attempt $attempt to $host failed, retrying in 3s..."
-		attempt=$((attempt + 1))
-		sleep 3
-	done
-}
-
 # Create TUN device if it doesn't exist
 if [ ! -c /dev/net/tun ]; then
 	mkdir -p /dev/net
@@ -90,7 +73,10 @@ fi
 
 # Test 2: Ping VPN gateway (retries indefinitely, relies on job timeout)
 echo "Test 2: Pinging VPN gateway ($VPN_GATEWAY)..."
-wait_for_ping "$VPN_GATEWAY"
+while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
+	echo "Ping failed, retrying..."
+	sleep 3
+done
 echo "PASS: Can ping VPN gateway"
 
 # Test 3: DNS resolution through Unbound
@@ -167,7 +153,10 @@ echo "PASS: Connected with '$REVOKE_CLIENT' certificate"
 ip addr show tun0
 
 # Verify connectivity (retries indefinitely, relies on job timeout)
-wait_for_ping "$VPN_GATEWAY"
+while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
+	echo "Ping failed, retrying..."
+	sleep 3
+done
 echo "PASS: Can ping VPN gateway with revoke test client"
 
 # Signal server that we're connected with revoke test client
@@ -301,7 +290,10 @@ echo "PASS: Connected with new '$REVOKE_CLIENT' certificate"
 ip addr show tun0
 
 # Verify connectivity (retries indefinitely, relies on job timeout)
-wait_for_ping "$VPN_GATEWAY"
+while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
+	echo "Ping failed, retrying..."
+	sleep 3
+done
 echo "PASS: Can ping VPN gateway with new certificate"
 
 # Signal server that we connected with new cert
@@ -360,7 +352,10 @@ echo "PASS: Connected with passphrase-protected '$PASSPHRASE_CLIENT' certificate
 ip addr show tun0
 
 # Verify connectivity (retries indefinitely, relies on job timeout)
-wait_for_ping "$VPN_GATEWAY"
+while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
+	echo "Ping failed, retrying..."
+	sleep 3
+done
 echo "PASS: Can ping VPN gateway with passphrase-protected client"
 
 # Signal server that we connected with passphrase client
