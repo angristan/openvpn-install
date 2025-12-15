@@ -2136,9 +2136,6 @@ function installOpenVPN() {
 		log_info "  SERVER_CERT_DURATION_DAYS=$SERVER_CERT_DURATION_DAYS"
 	fi
 
-	# Run setup questions first, and set other variables if auto-install
-	installQuestions
-
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 	if [[ -z $NIC ]] && [[ $IPV6_SUPPORT == 'y' ]]; then
