@@ -2469,8 +2469,8 @@ function installOpenVPN() {
 
 		# Check Data Channel Offload (DCO) availability
 		if isDCOAvailable; then
-			# Check if configuration is DCO-compatible
-			if [[ $PROTOCOL == "udp" ]] && [[ $CIPHER =~ (GCM|CHACHA20-POLY1305) ]]; then
+			# Check if configuration is DCO-compatible (udp or udp6)
+			if [[ $PROTOCOL =~ ^udp ]] && [[ $CIPHER =~ (GCM|CHACHA20-POLY1305) ]]; then
 				log_info "Data Channel Offload (DCO) is available and will be used for improved performance"
 			else
 				log_info "Data Channel Offload (DCO) is available but not enabled (requires UDP, AEAD cipher)"
@@ -2787,7 +2787,9 @@ verb 3" >>/etc/openvpn/server/server.conf
 	if hash sestatus 2>/dev/null; then
 		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 			if [[ $PORT != '1194' ]]; then
-				run_cmd "Configuring SELinux port" semanage port -a -t openvpn_port_t -p "$PROTOCOL" "$PORT"
+				# Strip "6" suffix from protocol (semanage expects "udp" or "tcp", not "udp6"/"tcp6")
+				SELINUX_PROTOCOL="${PROTOCOL%6}"
+				run_cmd "Configuring SELinux port" semanage port -a -t openvpn_port_t -p "$SELINUX_PROTOCOL" "$PORT"
 			fi
 		fi
 	fi
@@ -2982,8 +2984,13 @@ WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 	if [[ $PROTOCOL == 'udp' ]]; then
 		echo "proto udp" >>/etc/openvpn/server/client-template.txt
 		echo "explicit-exit-notify" >>/etc/openvpn/server/client-template.txt
+	elif [[ $PROTOCOL == 'udp6' ]]; then
+		echo "proto udp6" >>/etc/openvpn/server/client-template.txt
+		echo "explicit-exit-notify" >>/etc/openvpn/server/client-template.txt
 	elif [[ $PROTOCOL == 'tcp' ]]; then
 		echo "proto tcp-client" >>/etc/openvpn/server/client-template.txt
+	elif [[ $PROTOCOL == 'tcp6' ]]; then
+		echo "proto tcp6-client" >>/etc/openvpn/server/client-template.txt
 	fi
 	echo "remote $IP $PORT
 dev tun
@@ -3733,6 +3740,8 @@ function removeOpenVPN() {
 		# Get OpenVPN configuration
 		PORT=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
 		PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
+		# Strip "6" suffix for firewall/SELinux commands (they expect "udp"/"tcp", not "udp6"/"tcp6")
+		PROTOCOL_BASE="${PROTOCOL%6}"
 		# Extract IPv4 subnet (may be empty if IPv4 not enabled)
 		VPN_SUBNET_IPV4=$(grep '^server ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
 		# Extract IPv6 subnet (may be empty if IPv6 not enabled)
@@ -3747,9 +3756,9 @@ function removeOpenVPN() {
 
 		# Remove firewall rules
 		log_info "Removing firewall rules..."
-		if systemctl is-active --quiet firewalld && firewall-cmd --list-ports | grep -q "$PORT/$PROTOCOL"; then
+		if systemctl is-active --quiet firewalld && firewall-cmd --list-ports | grep -q "$PORT/$PROTOCOL_BASE"; then
 			# firewalld was used
-			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL"
+			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL_BASE"
 			run_cmd "Removing masquerade from firewalld" firewall-cmd --permanent --remove-masquerade
 			# Remove IPv4 rule if it was configured
 			if [[ -n $VPN_SUBNET_IPV4 ]]; then
@@ -3782,7 +3791,7 @@ function removeOpenVPN() {
 		if hash sestatus 2>/dev/null; then
 			if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 				if [[ $PORT != '1194' ]]; then
-					run_cmd "Removing SELinux port" semanage port -d -t openvpn_port_t -p "$PROTOCOL" "$PORT"
+					run_cmd "Removing SELinux port" semanage port -d -t openvpn_port_t -p "$PROTOCOL_BASE" "$PORT"
 				fi
 			fi
 		fi
