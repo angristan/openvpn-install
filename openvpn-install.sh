@@ -806,6 +806,7 @@ cmd_install() {
 		SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		CONTINUE=y
 
+		installQuestions
 		installOpenVPN
 	fi
 }
