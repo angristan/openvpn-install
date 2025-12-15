@@ -834,16 +834,14 @@ cmd_install() {
 		# Set legacy IPV6_SUPPORT for compatibility
 		IPV6_SUPPORT="$CLIENT_IPV6"
 
-		# IPv4 Subnet
-		if [[ $CLIENT_IPV4 == "y" ]]; then
-			if [[ -n $VPN_SUBNET_IPV4 ]]; then
-				SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-2}
-			else
-				SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-1}
-				VPN_SUBNET_IPV4="10.8.0.0"
-			fi
-			VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
+		# IPv4 Subnet - always needed for leak prevention (redirect-gateway def1)
+		if [[ -n $VPN_SUBNET_IPV4 ]]; then
+			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-2}
+		else
+			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-1}
+			VPN_SUBNET_IPV4="10.8.0.0"
 		fi
+		VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
 
 		# IPv6 Subnet
 		if [[ $CLIENT_IPV6 == "y" ]]; then
@@ -1934,7 +1932,7 @@ function installQuestions() {
 	esac
 
 	# ==========================================================================
-	# Step 5: IPv4 subnet (if IPv4 enabled for clients)
+	# Step 5: IPv4 subnet (prompt only if IPv4 enabled, but always set for leak prevention)
 	# ==========================================================================
 	if [[ $CLIENT_IPV4 == "y" ]]; then
 		log_menu ""
@@ -1957,9 +1955,12 @@ function installQuestions() {
 			fi
 			;;
 		esac
-		# Calculate gateway (first usable IP in the subnet)
-		VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
+	else
+		# IPv6-only mode: still need IPv4 subnet for leak prevention (redirect-gateway def1)
+		VPN_SUBNET_IPV4="10.8.0.0"
 	fi
+	# Calculate gateway (first usable IP in the subnet)
+	VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
 
 	# ==========================================================================
 	# Step 6: IPv6 subnet (if IPv6 enabled for clients)
@@ -2372,16 +2373,14 @@ function installOpenVPN() {
 		fi
 		IPV6_SUPPORT="$CLIENT_IPV6"
 
-		# IPv4 subnet defaults
-		if [[ $CLIENT_IPV4 == "y" ]]; then
-			if [[ -n $VPN_SUBNET_IPV4 ]]; then
-				SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-2}
-			else
-				SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-1}
-				VPN_SUBNET_IPV4="10.8.0.0"
-			fi
-			VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
+		# IPv4 subnet defaults - always needed for leak prevention
+		if [[ -n $VPN_SUBNET_IPV4 ]]; then
+			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-2}
+		else
+			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-1}
+			VPN_SUBNET_IPV4="10.8.0.0"
 		fi
+		VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
 
 		# IPv6 subnet defaults
 		if [[ $CLIENT_IPV6 == "y" ]]; then
