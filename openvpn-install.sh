@@ -781,11 +781,9 @@ cmd_install() {
 		# Multi-client
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
 
-		# Encryption
+		# Encryption - always set defaults for any missing values
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
-		if [[ $CUSTOMIZE_ENC == "n" ]]; then
-			set_default_encryption
-		fi
+		set_default_encryption
 
 		# Client setup
 		if [[ $no_client == true ]]; then
@@ -1856,6 +1854,9 @@ function installQuestions() {
 		CERT_TYPE="1" # ECDSA
 		CERT_CURVE="prime256v1"
 		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
+		TLS13_CIPHERSUITES="TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256"
+		TLS_VERSION_MIN="1.2"
+		TLS_GROUPS="X25519:prime256v1:secp384r1:secp521r1"
 		HMAC_ALG="SHA256"
 		TLS_SIG="1" # tls-crypt-v2
 	else
@@ -2023,6 +2024,25 @@ function installQuestions() {
 			;;
 		4)
 			TLS13_CIPHERSUITES="TLS_CHACHA20_POLY1305_SHA256"
+			;;
+		esac
+		log_menu ""
+		log_prompt "Choose TLS key exchange groups (for ECDH key exchange):"
+		log_menu "   1) All modern curves (recommended)"
+		log_menu "   2) X25519 only (most secure, may have compatibility issues)"
+		log_menu "   3) NIST curves only (prime256v1, secp384r1, secp521r1)"
+		until [[ $TLS_GROUPS_CHOICE =~ ^[1-3]$ ]]; do
+			read -rp "TLS groups [1-3]: " -e -i 1 TLS_GROUPS_CHOICE
+		done
+		case $TLS_GROUPS_CHOICE in
+		1)
+			TLS_GROUPS="X25519:prime256v1:secp384r1:secp521r1"
+			;;
+		2)
+			TLS_GROUPS="X25519"
+			;;
+		3)
+			TLS_GROUPS="prime256v1:secp384r1:secp521r1"
 			;;
 		esac
 		log_menu ""
