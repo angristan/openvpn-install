@@ -510,6 +510,29 @@ validate_mtu() {
 	fi
 }
 
+# Maximum length for client names (OpenSSL CN limit)
+readonly MAX_CLIENT_NAME_LENGTH=64
+
+# Check if client name is valid (non-fatal, returns true/false)
+is_valid_client_name() {
+	local name="$1"
+	[[ "$name" =~ ^[a-zA-Z0-9_-]+$ ]] && [[ ${#name} -le $MAX_CLIENT_NAME_LENGTH ]]
+}
+
+# Validate client name and exit with error if invalid
+validate_client_name() {
+	local name="$1"
+	if [[ -z "$name" ]]; then
+		log_fatal "Client name cannot be empty."
+	fi
+	if ! [[ "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+		log_fatal "Invalid client name: $name. Only alphanumeric characters, underscores, and hyphens are allowed."
+	fi
+	if [[ ${#name} -gt $MAX_CLIENT_NAME_LENGTH ]]; then
+		log_fatal "Client name too long: ${#name} characters. Maximum is $MAX_CLIENT_NAME_LENGTH characters (OpenSSL CN limit)."
+	fi
+}
+
 # Handle install command
 cmd_install() {
 	local interactive=false
@@ -686,6 +709,7 @@ cmd_install() {
 			;;
 		--client)
 			[[ -z "${2:-}" ]] && log_fatal "--client requires an argument"
+			validate_client_name "$2"
 			CLIENT="$2"
 			shift 2
 			;;
@@ -893,6 +917,7 @@ cmd_client_add() {
 	done
 
 	[[ -z "$client_name" ]] && log_fatal "Client name is required. See '$SCRIPT_NAME client add --help' for usage."
+	validate_client_name "$client_name"
 
 	requireOpenVPN
 
@@ -3088,11 +3113,11 @@ function listConnectedClients() {
 function newClient() {
 	log_header "New Client Setup"
 
-	# Only prompt for client name if not already set
-	if ! [[ $CLIENT =~ ^[a-zA-Z0-9_-]+$ ]]; then
+	# Only prompt for client name if not already set or invalid
+	if ! is_valid_client_name "$CLIENT"; then
 		log_prompt "Tell me a name for the client."
-		log_prompt "The name must consist of alphanumeric character. It may also include an underscore or a dash."
-		until [[ $CLIENT =~ ^[a-zA-Z0-9_-]+$ ]]; do
+		log_prompt "The name must consist of alphanumeric characters, underscores, or dashes (max $MAX_CLIENT_NAME_LENGTH characters)."
+		until is_valid_client_name "$CLIENT"; do
 			read -rp "Client name: " -e CLIENT
 		done
 	fi
