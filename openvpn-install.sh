@@ -821,10 +821,24 @@ cmd_install() {
 
 		# Endpoint type (default: IPv4)
 		ENDPOINT_TYPE=${ENDPOINT_TYPE:-4}
+		# Set ENDPOINT_TYPE_CHOICE for installQuestions (1=IPv4, 2=IPv6)
+		if [[ $ENDPOINT_TYPE == "6" ]]; then
+			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-2}
+		else
+			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-1}
+		fi
 
 		# Client IP versions
 		CLIENT_IPV4=${CLIENT_IPV4:-y}
 		CLIENT_IPV6=${CLIENT_IPV6:-n}
+		# Set CLIENT_IP_CHOICE for installQuestions (1=IPv4 only, 2=IPv6 only, 3=Both)
+		if [[ $CLIENT_IPV4 == "y" ]] && [[ $CLIENT_IPV6 == "y" ]]; then
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-3}
+		elif [[ $CLIENT_IPV6 == "y" ]]; then
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-2}
+		else
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-1}
+		fi
 
 		# Validate at least one IP version is enabled
 		if [[ $CLIENT_IPV4 != "y" ]] && [[ $CLIENT_IPV6 != "y" ]]; then
