@@ -781,6 +781,13 @@ cmd_install() {
 		# Multi-client
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
 
+		# MTU
+		if [[ -n $MTU ]]; then
+			MTU_CHOICE=2
+		else
+			MTU_CHOICE=${MTU_CHOICE:-1}
+		fi
+
 		# Encryption - always set defaults for any missing values
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		set_default_encryption
