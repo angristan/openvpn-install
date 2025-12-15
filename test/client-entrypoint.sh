@@ -10,12 +10,12 @@ wait_for_ping() {
 	local max_retries="${2:-10}"
 	local retry_delay="${3:-3}"
 
-	for i in $(seq 1 $max_retries); do
+	for i in $(seq 1 "$max_retries"); do
 		if ping -c 3 -W 2 "$host" >/dev/null 2>&1; then
 			return 0
 		fi
 		echo "Ping attempt $i/$max_retries to $host failed, retrying in ${retry_delay}s..."
-		sleep "$retry_delay"
+		sleep "${retry_delay}"
 	done
 	return 1
 }
