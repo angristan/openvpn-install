@@ -228,11 +228,10 @@ show_install_help() {
 				Curves: prime256v1, secp384r1, secp521r1
 			--rsa-bits <size>     RSA key size: 2048, 3072, 4096 (default: 2048)
 			--cc-cipher <cipher>  Control channel cipher (auto-selected)
-			--tls-ciphersuites <list>  TLS 1.3 cipher suites, colon-separated
 			--tls-version-min <ver>  Minimum TLS version: 1.2 or 1.3 (default: 1.2)
-			--dh-type <type>      DH type: ecdh or dh (default: ecdh)
-			--dh-curve <curve>    ECDH curve (default: prime256v1)
-			--dh-bits <size>      DH key size: 2048, 3072, 4096 (default: 2048)
+			--tls-ciphersuites <list>  TLS 1.3 cipher suites, colon-separated
+			--tls-groups <list>   Key exchange groups, colon-separated
+				(default: X25519:prime256v1:secp384r1:secp521r1)
 			--hmac <alg>          HMAC algorithm: SHA256, SHA384, SHA512 (default: SHA256)
 			--tls-sig <mode>      TLS mode: crypt-v2, crypt, auth (default: crypt-v2)
 			--server-cert-days <n>  Server cert validity in days (default: 3650)
@@ -465,8 +464,8 @@ set_default_encryption() {
 	# TLS 1.3 cipher suites (OpenSSL format with underscores)
 	TLS13_CIPHERSUITES="${TLS13_CIPHERSUITES:-TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256}"
 	TLS_VERSION_MIN="${TLS_VERSION_MIN:-1.2}"
-	DH_TYPE="${DH_TYPE:-1}" # ECDH
-	DH_CURVE="${DH_CURVE:-prime256v1}"
+	# TLS key exchange groups (replaces deprecated ecdh-curve)
+	TLS_GROUPS="${TLS_GROUPS:-X25519:prime256v1:secp384r1:secp521r1}"
 	HMAC_ALG="${HMAC_ALG:-SHA256}"
 	TLS_SIG="${TLS_SIG:-1}" # tls-crypt-v2
 }
@@ -676,28 +675,9 @@ cmd_install() {
 			CUSTOMIZE_ENC=y
 			shift 2
 			;;
-		--dh-type)
-			[[ -z "${2:-}" ]] && log_fatal "--dh-type requires an argument"
-			case "$2" in
-			ecdh) DH_TYPE=1 ;;
-			dh) DH_TYPE=2 ;;
-			*) log_fatal "Invalid dh-type: $2. Use 'ecdh' or 'dh'." ;;
-			esac
-			CUSTOMIZE_ENC=y
-			shift 2
-			;;
-		--dh-curve)
-			[[ -z "${2:-}" ]] && log_fatal "--dh-curve requires an argument"
-			DH_CURVE=$(parse_curve "$2")
-			CUSTOMIZE_ENC=y
-			shift 2
-			;;
-		--dh-bits)
-			[[ -z "${2:-}" ]] && log_fatal "--dh-bits requires an argument"
-			case "$2" in
-			2048 | 3072 | 4096) DH_KEY_SIZE="$2" ;;
-			*) log_fatal "Invalid DH key size: $2. Use 2048, 3072, or 4096." ;;
-			esac
+		--tls-groups)
+			[[ -z "${2:-}" ]] && log_fatal "--tls-groups requires an argument"
+			TLS_GROUPS="$2"
 			CUSTOMIZE_ENC=y
 			shift 2
 			;;
@@ -1876,8 +1856,6 @@ function installQuestions() {
 		CERT_TYPE="1" # ECDSA
 		CERT_CURVE="prime256v1"
 		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
-		DH_TYPE="1" # ECDH
-		DH_CURVE="prime256v1"
 		HMAC_ALG="SHA256"
 		TLS_SIG="1" # tls-crypt-v2
 	else
@@ -2045,57 +2023,6 @@ function installQuestions() {
 			;;
 		4)
 			TLS13_CIPHERSUITES="TLS_CHACHA20_POLY1305_SHA256"
-			;;
-		esac
-		log_menu ""
-		log_prompt "Choose what kind of Diffie-Hellman key you want to use:"
-		log_menu "   1) ECDH (recommended)"
-		log_menu "   2) DH"
-		until [[ $DH_TYPE =~ [1-2] ]]; do
-			read -rp "DH key type [1-2]: " -e -i 1 DH_TYPE
-		done
-		case $DH_TYPE in
-		1)
-			log_menu ""
-			log_prompt "Choose which curve you want to use for the ECDH key:"
-			log_menu "   1) prime256v1 (recommended)"
-			log_menu "   2) secp384r1"
-			log_menu "   3) secp521r1"
-			while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
-				read -rp "Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
-			done
-			case $DH_CURVE_CHOICE in
-			1)
-				DH_CURVE="prime256v1"
-				;;
-			2)
-				DH_CURVE="secp384r1"
-				;;
-			3)
-				DH_CURVE="secp521r1"
-				;;
-			esac
-			;;
-		2)
-			log_menu ""
-			log_prompt "Choose what size of Diffie-Hellman key you want to use:"
-			log_menu "   1) 2048 bits (recommended)"
-			log_menu "   2) 3072 bits"
-			log_menu "   3) 4096 bits"
-			until [[ $DH_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
-			done
-			case $DH_KEY_SIZE_CHOICE in
-			1)
-				DH_KEY_SIZE="2048"
-				;;
-			2)
-				DH_KEY_SIZE="3072"
-				;;
-			3)
-				DH_KEY_SIZE="4096"
-				;;
-			esac
 			;;
 		esac
 		log_menu ""
@@ -2329,11 +2256,6 @@ function installOpenVPN() {
 		log_info "Building CA..."
 		run_cmd_fatal "Building CA" ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
 
-		if [[ $DH_TYPE == "2" ]]; then
-			# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
-			run_cmd_fatal "Generating DH parameters (this may take a while)" openssl dhparam -out dh.pem "$DH_KEY_SIZE"
-		fi
-
 		export EASYRSA_CERT_EXPIRE=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		log_info "Building server certificate..."
 		run_cmd_fatal "Building server certificate" ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
@@ -2365,9 +2287,6 @@ function installOpenVPN() {
 	# Move all the generated files
 	log_info "Copying certificates..."
 	run_cmd_fatal "Copying certificates to /etc/openvpn/server" cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server
-	if [[ $DH_TYPE == "2" ]]; then
-		run_cmd_fatal "Copying DH parameters" cp dh.pem /etc/openvpn/server
-	fi
 
 	# Make cert revocation list readable for non-root
 	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/server/crl.pem
@@ -2488,12 +2407,9 @@ push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
 		echo "tun-mtu $MTU" >>/etc/openvpn/server/server.conf
 	fi
 
-	if [[ $DH_TYPE == "1" ]]; then
-		echo "dh none" >>/etc/openvpn/server/server.conf
-		echo "ecdh-curve $DH_CURVE" >>/etc/openvpn/server/server.conf
-	elif [[ $DH_TYPE == "2" ]]; then
-		echo "dh dh.pem" >>/etc/openvpn/server/server.conf
-	fi
+	# Use ECDH key exchange (dh none) with tls-groups for curve negotiation
+	echo "dh none" >>/etc/openvpn/server/server.conf
+	echo "tls-groups $TLS_GROUPS" >>/etc/openvpn/server/server.conf
 
 	case $TLS_SIG in
 	1)

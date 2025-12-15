@@ -291,9 +291,7 @@ The `install` command supports many options for customization:
 - `--tls-sig <mode>` - TLS mode (default: `crypt-v2`). Options: `crypt-v2`, `crypt`, `auth`
 - `--tls-version-min <1.2|1.3>` - Minimum TLS version (default: `1.2`)
 - `--tls-ciphersuites <list>` - TLS 1.3 cipher suites, colon-separated (default: `TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256`)
-- `--dh-type <ecdh|dh>` - DH key exchange type (default: `ecdh`)
-- `--dh-curve <curve>` - ECDH curve (default: `prime256v1`). Options: `prime256v1`, `secp384r1`, `secp521r1`
-- `--dh-bits <2048|3072|4096>` - DH key size when using `--dh-type dh` (default: `2048`)
+- `--tls-groups <list>` - Key exchange groups, colon-separated (default: `X25519:prime256v1:secp384r1:secp521r1`)
 - `--server-cert-days <n>` - Server cert validity in days (default: `3650`)
 
 **Client Options:**
@@ -419,7 +417,7 @@ OpenVPN 2.5 and earlier accepted TLS 1.0 by default, which is nearly [20 years o
 
 This script defaults to `tls-version-min 1.2` for compatibility with all OpenVPN 2.4+ clients. You can optionally set `tls-version-min 1.3` for environments where all clients support TLS 1.3.
 
-**TLS 1.3 support** was added in OpenVPN 2.5 and requires OpenSSL 1.1.1+. All distributions supported by this script include OpenSSL 1.1.1 or later. TLS 1.3 offers improved security and performance with a simplified handshake.
+**TLS 1.3 support** was added in OpenVPN 2.5 and requires OpenSSL 1.1.1+. TLS 1.3 offers improved security and performance with a simplified handshake.
 
 The script configures TLS 1.3 cipher suites via `--tls-ciphersuites` (separate from the TLS 1.2 `--tls-cipher` option). The default TLS 1.3 cipher suites are:
 
@@ -511,20 +509,24 @@ When TLS 1.3 is negotiated, a separate set of cipher suites is used. These are c
 
 By default, all three cipher suites are enabled. TLS 1.3 cipher suites are simpler because they don't include the key exchange algorithm (which is negotiated separately via key shares).
 
-### Diffie-Hellman key exchange
+### Key exchange
 
-OpenVPN uses a 2048 bits DH key by default.
+OpenVPN historically defaulted to 2048-bit DH parameters for key exchange. This script used to offer both DH (with configurable key sizes) and ECDH as alternatives.
 
-OpenVPN 2.4 added support for ECDH keys. Elliptic curve cryptography is faster, lighter and more secure.
+OpenVPN 2.4 added ECDH support, and OpenVPN 2.7 made `dh none` (ECDH) the default, as finite-field DH is being deprecated. Since ECDH is now universally supported and preferred, this script no longer offers traditional DH.
 
-Also, generating a classic DH keys can take a long, looong time. ECDH keys are ephemeral: they are generated on-the-fly.
+The script configures `tls-groups` with the following preference list:
 
-The script provides the following options:
+```
+X25519:prime256v1:secp384r1:secp521r1
+```
 
-- ECDH: `prime256v1`/`secp384r1`/`secp521r1` curves
-- DH: `2048`/`3072`/`4096` bits keys
+- **X25519**: Fast, modern curve (Curve25519), widely supported
+- **prime256v1**: NIST P-256, most compatible
+- **secp384r1**: NIST P-384, higher security
+- **secp521r1**: NIST P-521, highest security
 
-It defaults to `prime256v1`.
+You can customize this with `--tls-groups`.
 
 ### HMAC digest algorithm
 
