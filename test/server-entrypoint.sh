@@ -665,7 +665,7 @@ echo "Allowing routing to stabilize..."
 sleep 3
 
 # =====================================================
-# Wait for initial client tests to complete (relies on job timeout)
+# Wait for initial client tests to complete
 # =====================================================
 echo ""
 echo "=== Waiting for initial client connectivity tests ==="
@@ -703,7 +703,7 @@ echo "Copied $REVOKE_CLIENT config to /shared/"
 # Signal client that revoke test config is ready
 touch /shared/revoke-client-config-ready
 
-# Wait for client to confirm connection with revoke test client (relies on job timeout)
+# Wait for client to confirm connection with revoke test client
 echo "Waiting for client to connect with '$REVOKE_CLIENT' certificate..."
 while [ ! -f /shared/revoke-client-connected ]; do
 	sleep 2
@@ -750,7 +750,7 @@ echo "=== Server Status Tests PASSED ==="
 # Signal client to disconnect before revocation
 touch /shared/revoke-client-disconnect
 
-# Wait for client to disconnect (relies on job timeout)
+# Wait for client to disconnect
 echo "Waiting for client to disconnect..."
 while [ ! -f /shared/revoke-client-disconnected ]; do
 	sleep 2
@@ -782,7 +782,7 @@ fi
 # Signal client to try reconnecting (should fail)
 touch /shared/revoke-try-reconnect
 
-# Wait for client to confirm that connection with revoked cert failed (relies on job timeout)
+# Wait for client to confirm that connection with revoked cert failed
 echo "Waiting for client to confirm revoked cert connection failure..."
 while [ ! -f /shared/revoke-reconnect-failed ]; do
 	sleep 2
@@ -923,7 +923,7 @@ echo "Copied new $REVOKE_CLIENT config to /shared/"
 # Signal client that new config is ready
 touch /shared/new-client-config-ready
 
-# Wait for client to confirm successful connection with new cert (relies on job timeout)
+# Wait for client to confirm successful connection with new cert
 echo "Waiting for client to connect with new '$REVOKE_CLIENT' certificate..."
 while [ ! -f /shared/new-client-connected ]; do
 	sleep 2
@@ -994,7 +994,7 @@ echo "Copied $PASSPHRASE_CLIENT config and passphrase to /shared/"
 # Signal client that passphrase test config is ready
 touch /shared/passphrase-client-config-ready
 
-# Wait for client to confirm connection with passphrase client (relies on job timeout)
+# Wait for client to confirm connection with passphrase client
 echo "Waiting for client to connect with '$PASSPHRASE_CLIENT' certificate..."
 while [ ! -f /shared/passphrase-client-connected ]; do
 	sleep 2

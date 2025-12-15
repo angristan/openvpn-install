@@ -12,7 +12,7 @@ fi
 
 echo "TUN device ready"
 
-# Wait for client config to be available (relies on job timeout)
+# Wait for client config to be available
 echo "Waiting for client config..."
 while [ ! -f /shared/client.ovpn ]; do
 	sleep 2
@@ -37,7 +37,7 @@ fi
 echo "Connecting to OpenVPN server..."
 openvpn --config /shared/client.ovpn --daemon --log /var/log/openvpn.log
 
-# Wait for connection (relies on job timeout)
+# Wait for connection
 echo "Waiting for VPN connection..."
 while ! ip addr show tun0 2>/dev/null | grep -q "inet "; do
 	sleep 2
@@ -116,7 +116,7 @@ echo "=== Starting Certificate Revocation E2E Tests ==="
 
 REVOKE_CLIENT="revoketest"
 
-# Wait for revoke test client config (relies on job timeout)
+# Wait for revoke test client config
 echo "Waiting for revoke test client config..."
 while [ ! -f /shared/revoke-client-config-ready ]; do
 	sleep 2
@@ -139,7 +139,7 @@ sleep 2
 echo "Connecting with '$REVOKE_CLIENT' certificate..."
 openvpn --config "/shared/$REVOKE_CLIENT.ovpn" --daemon --log /var/log/openvpn-revoke.log
 
-# Wait for connection (relies on job timeout)
+# Wait for connection
 echo "Waiting for VPN connection with revoke test client..."
 while ! ip addr show tun0 2>/dev/null | grep -q "inet "; do
 	sleep 2
@@ -162,7 +162,7 @@ echo "PASS: Can ping VPN gateway with revoke test client"
 # Signal server that we're connected with revoke test client
 touch /shared/revoke-client-connected
 
-# Wait for server to signal us to disconnect (relies on job timeout)
+# Wait for server to signal us to disconnect
 echo "Waiting for server to signal disconnect..."
 while [ ! -f /shared/revoke-client-disconnect ]; do
 	sleep 2
@@ -190,7 +190,7 @@ echo "PASS: Disconnected successfully"
 # Signal server that we're disconnected
 touch /shared/revoke-client-disconnected
 
-# Wait for server to revoke the certificate and signal us to reconnect (relies on job timeout)
+# Wait for server to revoke the certificate and signal us to reconnect
 echo "Waiting for server to revoke certificate and signal reconnect..."
 while [ ! -f /shared/revoke-try-reconnect ]; do
 	sleep 2
@@ -201,7 +201,7 @@ echo "Attempting to reconnect with revoked certificate (should fail)..."
 rm -f /var/log/openvpn-revoke-fail.log
 openvpn --config "/shared/$REVOKE_CLIENT.ovpn" --daemon --log /var/log/openvpn-revoke-fail.log
 
-# Wait and check if connection fails (relies on job timeout)
+# Wait and check if connection fails
 # The connection should fail due to certificate being revoked
 echo "Waiting to verify connection is rejected..."
 CONNECT_FAILED=false
@@ -257,7 +257,7 @@ touch /shared/revoke-reconnect-failed
 echo ""
 echo "=== Testing connection with recreated certificate ==="
 
-# Wait for server to create new cert and signal us (relies on job timeout)
+# Wait for server to create new cert and signal us
 echo "Waiting for new client config with same name..."
 while [ ! -f /shared/new-client-config-ready ]; do
 	sleep 2
@@ -276,7 +276,7 @@ echo "Connecting with new '$REVOKE_CLIENT' certificate..."
 rm -f /var/log/openvpn-new.log
 openvpn --config "/shared/$REVOKE_CLIENT-new.ovpn" --daemon --log /var/log/openvpn-new.log
 
-# Wait for connection (relies on job timeout)
+# Wait for connection
 echo "Waiting for VPN connection with new certificate..."
 while ! ip addr show tun0 2>/dev/null | grep -q "inet "; do
 	sleep 2
@@ -310,7 +310,7 @@ echo "=== Testing PASSPHRASE-protected Client Connection ==="
 
 PASSPHRASE_CLIENT="passphrasetest"
 
-# Wait for passphrase test client config (relies on job timeout)
+# Wait for passphrase test client config
 echo "Waiting for passphrase test client config..."
 while [ ! -f /shared/passphrase-client-config-ready ]; do
 	sleep 2
@@ -338,7 +338,7 @@ sleep 2
 echo "Connecting with '$PASSPHRASE_CLIENT' certificate (passphrase-protected)..."
 openvpn --config "/shared/$PASSPHRASE_CLIENT.ovpn" --askpass "/shared/$PASSPHRASE_CLIENT.pass" --daemon --log /var/log/openvpn-passphrase.log
 
-# Wait for connection (relies on job timeout)
+# Wait for connection
 echo "Waiting for VPN connection with passphrase-protected client..."
 while ! ip addr show tun0 2>/dev/null | grep -q "inet "; do
 	sleep 2
