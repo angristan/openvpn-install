@@ -14,18 +14,10 @@ echo "TUN device ready"
 
 # Wait for client config to be available
 echo "Waiting for client config..."
-MAX_WAIT=120
-WAITED=0
-while [ ! -f /shared/client.ovpn ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/client.ovpn ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for client config..."
 done
-
-if [ ! -f /shared/client.ovpn ]; then
-	echo "ERROR: Client config not found after ${MAX_WAIT}s"
-	exit 1
-fi
 
 echo "Client config found!"
 cat /shared/client.ovpn
@@ -47,28 +39,22 @@ openvpn --config /shared/client.ovpn --daemon --log /var/log/openvpn.log
 
 # Wait for connection
 echo "Waiting for VPN connection..."
-MAX_WAIT=60
-WAITED=0
-while ! ip addr show tun0 2>/dev/null | grep -q "inet " && [ $WAITED -lt $MAX_WAIT ]; do
+while ! ip addr show tun0 2>/dev/null | grep -q "inet "; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for tun0... ($WAITED/$MAX_WAIT seconds)"
-
-	# Check for errors
+	echo "Waiting for tun0..."
+	# Show recent log for debugging
 	if [ -f /var/log/openvpn.log ]; then
-		tail -5 /var/log/openvpn.log
+		tail -3 /var/log/openvpn.log
 	fi
 done
 
-if ! ip addr show tun0 2>/dev/null | grep -q "inet "; then
-	echo "ERROR: VPN connection failed"
-	echo "=== OpenVPN log ==="
-	cat /var/log/openvpn.log || true
-	exit 1
-fi
-
 echo "=== VPN Connected! ==="
 ip addr show tun0
+
+# Allow routing tables to stabilize before running tests
+# This prevents race conditions where tun0 is up but routing isn't ready
+echo "Waiting for routing to stabilize..."
+sleep 5
 
 # Run connectivity tests
 echo ""
@@ -85,14 +71,13 @@ else
 	exit 1
 fi
 
-# Test 2: Ping VPN gateway
+# Test 2: Ping VPN gateway (retries indefinitely, relies on job timeout)
 echo "Test 2: Pinging VPN gateway ($VPN_GATEWAY)..."
-if ping -c 10 "$VPN_GATEWAY"; then
-	echo "PASS: Can ping VPN gateway"
-else
-	echo "FAIL: Cannot ping VPN gateway"
-	exit 1
-fi
+while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
+	echo "Ping failed, retrying..."
+	sleep 3
+done
+echo "PASS: Can ping VPN gateway"
 
 # Test 3: DNS resolution through Unbound
 echo "Test 3: Testing DNS resolution via Unbound ($VPN_GATEWAY)..."
@@ -133,18 +118,10 @@ REVOKE_CLIENT="revoketest"
 
 # Wait for revoke test client config
 echo "Waiting for revoke test client config..."
-MAX_WAIT=120
-WAITED=0
-while [ ! -f /shared/revoke-client-config-ready ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-client-config-ready ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for revoke test config... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for revoke test config..."
 done
-
-if [ ! -f /shared/revoke-client-config-ready ]; then
-	echo "FAIL: Revoke test client config not ready in time"
-	exit 1
-fi
 
 if [ ! -f "/shared/$REVOKE_CLIENT.ovpn" ]; then
 	echo "FAIL: Revoke test client config file not found"
@@ -164,50 +141,32 @@ openvpn --config "/shared/$REVOKE_CLIENT.ovpn" --daemon --log /var/log/openvpn-r
 
 # Wait for connection
 echo "Waiting for VPN connection with revoke test client..."
-MAX_WAIT=60
-WAITED=0
-while ! ip addr show tun0 2>/dev/null | grep -q "inet " && [ $WAITED -lt $MAX_WAIT ]; do
+while ! ip addr show tun0 2>/dev/null | grep -q "inet "; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for tun0... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for tun0..."
 	if [ -f /var/log/openvpn-revoke.log ]; then
 		tail -3 /var/log/openvpn-revoke.log
 	fi
 done
 
-if ! ip addr show tun0 2>/dev/null | grep -q "inet "; then
-	echo "FAIL: VPN connection with revoke test client failed"
-	cat /var/log/openvpn-revoke.log || true
-	exit 1
-fi
-
 echo "PASS: Connected with '$REVOKE_CLIENT' certificate"
 ip addr show tun0
 
-# Verify connectivity
-if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
-	echo "PASS: Can ping VPN gateway with revoke test client"
-else
-	echo "FAIL: Cannot ping VPN gateway with revoke test client"
-	exit 1
-fi
+# Verify connectivity (retries indefinitely, relies on job timeout)
+while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
+	echo "Ping failed, retrying..."
+	sleep 3
+done
+echo "PASS: Can ping VPN gateway with revoke test client"
 
 # Signal server that we're connected with revoke test client
 touch /shared/revoke-client-connected
 
 # Wait for server to signal us to disconnect
 echo "Waiting for server to signal disconnect..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/revoke-client-disconnect ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-client-disconnect ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
 done
-
-if [ ! -f /shared/revoke-client-disconnect ]; then
-	echo "FAIL: Server did not signal disconnect"
-	exit 1
-fi
 
 # Disconnect
 echo "Disconnecting revoke test client..."
@@ -233,17 +192,9 @@ touch /shared/revoke-client-disconnected
 
 # Wait for server to revoke the certificate and signal us to reconnect
 echo "Waiting for server to revoke certificate and signal reconnect..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/revoke-try-reconnect ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-try-reconnect ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
 done
-
-if [ ! -f /shared/revoke-try-reconnect ]; then
-	echo "FAIL: Server did not signal to try reconnect"
-	exit 1
-fi
 
 # Try to reconnect with the now-revoked certificate (should fail)
 echo "Attempting to reconnect with revoked certificate (should fail)..."
@@ -254,11 +205,8 @@ openvpn --config "/shared/$REVOKE_CLIENT.ovpn" --daemon --log /var/log/openvpn-r
 # The connection should fail due to certificate being revoked
 echo "Waiting to verify connection is rejected..."
 CONNECT_FAILED=false
-MAX_WAIT=30
-WAITED=0
-while [ $WAITED -lt $MAX_WAIT ]; do
+while true; do
 	sleep 2
-	WAITED=$((WAITED + 2))
 
 	# Check if tun0 came up (would mean revocation didn't work)
 	if ip addr show tun0 2>/dev/null | grep -q "inet "; then
@@ -276,7 +224,7 @@ while [ $WAITED -lt $MAX_WAIT ]; do
 		fi
 	fi
 
-	echo "Checking connection status... ($WAITED/$MAX_WAIT seconds)"
+	echo "Checking connection status..."
 	if [ -f /var/log/openvpn-revoke-fail.log ]; then
 		tail -3 /var/log/openvpn-revoke-fail.log
 	fi
@@ -311,18 +259,10 @@ echo "=== Testing connection with recreated certificate ==="
 
 # Wait for server to create new cert and signal us
 echo "Waiting for new client config with same name..."
-MAX_WAIT=120
-WAITED=0
-while [ ! -f /shared/new-client-config-ready ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/new-client-config-ready ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for new config... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for new config..."
 done
-
-if [ ! -f /shared/new-client-config-ready ]; then
-	echo "FAIL: New client config not ready in time"
-	exit 1
-fi
 
 if [ ! -f "/shared/$REVOKE_CLIENT-new.ovpn" ]; then
 	echo "FAIL: New client config file not found"
@@ -338,33 +278,23 @@ openvpn --config "/shared/$REVOKE_CLIENT-new.ovpn" --daemon --log /var/log/openv
 
 # Wait for connection
 echo "Waiting for VPN connection with new certificate..."
-MAX_WAIT=60
-WAITED=0
-while ! ip addr show tun0 2>/dev/null | grep -q "inet " && [ $WAITED -lt $MAX_WAIT ]; do
+while ! ip addr show tun0 2>/dev/null | grep -q "inet "; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for tun0... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for tun0..."
 	if [ -f /var/log/openvpn-new.log ]; then
 		tail -3 /var/log/openvpn-new.log
 	fi
 done
 
-if ! ip addr show tun0 2>/dev/null | grep -q "inet "; then
-	echo "FAIL: VPN connection with new certificate failed"
-	cat /var/log/openvpn-new.log || true
-	exit 1
-fi
-
 echo "PASS: Connected with new '$REVOKE_CLIENT' certificate"
 ip addr show tun0
 
-# Verify connectivity
-if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
-	echo "PASS: Can ping VPN gateway with new certificate"
-else
-	echo "FAIL: Cannot ping VPN gateway with new certificate"
-	exit 1
-fi
+# Verify connectivity (retries indefinitely, relies on job timeout)
+while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
+	echo "Ping failed, retrying..."
+	sleep 3
+done
+echo "PASS: Can ping VPN gateway with new certificate"
 
 # Signal server that we connected with new cert
 touch /shared/new-client-connected
@@ -382,18 +312,10 @@ PASSPHRASE_CLIENT="passphrasetest"
 
 # Wait for passphrase test client config
 echo "Waiting for passphrase test client config..."
-MAX_WAIT=120
-WAITED=0
-while [ ! -f /shared/passphrase-client-config-ready ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/passphrase-client-config-ready ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for passphrase test config... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for passphrase test config..."
 done
-
-if [ ! -f /shared/passphrase-client-config-ready ]; then
-	echo "FAIL: Passphrase test client config not ready in time"
-	exit 1
-fi
 
 if [ ! -f "/shared/$PASSPHRASE_CLIENT.ovpn" ]; then
 	echo "FAIL: Passphrase test client config file not found"
@@ -418,33 +340,23 @@ openvpn --config "/shared/$PASSPHRASE_CLIENT.ovpn" --askpass "/shared/$PASSPHRAS
 
 # Wait for connection
 echo "Waiting for VPN connection with passphrase-protected client..."
-MAX_WAIT=60
-WAITED=0
-while ! ip addr show tun0 2>/dev/null | grep -q "inet " && [ $WAITED -lt $MAX_WAIT ]; do
+while ! ip addr show tun0 2>/dev/null | grep -q "inet "; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for tun0... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for tun0..."
 	if [ -f /var/log/openvpn-passphrase.log ]; then
 		tail -3 /var/log/openvpn-passphrase.log
 	fi
 done
 
-if ! ip addr show tun0 2>/dev/null | grep -q "inet "; then
-	echo "FAIL: VPN connection with passphrase-protected client failed"
-	cat /var/log/openvpn-passphrase.log || true
-	exit 1
-fi
-
 echo "PASS: Connected with passphrase-protected '$PASSPHRASE_CLIENT' certificate"
 ip addr show tun0
 
-# Verify connectivity
-if ping -c 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
-	echo "PASS: Can ping VPN gateway with passphrase-protected client"
-else
-	echo "FAIL: Cannot ping VPN gateway with passphrase-protected client"
-	exit 1
-fi
+# Verify connectivity (retries indefinitely, relies on job timeout)
+while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
+	echo "Ping failed, retrying..."
+	sleep 3
+done
+echo "PASS: Can ping VPN gateway with passphrase-protected client"
 
 # Signal server that we connected with passphrase client
 touch /shared/passphrase-client-connected

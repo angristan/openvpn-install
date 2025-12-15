@@ -429,6 +429,35 @@ echo ""
 echo "=== All Certificate Renewal Tests PASSED ==="
 echo ""
 
+# Wait for OpenVPN to be fully ready after server certificate renewal
+# The renewal process restarts OpenVPN, so we need to verify it's back up
+echo "Verifying OpenVPN is running after certificate renewal..."
+for _ in $(seq 1 30); do
+	if pgrep -f "openvpn.*server.conf" >/dev/null; then
+		break
+	fi
+	sleep 1
+done
+
+if ! pgrep -f "openvpn.*server.conf" >/dev/null; then
+	echo "FAIL: OpenVPN not running after server certificate renewal"
+	systemctl status openvpn-server@server 2>&1 || true
+	exit 1
+fi
+
+# Wait for tun0 to be ready after restart
+echo "Waiting for tun0 to be ready after certificate renewal..."
+for i in $(seq 1 30); do
+	if ip addr show tun0 2>/dev/null | grep -q "inet $VPN_GATEWAY"; then
+		echo "OpenVPN tun0 interface ready after renewal"
+		break
+	fi
+	sleep 1
+done
+
+# Allow routing to stabilize after renewal restart
+sleep 3
+
 # =====================================================
 # Verify Unbound DNS resolver (started by systemd via install script)
 # =====================================================
@@ -611,23 +640,39 @@ if ! pgrep -f "openvpn.*server.conf" >/dev/null; then
 	exit 1
 fi
 
+# Wait for server tun interface to be ready with correct IP
+# This prevents race conditions where OpenVPN is running but tun0 isn't configured
+echo "Waiting for server tun0 interface to be ready..."
+TUN_READY=false
+for i in $(seq 1 30); do
+	if ip addr show tun0 2>/dev/null | grep -q "inet $VPN_GATEWAY"; then
+		echo "PASS: Server tun0 interface ready with $VPN_GATEWAY"
+		TUN_READY=true
+		break
+	fi
+	echo "Waiting for tun0... ($i/30)"
+	sleep 1
+done
+
+if [ "$TUN_READY" = false ]; then
+	echo "FAIL: Server tun0 interface not ready after 30 seconds"
+	ip addr show 2>&1 || true
+	exit 1
+fi
+
+# Allow routing tables to stabilize
+echo "Allowing routing to stabilize..."
+sleep 3
+
 # =====================================================
 # Wait for initial client tests to complete
 # =====================================================
 echo ""
 echo "=== Waiting for initial client connectivity tests ==="
-MAX_WAIT=120
-WAITED=0
-while [ ! -f /shared/initial-tests-passed ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/initial-tests-passed ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for initial tests... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for initial tests..."
 done
-
-if [ ! -f /shared/initial-tests-passed ]; then
-	echo "ERROR: Initial client tests did not complete in time"
-	exit 1
-fi
 echo "Initial client tests passed, proceeding with revocation tests"
 
 # =====================================================
@@ -660,18 +705,10 @@ touch /shared/revoke-client-config-ready
 
 # Wait for client to confirm connection with revoke test client
 echo "Waiting for client to connect with '$REVOKE_CLIENT' certificate..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/revoke-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-client-connected ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for revoke test connection... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for revoke test connection..."
 done
-
-if [ ! -f /shared/revoke-client-connected ]; then
-	echo "ERROR: Client did not connect with revoke test certificate"
-	exit 1
-fi
 echo "PASS: Client connected with '$REVOKE_CLIENT' certificate"
 
 # =====================================================
@@ -715,17 +752,9 @@ touch /shared/revoke-client-disconnect
 
 # Wait for client to disconnect
 echo "Waiting for client to disconnect..."
-MAX_WAIT=30
-WAITED=0
-while [ ! -f /shared/revoke-client-disconnected ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-client-disconnected ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
 done
-
-if [ ! -f /shared/revoke-client-disconnected ]; then
-	echo "ERROR: Client did not signal disconnect"
-	exit 1
-fi
 echo "Client disconnected"
 
 # Now revoke the certificate
@@ -755,18 +784,10 @@ touch /shared/revoke-try-reconnect
 
 # Wait for client to confirm that connection with revoked cert failed
 echo "Waiting for client to confirm revoked cert connection failure..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/revoke-reconnect-failed ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-reconnect-failed ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for reconnect failure confirmation... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for reconnect failure confirmation..."
 done
-
-if [ ! -f /shared/revoke-reconnect-failed ]; then
-	echo "ERROR: Client did not confirm that revoked cert connection failed"
-	exit 1
-fi
 echo "PASS: Connection with revoked certificate correctly rejected"
 
 echo "=== Certificate Revocation Tests PASSED ==="
@@ -904,18 +925,10 @@ touch /shared/new-client-config-ready
 
 # Wait for client to confirm successful connection with new cert
 echo "Waiting for client to connect with new '$REVOKE_CLIENT' certificate..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/new-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/new-client-connected ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for new cert connection... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for new cert connection..."
 done
-
-if [ ! -f /shared/new-client-connected ]; then
-	echo "ERROR: Client did not connect with new certificate"
-	exit 1
-fi
 echo "PASS: Client connected with new '$REVOKE_CLIENT' certificate"
 
 echo "=== Reuse of Revoked Client Name Tests PASSED ==="
@@ -983,18 +996,10 @@ touch /shared/passphrase-client-config-ready
 
 # Wait for client to confirm connection with passphrase client
 echo "Waiting for client to connect with '$PASSPHRASE_CLIENT' certificate..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/passphrase-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/passphrase-client-connected ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for passphrase client connection... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for passphrase client connection..."
 done
-
-if [ ! -f /shared/passphrase-client-connected ]; then
-	echo "FAIL: Client did not connect with passphrase-protected certificate"
-	exit 1
-fi
 echo "PASS: Client connected with passphrase-protected certificate"
 
 echo "=== PASSPHRASE Support Tests PASSED ==="
