@@ -781,6 +781,13 @@ cmd_install() {
 		# Multi-client
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
 
+		# MTU
+		if [[ -n $MTU ]]; then
+			MTU_CHOICE=2
+		else
+			MTU_CHOICE=${MTU_CHOICE:-1}
+		fi
+
 		# Encryption - always set defaults for any missing values
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
 		set_default_encryption
@@ -806,6 +813,7 @@ cmd_install() {
 		SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		CONTINUE=y
 
+		installQuestions
 		installOpenVPN
 	fi
 }
@@ -2135,9 +2143,6 @@ function installOpenVPN() {
 		log_info "  CLIENT_CERT_DURATION_DAYS=$CLIENT_CERT_DURATION_DAYS"
 		log_info "  SERVER_CERT_DURATION_DAYS=$SERVER_CERT_DURATION_DAYS"
 	fi
-
-	# Run setup questions first, and set other variables if auto-install
-	installQuestions
 
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
