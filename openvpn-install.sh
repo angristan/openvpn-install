@@ -2630,10 +2630,9 @@ persist-tun
 keepalive 10 120
 topology subnet" >>/etc/openvpn/server/server.conf
 
-	# IPv4 server directive (only if clients get IPv4)
-	if [[ $CLIENT_IPV4 == "y" ]]; then
-		echo "server $VPN_SUBNET_IPV4 255.255.255.0" >>/etc/openvpn/server/server.conf
-	fi
+	# IPv4 server directive - always assign IPv4 to clients for proper routing
+	# Even for IPv6-only mode, we need IPv4 addresses so redirect-gateway def1 can block IPv4 leaks
+	echo "server $VPN_SUBNET_IPV4 255.255.255.0" >>/etc/openvpn/server/server.conf
 
 	# IPv6 server directive (only if clients get IPv6)
 	if [[ $CLIENT_IPV6 == "y" ]]; then
@@ -2678,44 +2677,104 @@ topology subnet" >>/etc/openvpn/server/server.conf
 		fi
 		;;
 	3) # Cloudflare
-		echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2606:4700:4700::1001"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2606:4700:4700::1111"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	4) # Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2620:fe::fe"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2620:fe::9"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	5) # Quad9 uncensored
-		echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2620:fe::10"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2620:fe::fe:10"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	6) # FDN
-		echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2001:910:800::40"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2001:910:800::12"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	7) # DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2001:1608:10:25::1c04:b12f"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2001:1608:10:25::9249:d69b"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	8) # OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2620:119:35::35"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2620:119:53::53"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	9) # Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2001:4860:4860::8888"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2001:4860:4860::8844"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	10) # Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2a02:6b8::feed:0ff"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2a02:6b8:0:1::feed:0ff"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	11) # AdGuard DNS
-		echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2a10:50c0::ad1:ff"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2a10:50c0::ad2:ff"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	12) # NextDNS
-		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2a07:a8c0::"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2a07:a8c1::"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	13) # Custom DNS
 		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server/server.conf
@@ -2725,13 +2784,16 @@ topology subnet" >>/etc/openvpn/server/server.conf
 		;;
 	esac
 
-	# Redirect gateway settings based on client IP versions
-	if [[ $CLIENT_IPV4 == "y" ]]; then
-		echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server/server.conf
-	fi
+	# Redirect gateway settings - always redirect both IPv4 and IPv6 to prevent leaks
+	# For IPv4: redirect-gateway def1 routes all IPv4 through VPN (or drops it if IPv4 not configured)
+	# For IPv6: route-ipv6 + redirect-gateway ipv6 routes all IPv6, or block-ipv6 drops it
+	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server/server.conf
 	if [[ $CLIENT_IPV6 == "y" ]]; then
 		echo 'push "route-ipv6 2000::/3"' >>/etc/openvpn/server/server.conf
 		echo 'push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
+	else
+		# Block IPv6 on clients to prevent IPv6 leaks when VPN only handles IPv4
+		echo 'push "block-ipv6"' >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ -n $MTU ]]; then
