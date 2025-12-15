@@ -54,7 +54,8 @@ That said, OpenVPN still makes sense when you need:
 - Flexible IPv4/IPv6 support:
   - IPv4 or IPv6 server endpoint (how clients connect)
   - IPv4-only, IPv6-only, or dual-stack clients (VPN addressing and internet access)
-  - All combinations supported: 4→4, 4→4/6, 6→4, 6→6, 6→4/6
+  - All combinations supported: 4→4, 4→4/6, 4→6, 6→4, 6→6, 6→4/6
+  - Automatic leak prevention: blocks undesired protocol in single-stack modes
 - Unprivileged mode: run as `nobody`/`nogroup`
 - Block DNS leaks on Windows 10
 - Randomised server certificate name
