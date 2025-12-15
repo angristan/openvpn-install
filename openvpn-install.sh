@@ -228,9 +228,10 @@ show_install_help() {
 				Curves: prime256v1, secp384r1, secp521r1
 			--rsa-bits <size>     RSA key size: 2048, 3072, 4096 (default: 2048)
 			--cc-cipher <cipher>  Control channel cipher (auto-selected)
-			--dh-type <type>      DH type: ecdh or dh (default: ecdh)
-			--dh-curve <curve>    ECDH curve (default: prime256v1)
-			--dh-bits <size>      DH key size: 2048, 3072, 4096 (default: 2048)
+			--tls-version-min <ver>  Minimum TLS version: 1.2 or 1.3 (default: 1.2)
+			--tls-ciphersuites <list>  TLS 1.3 cipher suites, colon-separated
+			--tls-groups <list>   Key exchange groups, colon-separated
+				(default: X25519:prime256v1:secp384r1:secp521r1)
 			--hmac <alg>          HMAC algorithm: SHA256, SHA384, SHA512 (default: SHA256)
 			--tls-sig <mode>      TLS mode: crypt-v2, crypt, auth (default: crypt-v2)
 			--server-cert-days <n>  Server cert validity in days (default: 3650)
@@ -460,8 +461,11 @@ set_default_encryption() {
 	CERT_TYPE="${CERT_TYPE:-1}" # ECDSA
 	CERT_CURVE="${CERT_CURVE:-prime256v1}"
 	CC_CIPHER="${CC_CIPHER:-TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256}"
-	DH_TYPE="${DH_TYPE:-1}" # ECDH
-	DH_CURVE="${DH_CURVE:-prime256v1}"
+	# TLS 1.3 cipher suites (OpenSSL format with underscores)
+	TLS13_CIPHERSUITES="${TLS13_CIPHERSUITES:-TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256}"
+	TLS_VERSION_MIN="${TLS_VERSION_MIN:-1.2}"
+	# TLS key exchange groups (replaces deprecated ecdh-curve)
+	TLS_GROUPS="${TLS_GROUPS:-X25519:prime256v1:secp384r1:secp521r1}"
 	HMAC_ALG="${HMAC_ALG:-SHA256}"
 	TLS_SIG="${TLS_SIG:-1}" # tls-crypt-v2
 }
@@ -656,28 +660,24 @@ cmd_install() {
 			CUSTOMIZE_ENC=y
 			shift 2
 			;;
-		--dh-type)
-			[[ -z "${2:-}" ]] && log_fatal "--dh-type requires an argument"
+		--tls-ciphersuites)
+			[[ -z "${2:-}" ]] && log_fatal "--tls-ciphersuites requires an argument"
+			TLS13_CIPHERSUITES="$2"
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--tls-version-min)
+			[[ -z "${2:-}" ]] && log_fatal "--tls-version-min requires an argument"
 			case "$2" in
-			ecdh) DH_TYPE=1 ;;
-			dh) DH_TYPE=2 ;;
-			*) log_fatal "Invalid dh-type: $2. Use 'ecdh' or 'dh'." ;;
+			1.2 | 1.3) TLS_VERSION_MIN="$2" ;;
+			*) log_fatal "Invalid TLS version: $2. Use '1.2' or '1.3'." ;;
 			esac
 			CUSTOMIZE_ENC=y
 			shift 2
 			;;
-		--dh-curve)
-			[[ -z "${2:-}" ]] && log_fatal "--dh-curve requires an argument"
-			DH_CURVE=$(parse_curve "$2")
-			CUSTOMIZE_ENC=y
-			shift 2
-			;;
-		--dh-bits)
-			[[ -z "${2:-}" ]] && log_fatal "--dh-bits requires an argument"
-			case "$2" in
-			2048 | 3072 | 4096) DH_KEY_SIZE="$2" ;;
-			*) log_fatal "Invalid DH key size: $2. Use 2048, 3072, or 4096." ;;
-			esac
+		--tls-groups)
+			[[ -z "${2:-}" ]] && log_fatal "--tls-groups requires an argument"
+			TLS_GROUPS="$2"
 			CUSTOMIZE_ENC=y
 			shift 2
 			;;
@@ -781,11 +781,9 @@ cmd_install() {
 		# Multi-client
 		MULTI_CLIENT=${MULTI_CLIENT:-n}
 
-		# Encryption
+		# Encryption - always set defaults for any missing values
 		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
-		if [[ $CUSTOMIZE_ENC == "n" ]]; then
-			set_default_encryption
-		fi
+		set_default_encryption
 
 		# Client setup
 		if [[ $no_client == true ]]; then
@@ -1856,8 +1854,9 @@ function installQuestions() {
 		CERT_TYPE="1" # ECDSA
 		CERT_CURVE="prime256v1"
 		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
-		DH_TYPE="1" # ECDH
-		DH_CURVE="prime256v1"
+		TLS13_CIPHERSUITES="TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256"
+		TLS_VERSION_MIN="1.2"
+		TLS_GROUPS="X25519:prime256v1:secp384r1:secp521r1"
 		HMAC_ALG="SHA256"
 		TLS_SIG="1" # tls-crypt-v2
 	else
@@ -1990,54 +1989,60 @@ function installQuestions() {
 			;;
 		esac
 		log_menu ""
-		log_prompt "Choose what kind of Diffie-Hellman key you want to use:"
-		log_menu "   1) ECDH (recommended)"
-		log_menu "   2) DH"
-		until [[ $DH_TYPE =~ [1-2] ]]; do
-			read -rp "DH key type [1-2]: " -e -i 1 DH_TYPE
+		log_prompt "Choose the minimum TLS version:"
+		log_menu "   1) TLS 1.2 (recommended, compatible with all clients)"
+		log_menu "   2) TLS 1.3 (more secure, requires OpenVPN 2.5+ clients)"
+		until [[ $TLS_VERSION_MIN_CHOICE =~ ^[1-2]$ ]]; do
+			read -rp "Minimum TLS version [1-2]: " -e -i 1 TLS_VERSION_MIN_CHOICE
 		done
-		case $DH_TYPE in
+		case $TLS_VERSION_MIN_CHOICE in
 		1)
-			log_menu ""
-			log_prompt "Choose which curve you want to use for the ECDH key:"
-			log_menu "   1) prime256v1 (recommended)"
-			log_menu "   2) secp384r1"
-			log_menu "   3) secp521r1"
-			while [[ $DH_CURVE_CHOICE != "1" && $DH_CURVE_CHOICE != "2" && $DH_CURVE_CHOICE != "3" ]]; do
-				read -rp "Curve [1-3]: " -e -i 1 DH_CURVE_CHOICE
-			done
-			case $DH_CURVE_CHOICE in
-			1)
-				DH_CURVE="prime256v1"
-				;;
-			2)
-				DH_CURVE="secp384r1"
-				;;
-			3)
-				DH_CURVE="secp521r1"
-				;;
-			esac
+			TLS_VERSION_MIN="1.2"
 			;;
 		2)
-			log_menu ""
-			log_prompt "Choose what size of Diffie-Hellman key you want to use:"
-			log_menu "   1) 2048 bits (recommended)"
-			log_menu "   2) 3072 bits"
-			log_menu "   3) 4096 bits"
-			until [[ $DH_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "DH key size [1-3]: " -e -i 1 DH_KEY_SIZE_CHOICE
-			done
-			case $DH_KEY_SIZE_CHOICE in
-			1)
-				DH_KEY_SIZE="2048"
-				;;
-			2)
-				DH_KEY_SIZE="3072"
-				;;
-			3)
-				DH_KEY_SIZE="4096"
-				;;
-			esac
+			TLS_VERSION_MIN="1.3"
+			;;
+		esac
+		log_menu ""
+		log_prompt "Choose TLS 1.3 cipher suites (used when TLS 1.3 is negotiated):"
+		log_menu "   1) All secure ciphers (recommended)"
+		log_menu "   2) AES-256-GCM only"
+		log_menu "   3) AES-128-GCM only"
+		log_menu "   4) ChaCha20-Poly1305 only"
+		until [[ $TLS13_CIPHER_CHOICE =~ ^[1-4]$ ]]; do
+			read -rp "TLS 1.3 cipher suite [1-4]: " -e -i 1 TLS13_CIPHER_CHOICE
+		done
+		case $TLS13_CIPHER_CHOICE in
+		1)
+			TLS13_CIPHERSUITES="TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256"
+			;;
+		2)
+			TLS13_CIPHERSUITES="TLS_AES_256_GCM_SHA384"
+			;;
+		3)
+			TLS13_CIPHERSUITES="TLS_AES_128_GCM_SHA256"
+			;;
+		4)
+			TLS13_CIPHERSUITES="TLS_CHACHA20_POLY1305_SHA256"
+			;;
+		esac
+		log_menu ""
+		log_prompt "Choose TLS key exchange groups (for ECDH key exchange):"
+		log_menu "   1) All modern curves (recommended)"
+		log_menu "   2) X25519 only (most secure, may have compatibility issues)"
+		log_menu "   3) NIST curves only (prime256v1, secp384r1, secp521r1)"
+		until [[ $TLS_GROUPS_CHOICE =~ ^[1-3]$ ]]; do
+			read -rp "TLS groups [1-3]: " -e -i 1 TLS_GROUPS_CHOICE
+		done
+		case $TLS_GROUPS_CHOICE in
+		1)
+			TLS_GROUPS="X25519:prime256v1:secp384r1:secp521r1"
+			;;
+		2)
+			TLS_GROUPS="X25519"
+			;;
+		3)
+			TLS_GROUPS="prime256v1:secp384r1:secp521r1"
 			;;
 		esac
 		log_menu ""
@@ -2271,11 +2276,6 @@ function installOpenVPN() {
 		log_info "Building CA..."
 		run_cmd_fatal "Building CA" ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
 
-		if [[ $DH_TYPE == "2" ]]; then
-			# ECDH keys are generated on-the-fly so we don't need to generate them beforehand
-			run_cmd_fatal "Generating DH parameters (this may take a while)" openssl dhparam -out dh.pem "$DH_KEY_SIZE"
-		fi
-
 		export EASYRSA_CERT_EXPIRE=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 		log_info "Building server certificate..."
 		run_cmd_fatal "Building server certificate" ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
@@ -2307,9 +2307,6 @@ function installOpenVPN() {
 	# Move all the generated files
 	log_info "Copying certificates..."
 	run_cmd_fatal "Copying certificates to /etc/openvpn/server" cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server
-	if [[ $DH_TYPE == "2" ]]; then
-		run_cmd_fatal "Copying DH parameters" cp dh.pem /etc/openvpn/server
-	fi
 
 	# Make cert revocation list readable for non-root
 	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/server/crl.pem
@@ -2430,12 +2427,9 @@ push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
 		echo "tun-mtu $MTU" >>/etc/openvpn/server/server.conf
 	fi
 
-	if [[ $DH_TYPE == "1" ]]; then
-		echo "dh none" >>/etc/openvpn/server/server.conf
-		echo "ecdh-curve $DH_CURVE" >>/etc/openvpn/server/server.conf
-	elif [[ $DH_TYPE == "2" ]]; then
-		echo "dh dh.pem" >>/etc/openvpn/server/server.conf
-	fi
+	# Use ECDH key exchange (dh none) with tls-groups for curve negotiation
+	echo "dh none" >>/etc/openvpn/server/server.conf
+	echo "tls-groups $TLS_GROUPS" >>/etc/openvpn/server/server.conf
 
 	case $TLS_SIG in
 	1)
@@ -2459,9 +2453,10 @@ ignore-unknown-option data-ciphers
 data-ciphers $CIPHER
 ncp-ciphers $CIPHER
 tls-server
-tls-version-min 1.2
+tls-version-min $TLS_VERSION_MIN
 remote-cert-tls client
 tls-cipher $CC_CIPHER
+tls-ciphersuites $TLS13_CIPHERSUITES
 client-config-dir ccd
 status /var/log/openvpn/status.log
 verb 3" >>/etc/openvpn/server/server.conf
@@ -2689,8 +2684,9 @@ ignore-unknown-option data-ciphers
 data-ciphers $CIPHER
 ncp-ciphers $CIPHER
 tls-client
-tls-version-min 1.2
+tls-version-min $TLS_VERSION_MIN
 tls-cipher $CC_CIPHER
+tls-ciphersuites $TLS13_CIPHERSUITES
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
 verb 3" >>/etc/openvpn/server/client-template.txt
