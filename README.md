@@ -44,6 +44,7 @@ That said, OpenVPN still makes sense when you need:
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
 - Configurable VPN subnet (default: `10.8.0.0/24`)
+- Configurable tunnel MTU (default: `1500`)
 - If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
 - Uses latest OpenVPN features when available (see [Security and Encryption](#security-and-encryption) below)
@@ -272,6 +273,7 @@ The `install` command supports many options for customization:
 - `--port <num>` - OpenVPN port (default: `1194`)
 - `--port-random` - Use random port (49152-65535)
 - `--protocol <udp|tcp>` - Protocol (default: `udp`)
+- `--mtu <size>` - Tunnel MTU (default: `1500`)
 
 **DNS Options:**
 
