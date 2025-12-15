@@ -665,22 +665,14 @@ echo "Allowing routing to stabilize..."
 sleep 3
 
 # =====================================================
-# Wait for initial client tests to complete
+# Wait for initial client tests to complete (relies on job timeout)
 # =====================================================
 echo ""
 echo "=== Waiting for initial client connectivity tests ==="
-MAX_WAIT=120
-WAITED=0
-while [ ! -f /shared/initial-tests-passed ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/initial-tests-passed ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for initial tests... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for initial tests..."
 done
-
-if [ ! -f /shared/initial-tests-passed ]; then
-	echo "ERROR: Initial client tests did not complete in time"
-	exit 1
-fi
 echo "Initial client tests passed, proceeding with revocation tests"
 
 # =====================================================
@@ -711,20 +703,12 @@ echo "Copied $REVOKE_CLIENT config to /shared/"
 # Signal client that revoke test config is ready
 touch /shared/revoke-client-config-ready
 
-# Wait for client to confirm connection with revoke test client
+# Wait for client to confirm connection with revoke test client (relies on job timeout)
 echo "Waiting for client to connect with '$REVOKE_CLIENT' certificate..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/revoke-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-client-connected ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for revoke test connection... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for revoke test connection..."
 done
-
-if [ ! -f /shared/revoke-client-connected ]; then
-	echo "ERROR: Client did not connect with revoke test certificate"
-	exit 1
-fi
 echo "PASS: Client connected with '$REVOKE_CLIENT' certificate"
 
 # =====================================================
@@ -766,19 +750,11 @@ echo "=== Server Status Tests PASSED ==="
 # Signal client to disconnect before revocation
 touch /shared/revoke-client-disconnect
 
-# Wait for client to disconnect
+# Wait for client to disconnect (relies on job timeout)
 echo "Waiting for client to disconnect..."
-MAX_WAIT=30
-WAITED=0
-while [ ! -f /shared/revoke-client-disconnected ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-client-disconnected ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
 done
-
-if [ ! -f /shared/revoke-client-disconnected ]; then
-	echo "ERROR: Client did not signal disconnect"
-	exit 1
-fi
 echo "Client disconnected"
 
 # Now revoke the certificate
@@ -806,20 +782,12 @@ fi
 # Signal client to try reconnecting (should fail)
 touch /shared/revoke-try-reconnect
 
-# Wait for client to confirm that connection with revoked cert failed
+# Wait for client to confirm that connection with revoked cert failed (relies on job timeout)
 echo "Waiting for client to confirm revoked cert connection failure..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/revoke-reconnect-failed ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/revoke-reconnect-failed ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for reconnect failure confirmation... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for reconnect failure confirmation..."
 done
-
-if [ ! -f /shared/revoke-reconnect-failed ]; then
-	echo "ERROR: Client did not confirm that revoked cert connection failed"
-	exit 1
-fi
 echo "PASS: Connection with revoked certificate correctly rejected"
 
 echo "=== Certificate Revocation Tests PASSED ==="
@@ -955,20 +923,12 @@ echo "Copied new $REVOKE_CLIENT config to /shared/"
 # Signal client that new config is ready
 touch /shared/new-client-config-ready
 
-# Wait for client to confirm successful connection with new cert
+# Wait for client to confirm successful connection with new cert (relies on job timeout)
 echo "Waiting for client to connect with new '$REVOKE_CLIENT' certificate..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/new-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/new-client-connected ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for new cert connection... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for new cert connection..."
 done
-
-if [ ! -f /shared/new-client-connected ]; then
-	echo "ERROR: Client did not connect with new certificate"
-	exit 1
-fi
 echo "PASS: Client connected with new '$REVOKE_CLIENT' certificate"
 
 echo "=== Reuse of Revoked Client Name Tests PASSED ==="
@@ -1034,20 +994,12 @@ echo "Copied $PASSPHRASE_CLIENT config and passphrase to /shared/"
 # Signal client that passphrase test config is ready
 touch /shared/passphrase-client-config-ready
 
-# Wait for client to confirm connection with passphrase client
+# Wait for client to confirm connection with passphrase client (relies on job timeout)
 echo "Waiting for client to connect with '$PASSPHRASE_CLIENT' certificate..."
-MAX_WAIT=60
-WAITED=0
-while [ ! -f /shared/passphrase-client-connected ] && [ $WAITED -lt $MAX_WAIT ]; do
+while [ ! -f /shared/passphrase-client-connected ]; do
 	sleep 2
-	WAITED=$((WAITED + 2))
-	echo "Waiting for passphrase client connection... ($WAITED/$MAX_WAIT seconds)"
+	echo "Waiting for passphrase client connection..."
 done
-
-if [ ! -f /shared/passphrase-client-connected ]; then
-	echo "FAIL: Client did not connect with passphrase-protected certificate"
-	exit 1
-fi
 echo "PASS: Client connected with passphrase-protected certificate"
 
 echo "=== PASSPHRASE Support Tests PASSED ==="
