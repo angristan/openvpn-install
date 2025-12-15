@@ -289,6 +289,8 @@ The `install` command supports many options for customization:
 - `--rsa-bits <2048|3072|4096>` - RSA key size (default: `2048`)
 - `--hmac <alg>` - HMAC algorithm (default: `SHA256`). Options: `SHA256`, `SHA384`, `SHA512`
 - `--tls-sig <mode>` - TLS mode (default: `crypt-v2`). Options: `crypt-v2`, `crypt`, `auth`
+- `--tls-version-min <1.2|1.3>` - Minimum TLS version (default: `1.2`)
+- `--tls-ciphersuites <list>` - TLS 1.3 cipher suites, colon-separated (default: `TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256`)
 - `--dh-type <ecdh|dh>` - DH key exchange type (default: `ecdh`)
 - `--dh-curve <curve>` - ECDH curve (default: `prime256v1`). Options: `prime256v1`, `secp384r1`, `secp521r1`
 - `--dh-bits <2048|3072|4096>` - DH key size when using `--dh-type dh` (default: `2048`)
@@ -415,9 +417,17 @@ OpenVPN 2.6+ defaults `--allow-compression` to `no`, blocking even server-pushed
 
 OpenVPN 2.5 and earlier accepted TLS 1.0 by default, which is nearly [20 years old](https://en.wikipedia.org/wiki/Transport_Layer_Security#TLS_1.0).
 
-With `tls-version-min 1.2` we enforce TLS 1.2, which the best protocol available currently for OpenVPN.
+This script defaults to `tls-version-min 1.2` for compatibility with all OpenVPN 2.4+ clients. You can optionally set `tls-version-min 1.3` for environments where all clients support TLS 1.3.
 
-TLS 1.2 is supported since OpenVPN 2.3.3.
+**TLS 1.3 support** was added in OpenVPN 2.5 and requires OpenSSL 1.1.1+. All distributions supported by this script include OpenSSL 1.1.1 or later. TLS 1.3 offers improved security and performance with a simplified handshake.
+
+The script configures TLS 1.3 cipher suites via `--tls-ciphersuites` (separate from the TLS 1.2 `--tls-cipher` option). The default TLS 1.3 cipher suites are:
+
+- `TLS_AES_256_GCM_SHA384`
+- `TLS_AES_128_GCM_SHA256`
+- `TLS_CHACHA20_POLY1305_SHA256`
+
+TLS 1.2 is supported since OpenVPN 2.3.3. TLS 1.3 is supported since OpenVPN 2.5.
 
 ### Certificate
 
@@ -476,6 +486,8 @@ OpenVPN 2.4 added a feature called "NCP": _Negotiable Crypto Parameters_. It mea
 
 OpenVPN 2.4 will negotiate the best cipher available by default (e.g ECDHE+AES-256-GCM)
 
+#### TLS 1.2 ciphers (`--tls-cipher`)
+
 The script proposes the following options, depending on the certificate:
 
 - ECDSA:
@@ -488,6 +500,16 @@ The script proposes the following options, depending on the certificate:
   - `TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256` (requires OpenVPN 2.5+)
 
 It defaults to `TLS-ECDHE-*-WITH-AES-128-GCM-SHA256`.
+
+#### TLS 1.3 ciphers (`--tls-ciphersuites`)
+
+When TLS 1.3 is negotiated, a separate set of cipher suites is used. These are configured via `--tls-ciphersuites` and use OpenSSL naming conventions:
+
+- `TLS_AES_256_GCM_SHA384`
+- `TLS_AES_128_GCM_SHA256`
+- `TLS_CHACHA20_POLY1305_SHA256`
+
+By default, all three cipher suites are enabled. TLS 1.3 cipher suites are simpler because they don't include the key exchange algorithm (which is negotiated separately via key shares).
 
 ### Diffie-Hellman key exchange
 

@@ -228,6 +228,8 @@ show_install_help() {
 				Curves: prime256v1, secp384r1, secp521r1
 			--rsa-bits <size>     RSA key size: 2048, 3072, 4096 (default: 2048)
 			--cc-cipher <cipher>  Control channel cipher (auto-selected)
+			--tls-ciphersuites <list>  TLS 1.3 cipher suites, colon-separated
+			--tls-version-min <ver>  Minimum TLS version: 1.2 or 1.3 (default: 1.2)
 			--dh-type <type>      DH type: ecdh or dh (default: ecdh)
 			--dh-curve <curve>    ECDH curve (default: prime256v1)
 			--dh-bits <size>      DH key size: 2048, 3072, 4096 (default: 2048)
@@ -460,6 +462,9 @@ set_default_encryption() {
 	CERT_TYPE="${CERT_TYPE:-1}" # ECDSA
 	CERT_CURVE="${CERT_CURVE:-prime256v1}"
 	CC_CIPHER="${CC_CIPHER:-TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256}"
+	# TLS 1.3 cipher suites (OpenSSL format with underscores)
+	TLS13_CIPHERSUITES="${TLS13_CIPHERSUITES:-TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256}"
+	TLS_VERSION_MIN="${TLS_VERSION_MIN:-1.2}"
 	DH_TYPE="${DH_TYPE:-1}" # ECDH
 	DH_CURVE="${DH_CURVE:-prime256v1}"
 	HMAC_ALG="${HMAC_ALG:-SHA256}"
@@ -653,6 +658,21 @@ cmd_install() {
 		--cc-cipher)
 			[[ -z "${2:-}" ]] && log_fatal "--cc-cipher requires an argument"
 			CC_CIPHER="$2"
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--tls-ciphersuites)
+			[[ -z "${2:-}" ]] && log_fatal "--tls-ciphersuites requires an argument"
+			TLS13_CIPHERSUITES="$2"
+			CUSTOMIZE_ENC=y
+			shift 2
+			;;
+		--tls-version-min)
+			[[ -z "${2:-}" ]] && log_fatal "--tls-version-min requires an argument"
+			case "$2" in
+			1.2 | 1.3) TLS_VERSION_MIN="$2" ;;
+			*) log_fatal "Invalid TLS version: $2. Use '1.2' or '1.3'." ;;
+			esac
 			CUSTOMIZE_ENC=y
 			shift 2
 			;;
@@ -1990,6 +2010,44 @@ function installQuestions() {
 			;;
 		esac
 		log_menu ""
+		log_prompt "Choose the minimum TLS version:"
+		log_menu "   1) TLS 1.2 (recommended, compatible with all clients)"
+		log_menu "   2) TLS 1.3 (more secure, requires OpenVPN 2.5+ clients)"
+		until [[ $TLS_VERSION_MIN_CHOICE =~ ^[1-2]$ ]]; do
+			read -rp "Minimum TLS version [1-2]: " -e -i 1 TLS_VERSION_MIN_CHOICE
+		done
+		case $TLS_VERSION_MIN_CHOICE in
+		1)
+			TLS_VERSION_MIN="1.2"
+			;;
+		2)
+			TLS_VERSION_MIN="1.3"
+			;;
+		esac
+		log_menu ""
+		log_prompt "Choose TLS 1.3 cipher suites (used when TLS 1.3 is negotiated):"
+		log_menu "   1) All secure ciphers (recommended)"
+		log_menu "   2) AES-256-GCM only"
+		log_menu "   3) AES-128-GCM only"
+		log_menu "   4) ChaCha20-Poly1305 only"
+		until [[ $TLS13_CIPHER_CHOICE =~ ^[1-4]$ ]]; do
+			read -rp "TLS 1.3 cipher suite [1-4]: " -e -i 1 TLS13_CIPHER_CHOICE
+		done
+		case $TLS13_CIPHER_CHOICE in
+		1)
+			TLS13_CIPHERSUITES="TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256"
+			;;
+		2)
+			TLS13_CIPHERSUITES="TLS_AES_256_GCM_SHA384"
+			;;
+		3)
+			TLS13_CIPHERSUITES="TLS_AES_128_GCM_SHA256"
+			;;
+		4)
+			TLS13_CIPHERSUITES="TLS_CHACHA20_POLY1305_SHA256"
+			;;
+		esac
+		log_menu ""
 		log_prompt "Choose what kind of Diffie-Hellman key you want to use:"
 		log_menu "   1) ECDH (recommended)"
 		log_menu "   2) DH"
@@ -2459,9 +2517,10 @@ ignore-unknown-option data-ciphers
 data-ciphers $CIPHER
 ncp-ciphers $CIPHER
 tls-server
-tls-version-min 1.2
+tls-version-min $TLS_VERSION_MIN
 remote-cert-tls client
 tls-cipher $CC_CIPHER
+tls-ciphersuites $TLS13_CIPHERSUITES
 client-config-dir ccd
 status /var/log/openvpn/status.log
 verb 3" >>/etc/openvpn/server/server.conf
@@ -2689,8 +2748,9 @@ ignore-unknown-option data-ciphers
 data-ciphers $CIPHER
 ncp-ciphers $CIPHER
 tls-client
-tls-version-min 1.2
+tls-version-min $TLS_VERSION_MIN
 tls-cipher $CC_CIPHER
+tls-ciphersuites $TLS13_CIPHERSUITES
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
 verb 3" >>/etc/openvpn/server/client-template.txt

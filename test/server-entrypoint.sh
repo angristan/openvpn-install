@@ -26,6 +26,12 @@ export VPN_GATEWAY
 TLS_SIG="${TLS_SIG:-crypt-v2}"
 TLS_KEY_FILE="${TLS_KEY_FILE:-tls-crypt-v2.key}"
 
+# TLS 1.3 configuration
+# TLS_VERSION_MIN: 1.2 or 1.3
+# TLS13_CIPHERSUITES: colon-separated list of TLS 1.3 cipher suites
+TLS_VERSION_MIN="${TLS_VERSION_MIN:-1.2}"
+TLS13_CIPHERSUITES="${TLS13_CIPHERSUITES:-TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256}"
+
 # Build install command with CLI flags (using array for proper quoting)
 INSTALL_CMD=(/opt/openvpn-install.sh install)
 INSTALL_CMD+=(--endpoint openvpn-server)
@@ -38,6 +44,18 @@ INSTALL_CMD+=(--client testclient)
 if [ "$TLS_SIG" != "crypt-v2" ]; then
 	INSTALL_CMD+=(--tls-sig "$TLS_SIG")
 	echo "Testing TLS key type: $TLS_SIG (key file: $TLS_KEY_FILE)"
+fi
+
+# Add TLS version if non-default
+if [ "$TLS_VERSION_MIN" != "1.2" ]; then
+	INSTALL_CMD+=(--tls-version-min "$TLS_VERSION_MIN")
+	echo "Testing TLS version min: $TLS_VERSION_MIN"
+fi
+
+# Add TLS 1.3 ciphersuites if non-default
+if [ "$TLS13_CIPHERSUITES" != "TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256" ]; then
+	INSTALL_CMD+=(--tls-ciphersuites "$TLS13_CIPHERSUITES")
+	echo "Testing TLS 1.3 ciphersuites: $TLS13_CIPHERSUITES"
 fi
 
 echo "Running OpenVPN install script..."
@@ -218,6 +236,47 @@ echo "=== MTU configuration verified ==="
 echo ""
 echo "Server config:"
 cat /etc/openvpn/server/server.conf
+
+# =====================================================
+# Verify TLS 1.3 configuration
+# =====================================================
+echo ""
+echo "=== Verifying TLS 1.3 Configuration ==="
+
+# Verify tls-version-min is set correctly
+if grep -q "tls-version-min $TLS_VERSION_MIN" /etc/openvpn/server/server.conf; then
+	echo "PASS: tls-version-min is set to $TLS_VERSION_MIN"
+else
+	echo "FAIL: tls-version-min is not set correctly"
+	grep "tls-version-min" /etc/openvpn/server/server.conf || echo "tls-version-min not found"
+	exit 1
+fi
+
+# Verify tls-ciphersuites is set
+if grep -q "tls-ciphersuites $TLS13_CIPHERSUITES" /etc/openvpn/server/server.conf; then
+	echo "PASS: tls-ciphersuites is configured correctly"
+else
+	echo "FAIL: tls-ciphersuites is not configured correctly"
+	grep "tls-ciphersuites" /etc/openvpn/server/server.conf || echo "tls-ciphersuites not found"
+	exit 1
+fi
+
+# Verify client template also has TLS 1.3 settings
+if grep -q "tls-version-min $TLS_VERSION_MIN" /etc/openvpn/server/client-template.txt; then
+	echo "PASS: Client template has correct tls-version-min"
+else
+	echo "FAIL: Client template missing tls-version-min"
+	exit 1
+fi
+
+if grep -q "tls-ciphersuites $TLS13_CIPHERSUITES" /etc/openvpn/server/client-template.txt; then
+	echo "PASS: Client template has correct tls-ciphersuites"
+else
+	echo "FAIL: Client template missing tls-ciphersuites"
+	exit 1
+fi
+
+echo "=== TLS 1.3 Configuration Verified ==="
 
 # =====================================================
 # Test certificate renewal functionality
