@@ -510,10 +510,10 @@ validate_subnet_ipv6() {
 	# We expect formats like: fd42:42:42:42:: or fdxx:xxxx:xxxx:xxxx::
 	# The script will append /112 for the server directive
 
-	# Basic IPv6 ULA validation (fd00::/8 range)
-	# ULA format: fdxx:xxxx:xxxx:xxxx:: where x is hex
-	if ! [[ "$subnet" =~ ^fd[0-9a-fA-F]{0,2}(:[0-9a-fA-F]{0,4}){0,6}::$ ]]; then
-		log_fatal "Invalid IPv6 subnet: $subnet. Must be a ULA address ending with :: (e.g., fd42:42:42:42::)"
+	# IPv6 ULA validation (fd00::/8 range with at least /48 prefix)
+	# ULA format: fdxx:xxxx:xxxx:: or fdxx:xxxx:xxxx:xxxx:: where x is hex
+	if ! [[ "$subnet" =~ ^fd[0-9a-fA-F]{2}(:[0-9a-fA-F]{1,4}){2,5}::$ ]]; then
+		log_fatal "Invalid IPv6 subnet: $subnet. Must be a ULA address with at least a /48 prefix, ending with :: (e.g., fd42:42:42::)"
 	fi
 }
 
@@ -825,6 +825,11 @@ cmd_install() {
 		# Client IP versions
 		CLIENT_IPV4=${CLIENT_IPV4:-y}
 		CLIENT_IPV6=${CLIENT_IPV6:-n}
+
+		# Validate at least one IP version is enabled
+		if [[ $CLIENT_IPV4 != "y" ]] && [[ $CLIENT_IPV6 != "y" ]]; then
+			log_fatal "At least one of --client-ipv4 or --client-ipv6 must be enabled"
+		fi
 
 		# Set legacy IPV6_SUPPORT for compatibility
 		IPV6_SUPPORT="$CLIENT_IPV6"
