@@ -14,11 +14,21 @@ echo "TUN device ready"
 
 # Configuration for install
 export FORCE_COLOR=1
-VPN_SUBNET=10.9.0.0 # Custom subnet to test configurability
+VPN_SUBNET_IPV4=10.9.0.0 # Custom subnet to test configurability
 
 # Calculate VPN gateway from subnet (first usable IP)
-VPN_GATEWAY="${VPN_SUBNET%.*}.1"
+VPN_GATEWAY="${VPN_SUBNET_IPV4%.*}.1"
 export VPN_GATEWAY
+
+# IPv6 configuration (optional)
+# CLIENT_IPV6: y/n to enable IPv6 for VPN clients
+# VPN_SUBNET_IPV6: IPv6 subnet (ULA prefix, e.g., fd42:42:42:42::)
+CLIENT_IPV6="${CLIENT_IPV6:-n}"
+VPN_SUBNET_IPV6="${VPN_SUBNET_IPV6:-fd42:42:42:42::}"
+
+# Calculate IPv6 gateway from subnet
+VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
+export VPN_GATEWAY_IPV6
 
 # TLS key type configuration (default: tls-crypt-v2)
 # TLS_SIG: crypt-v2, crypt, auth
@@ -36,9 +46,16 @@ TLS13_CIPHERSUITES="${TLS13_CIPHERSUITES:-TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM
 INSTALL_CMD=(/opt/openvpn-install.sh install)
 INSTALL_CMD+=(--endpoint openvpn-server)
 INSTALL_CMD+=(--dns unbound)
-INSTALL_CMD+=(--subnet "$VPN_SUBNET")
+INSTALL_CMD+=(--subnet-ipv4 "$VPN_SUBNET_IPV4")
 INSTALL_CMD+=(--mtu 1400)
 INSTALL_CMD+=(--client testclient)
+
+# Add IPv6 client support if enabled
+if [ "$CLIENT_IPV6" = "y" ]; then
+	INSTALL_CMD+=(--client-ipv6)
+	INSTALL_CMD+=(--subnet-ipv6 "$VPN_SUBNET_IPV6")
+	echo "Testing with IPv6 client support enabled (subnet: $VPN_SUBNET_IPV6)"
+fi
 
 # Add TLS signature mode if non-default
 if [ "$TLS_SIG" != "crypt-v2" ]; then
@@ -147,8 +164,13 @@ sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
 echo "Client config copied to /shared/client.ovpn"
 
 # Write VPN network info to shared volume for client tests
-echo "VPN_SUBNET=$VPN_SUBNET" >/shared/vpn-config.env
+echo "VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4" >/shared/vpn-config.env
 echo "VPN_GATEWAY=$VPN_GATEWAY" >>/shared/vpn-config.env
+echo "CLIENT_IPV6=$CLIENT_IPV6" >>/shared/vpn-config.env
+if [ "$CLIENT_IPV6" = "y" ]; then
+	echo "VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6" >>/shared/vpn-config.env
+	echo "VPN_GATEWAY_IPV6=$VPN_GATEWAY_IPV6" >>/shared/vpn-config.env
+fi
 echo "VPN config written to /shared/vpn-config.env"
 
 # =====================================================
@@ -550,7 +572,7 @@ if systemctl is-active --quiet firewalld; then
 		exit 1
 	fi
 	# Verify VPN subnet rich rule exists
-	if firewall-cmd --list-rich-rules | grep -q "source address=\"$VPN_SUBNET/24\""; then
+	if firewall-cmd --list-rich-rules | grep -q "source address=\"$VPN_SUBNET_IPV4/24\""; then
 		echo "PASS: VPN subnet rich rule is configured"
 	else
 		echo "FAIL: VPN subnet rich rule not found in firewalld"
@@ -602,14 +624,14 @@ else
 	# iptables mode - verify NAT rules
 	echo "iptables mode, checking NAT rules..."
 	for _ in $(seq 1 10); do
-		if iptables -t nat -L POSTROUTING -n | grep -q "$VPN_SUBNET"; then
-			echo "PASS: NAT POSTROUTING rule for $VPN_SUBNET/24 exists"
+		if iptables -t nat -L POSTROUTING -n | grep -q "$VPN_SUBNET_IPV4"; then
+			echo "PASS: NAT POSTROUTING rule for $VPN_SUBNET_IPV4/24 exists"
 			break
 		fi
 		sleep 1
 	done
-	if ! iptables -t nat -L POSTROUTING -n | grep -q "$VPN_SUBNET"; then
-		echo "FAIL: NAT POSTROUTING rule for $VPN_SUBNET/24 not found"
+	if ! iptables -t nat -L POSTROUTING -n | grep -q "$VPN_SUBNET_IPV4"; then
+		echo "FAIL: NAT POSTROUTING rule for $VPN_SUBNET_IPV4/24 not found"
 		echo "Current NAT rules:"
 		iptables -t nat -L POSTROUTING -n -v
 		systemctl status iptables-openvpn 2>&1 || true

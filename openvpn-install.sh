@@ -204,9 +204,14 @@ show_install_help() {
 
 		Network Options:
 			--endpoint <host>     Public IP or hostname for clients (auto-detected)
+			--endpoint-type <4|6> Endpoint IP version: 4 or 6 (default: 4)
 			--ip <addr>           Server listening IP (auto-detected)
-			--ipv6                Enable IPv6 support
-			--subnet <x.x.x.0>    VPN subnet (default: 10.8.0.0)
+			--client-ipv4         Enable IPv4 for VPN clients (default: enabled)
+			--no-client-ipv4      Disable IPv4 for VPN clients
+			--client-ipv6         Enable IPv6 for VPN clients
+			--no-client-ipv6      Disable IPv6 for VPN clients (default)
+			--subnet-ipv4 <x.x.x.0>  IPv4 VPN subnet (default: 10.8.0.0)
+			--subnet-ipv6 <prefix>   IPv6 VPN subnet (default: fd42:42:42:42::)
 			--port <num>          OpenVPN port (default: 1194)
 			--port-random         Use random port (49152-65535)
 			--protocol <proto>    Protocol: udp or tcp (default: udp)
@@ -478,24 +483,37 @@ validate_port() {
 	fi
 }
 
-validate_subnet() {
+validate_subnet_ipv4() {
 	local subnet="$1"
 	# Check format: x.x.x.0 where x is 0-255
 	if ! [[ "$subnet" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.0$ ]]; then
-		log_fatal "Invalid subnet: $subnet. Must be in format x.x.x.0 (e.g., 10.8.0.0)"
+		log_fatal "Invalid IPv4 subnet: $subnet. Must be in format x.x.x.0 (e.g., 10.8.0.0)"
 	fi
 	local octet1="${BASH_REMATCH[1]}"
 	local octet2="${BASH_REMATCH[2]}"
 	local octet3="${BASH_REMATCH[3]}"
 	# Validate each octet is 0-255
 	if [[ "$octet1" -gt 255 ]] || [[ "$octet2" -gt 255 ]] || [[ "$octet3" -gt 255 ]]; then
-		log_fatal "Invalid subnet: $subnet. Octets must be 0-255."
+		log_fatal "Invalid IPv4 subnet: $subnet. Octets must be 0-255."
 	fi
 	# Check for RFC1918 private address ranges
 	if ! { [[ "$octet1" -eq 10 ]] ||
 		[[ "$octet1" -eq 172 && "$octet2" -ge 16 && "$octet2" -le 31 ]] ||
 		[[ "$octet1" -eq 192 && "$octet2" -eq 168 ]]; }; then
-		log_fatal "Invalid subnet: $subnet. Must be a private network (10.x.x.0, 172.16-31.x.0, or 192.168.x.0)."
+		log_fatal "Invalid IPv4 subnet: $subnet. Must be a private network (10.x.x.0, 172.16-31.x.0, or 192.168.x.0)."
+	fi
+}
+
+validate_subnet_ipv6() {
+	local subnet="$1"
+	# Accept format: IPv6 address ending with :: (prefix only, no CIDR notation here)
+	# We expect formats like: fd42:42:42:42:: or fdxx:xxxx:xxxx:xxxx::
+	# The script will append /112 for the server directive
+
+	# IPv6 ULA validation (fd00::/8 range with at least /48 prefix)
+	# ULA format: fdxx:xxxx:xxxx:: or fdxx:xxxx:xxxx:xxxx:: where x is hex
+	if ! [[ "$subnet" =~ ^fd[0-9a-fA-F]{2}(:[0-9a-fA-F]{1,4}){2,5}::$ ]]; then
+		log_fatal "Invalid IPv6 subnet: $subnet. Must be a ULA address with at least a /48 prefix, ending with :: (e.g., fd42:42:42::)"
 	fi
 }
 
@@ -561,15 +579,56 @@ cmd_install() {
 			APPROVE_IP=y
 			shift 2
 			;;
-		--ipv6)
-			IPV6_SUPPORT=y
+		--endpoint-type)
+			[[ -z "${2:-}" ]] && log_fatal "--endpoint-type requires an argument"
+			case "$2" in
+			4) ENDPOINT_TYPE="4" ;;
+			6) ENDPOINT_TYPE="6" ;;
+			*) log_fatal "Invalid endpoint type: $2. Use '4' or '6'." ;;
+			esac
+			shift 2
+			;;
+		--client-ipv4)
+			CLIENT_IPV4=y
 			shift
 			;;
+		--no-client-ipv4)
+			CLIENT_IPV4=n
+			shift
+			;;
+		--client-ipv6)
+			CLIENT_IPV6=y
+			shift
+			;;
+		--no-client-ipv6)
+			CLIENT_IPV6=n
+			shift
+			;;
+		--ipv6)
+			# Legacy flag: enable IPv6 for clients (backward compatibility)
+			CLIENT_IPV6=y
+			shift
+			;;
+		--subnet-ipv4)
+			[[ -z "${2:-}" ]] && log_fatal "--subnet-ipv4 requires an argument"
+			validate_subnet_ipv4 "$2"
+			VPN_SUBNET_IPV4="$2"
+			SUBNET_IPV4_CHOICE=2
+			shift 2
+			;;
+		--subnet-ipv6)
+			[[ -z "${2:-}" ]] && log_fatal "--subnet-ipv6 requires an argument"
+			validate_subnet_ipv6 "$2"
+			VPN_SUBNET_IPV6="$2"
+			SUBNET_IPV6_CHOICE=2
+			shift 2
+			;;
 		--subnet)
+			# Legacy flag: --subnet now maps to --subnet-ipv4
 			[[ -z "${2:-}" ]] && log_fatal "--subnet requires an argument"
-			validate_subnet "$2"
-			VPN_SUBNET="$2"
-			SUBNET_CHOICE=2
+			validate_subnet_ipv4 "$2"
+			VPN_SUBNET_IPV4="$2"
+			SUBNET_IPV4_CHOICE=2
 			shift 2
 			;;
 		--port)
@@ -759,14 +818,54 @@ cmd_install() {
 		AUTO_INSTALL=y
 		APPROVE_INSTALL=y
 		APPROVE_IP=${APPROVE_IP:-y}
-		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
 
-		# Subnet
-		if [[ -n $VPN_SUBNET ]]; then
-			SUBNET_CHOICE=${SUBNET_CHOICE:-2}
+		# Endpoint type (default: IPv4)
+		ENDPOINT_TYPE=${ENDPOINT_TYPE:-4}
+		# Set ENDPOINT_TYPE_CHOICE for installQuestions (1=IPv4, 2=IPv6)
+		if [[ $ENDPOINT_TYPE == "6" ]]; then
+			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-2}
 		else
-			SUBNET_CHOICE=${SUBNET_CHOICE:-1}
-			VPN_SUBNET="10.8.0.0"
+			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-1}
+		fi
+
+		# Client IP versions
+		CLIENT_IPV4=${CLIENT_IPV4:-y}
+		CLIENT_IPV6=${CLIENT_IPV6:-n}
+		# Set CLIENT_IP_CHOICE for installQuestions (1=IPv4 only, 2=IPv6 only, 3=Both)
+		if [[ $CLIENT_IPV4 == "y" ]] && [[ $CLIENT_IPV6 == "y" ]]; then
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-3}
+		elif [[ $CLIENT_IPV6 == "y" ]]; then
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-2}
+		else
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-1}
+		fi
+
+		# Validate at least one IP version is enabled
+		if [[ $CLIENT_IPV4 != "y" ]] && [[ $CLIENT_IPV6 != "y" ]]; then
+			log_fatal "At least one of --client-ipv4 or --client-ipv6 must be enabled"
+		fi
+
+		# Set legacy IPV6_SUPPORT for compatibility
+		IPV6_SUPPORT="$CLIENT_IPV6"
+
+		# IPv4 Subnet - always needed for leak prevention (redirect-gateway def1)
+		if [[ -n $VPN_SUBNET_IPV4 ]]; then
+			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-2}
+		else
+			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-1}
+			VPN_SUBNET_IPV4="10.8.0.0"
+		fi
+		VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
+
+		# IPv6 Subnet
+		if [[ $CLIENT_IPV6 == "y" ]]; then
+			if [[ -n $VPN_SUBNET_IPV6 ]]; then
+				SUBNET_IPV6_CHOICE=${SUBNET_IPV6_CHOICE:-2}
+			else
+				SUBNET_IPV6_CHOICE=${SUBNET_IPV6_CHOICE:-1}
+				VPN_SUBNET_IPV6="fd42:42:42:42::"
+			fi
+			VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
 		fi
 
 		# Port
@@ -1570,8 +1669,19 @@ function installUnbound() {
 	{
 		echo 'server:'
 		echo '    # OpenVPN DNS resolver configuration'
-		echo "    interface: $VPN_GATEWAY"
-		echo "    access-control: $VPN_SUBNET/24 allow"
+
+		# IPv4 VPN interface (only if clients get IPv4)
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo "    interface: $VPN_GATEWAY_IPV4"
+			echo "    access-control: $VPN_SUBNET_IPV4/24 allow"
+		fi
+
+		# IPv6 VPN interface (only if clients get IPv6)
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo "    interface: $VPN_GATEWAY_IPV6"
+			echo "    access-control: ${VPN_SUBNET_IPV6}/112 allow"
+		fi
+
 		echo ''
 		echo '    # Security hardening'
 		echo '    hide-identity: yes'
@@ -1597,13 +1707,9 @@ function installUnbound() {
 		echo '    private-address: fe80::/10'
 		echo '    private-address: ::ffff:0:0/96'
 
-		# IPv6 support
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo ''
-			echo '    # IPv6 VPN support'
-			echo '    interface: fd42:42:42:42::1'
-			echo '    access-control: fd42:42:42:42::/112 allow'
-			echo '    private-address: fd42:42:42:42::/112'
+		# Add VPN subnet to private addresses if IPv6 enabled
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo "    private-address: ${VPN_SUBNET_IPV6}/112"
 		fi
 
 		# Disable remote-control (requires SSL certs on openSUSE)
@@ -1627,42 +1733,65 @@ function installUnbound() {
 	log_fatal "Unbound failed to start. Check 'journalctl -u unbound' for details."
 }
 
+function resolvePublicIPv4() {
+	local public_ip=""
+
+	# Try to resolve public IPv4 using: https://api.seeip.org
+	if [[ -z $public_ip ]]; then
+		public_ip=$(curl -f -m 5 -sS --retry 2 --retry-connrefused -4 https://api.seeip.org 2>/dev/null)
+	fi
+
+	# Try to resolve using: https://ifconfig.me
+	if [[ -z $public_ip ]]; then
+		public_ip=$(curl -f -m 5 -sS --retry 2 --retry-connrefused -4 https://ifconfig.me 2>/dev/null)
+	fi
+
+	# Try to resolve using: https://api.ipify.org
+	if [[ -z $public_ip ]]; then
+		public_ip=$(curl -f -m 5 -sS --retry 2 --retry-connrefused -4 https://api.ipify.org 2>/dev/null)
+	fi
+
+	# Try to resolve using: ns1.google.com
+	if [[ -z $public_ip ]]; then
+		public_ip=$(dig -4 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
+	fi
+
+	echo "$public_ip"
+}
+
+function resolvePublicIPv6() {
+	local public_ip=""
+
+	# Try to resolve public IPv6 using: https://api6.seeip.org
+	if [[ -z $public_ip ]]; then
+		public_ip=$(curl -f -m 5 -sS --retry 2 --retry-connrefused -6 https://api6.seeip.org 2>/dev/null)
+	fi
+
+	# Try to resolve using: https://ifconfig.me (IPv6)
+	if [[ -z $public_ip ]]; then
+		public_ip=$(curl -f -m 5 -sS --retry 2 --retry-connrefused -6 https://ifconfig.me 2>/dev/null)
+	fi
+
+	# Try to resolve using: https://api64.ipify.org (dual-stack, prefer IPv6)
+	if [[ -z $public_ip ]]; then
+		public_ip=$(curl -f -m 5 -sS --retry 2 --retry-connrefused -6 https://api64.ipify.org 2>/dev/null)
+	fi
+
+	# Try to resolve using: ns1.google.com
+	if [[ -z $public_ip ]]; then
+		public_ip=$(dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
+	fi
+
+	echo "$public_ip"
+}
+
+# Legacy wrapper for backward compatibility
 function resolvePublicIP() {
-	# IP version flags, we'll use as default the IPv4
-	CURL_IP_VERSION_FLAG="-4"
-	DIG_IP_VERSION_FLAG="-4"
-
-	# Behind NAT, we'll default to the publicly reachable IPv4/IPv6.
-	if [[ $IPV6_SUPPORT == "y" ]]; then
-		CURL_IP_VERSION_FLAG=""
-		DIG_IP_VERSION_FLAG="-6"
+	if [[ $ENDPOINT_TYPE == "6" ]]; then
+		resolvePublicIPv6
+	else
+		resolvePublicIPv4
 	fi
-
-	# If there is no public ip yet, we'll try to solve it using: https://api.seeip.org
-	if [[ -z $PUBLIC_IP ]]; then
-		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused "$CURL_IP_VERSION_FLAG" https://api.seeip.org 2>/dev/null)
-	fi
-
-	# If there is no public ip yet, we'll try to solve it using: https://ifconfig.me
-	if [[ -z $PUBLIC_IP ]]; then
-		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused "$CURL_IP_VERSION_FLAG" https://ifconfig.me 2>/dev/null)
-	fi
-
-	# If there is no public ip yet, we'll try to solve it using: https://api.ipify.org
-	if [[ -z $PUBLIC_IP ]]; then
-		PUBLIC_IP=$(curl -f -m 5 -sS --retry 2 --retry-connrefused "$CURL_IP_VERSION_FLAG" https://api.ipify.org 2>/dev/null)
-	fi
-
-	# If there is no public ip yet, we'll try to solve it using: ns1.google.com
-	if [[ -z $PUBLIC_IP ]]; then
-		PUBLIC_IP=$(dig $DIG_IP_VERSION_FLAG TXT +short o-o.myaddr.l.google.com @ns1.google.com | tr -d '"')
-	fi
-
-	if [[ -z $PUBLIC_IP ]]; then
-		log_fatal "Couldn't solve the public IP"
-	fi
-
-	echo "$PUBLIC_IP"
 }
 
 function installQuestions() {
@@ -1671,78 +1800,212 @@ function installQuestions() {
 
 	log_prompt "I need to ask you a few questions before starting the setup."
 	log_prompt "You can leave the default options and just press enter if you are okay with them."
+
+	# ==========================================================================
+	# Step 1: Detect server IP addresses
+	# ==========================================================================
 	log_menu ""
-	log_prompt "I need to know the IPv4 address of the network interface you want OpenVPN listening to."
-	log_prompt "Unless your server is behind NAT, it should be your public IPv4 address."
+	log_prompt "Detecting server IP addresses..."
 
-	# Detect public IPv4 address and pre-fill for the user
-	IP=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+	# Detect IPv4 address
+	IP_IPV4=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+	# Detect IPv6 address
+	IP_IPV6=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
 
-	if [[ -z $IP ]]; then
-		# Detect public IPv6 address
-		IP=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+	if [[ -n $IP_IPV4 ]]; then
+		log_prompt "  IPv4 address detected: $IP_IPV4"
+	else
+		log_prompt "  No IPv4 address detected"
 	fi
+	if [[ -n $IP_IPV6 ]]; then
+		log_prompt "  IPv6 address detected: $IP_IPV6"
+	else
+		log_prompt "  No IPv6 address detected"
+	fi
+
+	# ==========================================================================
+	# Step 2: Endpoint type selection
+	# ==========================================================================
+	log_menu ""
+	log_prompt "What IP version should clients use to connect to this server?"
+
+	# Determine default based on available addresses
+	if [[ -n $IP_IPV4 ]]; then
+		ENDPOINT_TYPE_DEFAULT=1
+	elif [[ -n $IP_IPV6 ]]; then
+		ENDPOINT_TYPE_DEFAULT=2
+	else
+		log_fatal "No IPv4 or IPv6 address detected on this server."
+	fi
+
+	log_menu "   1) IPv4"
+	log_menu "   2) IPv6"
+	until [[ $ENDPOINT_TYPE_CHOICE =~ ^[1-2]$ ]]; do
+		read -rp "Endpoint type [1-2]: " -e -i $ENDPOINT_TYPE_DEFAULT ENDPOINT_TYPE_CHOICE
+	done
+	case $ENDPOINT_TYPE_CHOICE in
+	1)
+		ENDPOINT_TYPE="4"
+		IP="$IP_IPV4"
+		;;
+	2)
+		ENDPOINT_TYPE="6"
+		IP="$IP_IPV6"
+		;;
+	esac
+
+	# ==========================================================================
+	# Step 3: Endpoint address (handle NAT for IPv4, direct for IPv6)
+	# ==========================================================================
 	APPROVE_IP=${APPROVE_IP:-n}
 	if [[ $APPROVE_IP =~ n ]]; then
-		read -rp "IP address: " -e -i "$IP" IP
+		log_menu ""
+		if [[ $ENDPOINT_TYPE == "4" ]]; then
+			log_prompt "Server listening IPv4 address:"
+			read -rp "IPv4 address: " -e -i "$IP" IP
+		else
+			log_prompt "Server listening IPv6 address:"
+			read -rp "IPv6 address: " -e -i "$IP" IP
+		fi
 	fi
-	# If $IP is a private IP address, the server must be behind NAT
-	if echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
+
+	# If IPv4 and private IP, server is behind NAT
+	if [[ $ENDPOINT_TYPE == "4" ]] && echo "$IP" | grep -qE '^(10\.|172\.1[6789]\.|172\.2[0-9]\.|172\.3[01]\.|192\.168)'; then
 		log_menu ""
 		log_prompt "It seems this server is behind NAT. What is its public IPv4 address or hostname?"
 		log_prompt "We need it for the clients to connect to the server."
 
 		if [[ -z $ENDPOINT ]]; then
-			DEFAULT_ENDPOINT=$(resolvePublicIP)
+			DEFAULT_ENDPOINT=$(resolvePublicIPv4)
 		fi
 
 		until [[ $ENDPOINT != "" ]]; do
 			read -rp "Public IPv4 address or hostname: " -e -i "$DEFAULT_ENDPOINT" ENDPOINT
 		done
-	fi
+	elif [[ $ENDPOINT_TYPE == "6" ]]; then
+		# For IPv6, check if it's a link-local address (starts with fe80)
+		if echo "$IP" | grep -qiE '^fe80'; then
+			log_menu ""
+			log_prompt "The detected IPv6 address is link-local. What is the public IPv6 address or hostname?"
+			log_prompt "We need it for the clients to connect to the server."
 
-	log_menu ""
-	log_prompt "Checking for IPv6 connectivity..."
-	# "ping6" and "ping -6" availability varies depending on the distribution
-	if type ping6 >/dev/null 2>&1; then
-		PING6="ping6 -c3 ipv6.google.com > /dev/null 2>&1"
-	else
-		PING6="ping -6 -c3 ipv6.google.com > /dev/null 2>&1"
-	fi
-	if eval "$PING6"; then
-		log_prompt "Your host appears to have IPv6 connectivity."
-		SUGGESTION="y"
-	else
-		log_prompt "Your host does not appear to have IPv6 connectivity."
-		SUGGESTION="n"
-	fi
-	log_menu ""
-	# Ask the user if they want to enable IPv6 regardless its availability.
-	until [[ $IPV6_SUPPORT =~ (y|n) ]]; do
-		read -rp "Do you want to enable IPv6 support (NAT)? [y/n]: " -e -i $SUGGESTION IPV6_SUPPORT
-	done
-	log_menu ""
-	log_prompt "What subnet do you want for the VPN?"
-	log_menu "   1) Default: 10.8.0.0/24"
-	log_menu "   2) Custom"
-	until [[ $SUBNET_CHOICE =~ ^[1-2]$ ]]; do
-		read -rp "Subnet choice [1-2]: " -e -i 1 SUBNET_CHOICE
-	done
-	case $SUBNET_CHOICE in
-	1)
-		VPN_SUBNET="10.8.0.0"
-		;;
-	2)
-		# Skip prompt if VPN_SUBNET is already set (e.g., via environment variable)
-		if [[ -z $VPN_SUBNET ]]; then
-			until [[ $VPN_SUBNET =~ ^(10\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|172\.(1[6-9]|2[0-9]|3[0-1])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|192\.168\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]))\.0$ ]]; do
-				read -rp "Custom subnet (e.g., 10.9.0.0): " VPN_SUBNET
+			if [[ -z $ENDPOINT ]]; then
+				DEFAULT_ENDPOINT=$(resolvePublicIPv6)
+			fi
+
+			until [[ $ENDPOINT != "" ]]; do
+				read -rp "Public IPv6 address or hostname: " -e -i "$DEFAULT_ENDPOINT" ENDPOINT
 			done
 		fi
+	fi
+
+	# ==========================================================================
+	# Step 4: Client IP versions
+	# ==========================================================================
+	log_menu ""
+	log_prompt "What IP versions should VPN clients use?"
+	log_prompt "This determines both their VPN addresses and internet access through the tunnel."
+
+	# Check IPv6 connectivity for suggestion
+	if type ping6 >/dev/null 2>&1; then
+		PING6="ping6 -c1 -W2 ipv6.google.com > /dev/null 2>&1"
+	else
+		PING6="ping -6 -c1 -W2 ipv6.google.com > /dev/null 2>&1"
+	fi
+	HAS_IPV6_CONNECTIVITY="n"
+	if eval "$PING6"; then
+		HAS_IPV6_CONNECTIVITY="y"
+	fi
+
+	# Default suggestion based on connectivity
+	if [[ $HAS_IPV6_CONNECTIVITY == "y" ]]; then
+		CLIENT_IP_DEFAULT=3 # Dual-stack if IPv6 available
+	else
+		CLIENT_IP_DEFAULT=1 # IPv4 only otherwise
+	fi
+
+	log_menu "   1) IPv4 only"
+	log_menu "   2) IPv6 only"
+	log_menu "   3) Dual-stack (IPv4 + IPv6)"
+	until [[ $CLIENT_IP_CHOICE =~ ^[1-3]$ ]]; do
+		read -rp "Client IP versions [1-3]: " -e -i $CLIENT_IP_DEFAULT CLIENT_IP_CHOICE
+	done
+	case $CLIENT_IP_CHOICE in
+	1)
+		CLIENT_IPV4="y"
+		CLIENT_IPV6="n"
+		;;
+	2)
+		CLIENT_IPV4="n"
+		CLIENT_IPV6="y"
+		;;
+	3)
+		CLIENT_IPV4="y"
+		CLIENT_IPV6="y"
 		;;
 	esac
+
+	# ==========================================================================
+	# Step 5: IPv4 subnet (prompt only if IPv4 enabled, but always set for leak prevention)
+	# ==========================================================================
+	if [[ $CLIENT_IPV4 == "y" ]]; then
+		log_menu ""
+		log_prompt "IPv4 VPN subnet:"
+		log_menu "   1) Default: 10.8.0.0/24"
+		log_menu "   2) Custom"
+		until [[ $SUBNET_IPV4_CHOICE =~ ^[1-2]$ ]]; do
+			read -rp "IPv4 subnet choice [1-2]: " -e -i 1 SUBNET_IPV4_CHOICE
+		done
+		case $SUBNET_IPV4_CHOICE in
+		1)
+			VPN_SUBNET_IPV4="10.8.0.0"
+			;;
+		2)
+			# Skip prompt if VPN_SUBNET_IPV4 is already set (e.g., via environment variable)
+			if [[ -z $VPN_SUBNET_IPV4 ]]; then
+				until [[ $VPN_SUBNET_IPV4 =~ ^(10\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|172\.(1[6-9]|2[0-9]|3[0-1])\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|192\.168\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]))\.0$ ]]; do
+					read -rp "Custom IPv4 subnet (e.g., 10.9.0.0): " VPN_SUBNET_IPV4
+				done
+			fi
+			;;
+		esac
+	else
+		# IPv6-only mode: still need IPv4 subnet for leak prevention (redirect-gateway def1)
+		VPN_SUBNET_IPV4="10.8.0.0"
+	fi
 	# Calculate gateway (first usable IP in the subnet)
-	VPN_GATEWAY="${VPN_SUBNET%.*}.1"
+	VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
+
+	# ==========================================================================
+	# Step 6: IPv6 subnet (if IPv6 enabled for clients)
+	# ==========================================================================
+	if [[ $CLIENT_IPV6 == "y" ]]; then
+		log_menu ""
+		log_prompt "IPv6 VPN subnet:"
+		log_menu "   1) Default: fd42:42:42:42::/112"
+		log_menu "   2) Custom"
+		until [[ $SUBNET_IPV6_CHOICE =~ ^[1-2]$ ]]; do
+			read -rp "IPv6 subnet choice [1-2]: " -e -i 1 SUBNET_IPV6_CHOICE
+		done
+		case $SUBNET_IPV6_CHOICE in
+		1)
+			VPN_SUBNET_IPV6="fd42:42:42:42::"
+			;;
+		2)
+			# Skip prompt if VPN_SUBNET_IPV6 is already set (e.g., via environment variable)
+			if [[ -z $VPN_SUBNET_IPV6 ]]; then
+				until [[ $VPN_SUBNET_IPV6 =~ ^fd[0-9a-fA-F]{0,2}(:[0-9a-fA-F]{0,4}){0,6}::$ ]]; do
+					read -rp "Custom IPv6 subnet (e.g., fd12:3456:789a::): " VPN_SUBNET_IPV6
+				done
+			fi
+			;;
+		esac
+		# Calculate gateway (first usable IP in the subnet)
+		VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
+	fi
+
+	# Set legacy IPV6_SUPPORT variable for backward compatibility
+	IPV6_SUPPORT="$CLIENT_IPV6"
 	log_menu ""
 	log_prompt "What port do you want OpenVPN to listen to?"
 	log_menu "   1) Default: 1194"
@@ -2101,14 +2364,49 @@ function installOpenVPN() {
 		# Set default choices so that no questions will be asked.
 		APPROVE_INSTALL=${APPROVE_INSTALL:-y}
 		APPROVE_IP=${APPROVE_IP:-y}
-		IPV6_SUPPORT=${IPV6_SUPPORT:-n}
-		# If VPN_SUBNET is provided, use custom choice; otherwise use default
-		if [[ -n $VPN_SUBNET ]]; then
-			SUBNET_CHOICE=${SUBNET_CHOICE:-2}
+
+		# Endpoint type defaults
+		ENDPOINT_TYPE=${ENDPOINT_TYPE:-4}
+		# Set ENDPOINT_TYPE_CHOICE for installQuestions (1=IPv4, 2=IPv6)
+		if [[ $ENDPOINT_TYPE == "6" ]]; then
+			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-2}
 		else
-			SUBNET_CHOICE=${SUBNET_CHOICE:-1}
-			VPN_SUBNET="10.8.0.0"
+			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-1}
 		fi
+
+		# Client IP version defaults
+		CLIENT_IPV4=${CLIENT_IPV4:-y}
+		CLIENT_IPV6=${CLIENT_IPV6:-n}
+		# Set CLIENT_IP_CHOICE for installQuestions (1=IPv4 only, 2=IPv6 only, 3=Both)
+		if [[ $CLIENT_IPV4 == "y" ]] && [[ $CLIENT_IPV6 == "y" ]]; then
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-3}
+		elif [[ $CLIENT_IPV6 == "y" ]]; then
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-2}
+		else
+			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-1}
+		fi
+		IPV6_SUPPORT="$CLIENT_IPV6"
+
+		# IPv4 subnet defaults - always needed for leak prevention
+		if [[ -n $VPN_SUBNET_IPV4 ]]; then
+			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-2}
+		else
+			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-1}
+			VPN_SUBNET_IPV4="10.8.0.0"
+		fi
+		VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
+
+		# IPv6 subnet defaults
+		if [[ $CLIENT_IPV6 == "y" ]]; then
+			if [[ -n $VPN_SUBNET_IPV6 ]]; then
+				SUBNET_IPV6_CHOICE=${SUBNET_IPV6_CHOICE:-2}
+			else
+				SUBNET_IPV6_CHOICE=${SUBNET_IPV6_CHOICE:-1}
+				VPN_SUBNET_IPV6="fd42:42:42:42::"
+			fi
+			VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
+		fi
+
 		PORT_CHOICE=${PORT_CHOICE:-1}
 		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
 		DNS=${DNS:-3}
@@ -2130,8 +2428,11 @@ function installOpenVPN() {
 		log_info "=== OpenVPN Auto-Install ==="
 		log_info "Running in auto-install mode with the following settings:"
 		log_info "  ENDPOINT=$ENDPOINT"
-		log_info "  IPV6_SUPPORT=$IPV6_SUPPORT"
-		log_info "  VPN_SUBNET=$VPN_SUBNET"
+		log_info "  ENDPOINT_TYPE=$ENDPOINT_TYPE"
+		log_info "  CLIENT_IPV4=$CLIENT_IPV4"
+		log_info "  CLIENT_IPV6=$CLIENT_IPV6"
+		log_info "  VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4"
+		log_info "  VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6"
 		log_info "  PORT_CHOICE=$PORT_CHOICE"
 		log_info "  PROTOCOL_CHOICE=$PROTOCOL_CHOICE"
 		log_info "  DNS=$DNS"
@@ -2146,7 +2447,7 @@ function installOpenVPN() {
 
 	# Get the "public" interface from the default route
 	NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
-	if [[ -z $NIC ]] && [[ $IPV6_SUPPORT == 'y' ]]; then
+	if [[ -z $NIC ]] && [[ $CLIENT_IPV6 == 'y' ]]; then
 		NIC=$(ip -6 route show default | sed -ne 's/^default .* dev \([^ ]*\) .*$/\1/p')
 	fi
 
@@ -2200,8 +2501,8 @@ function installOpenVPN() {
 
 		# Check Data Channel Offload (DCO) availability
 		if isDCOAvailable; then
-			# Check if configuration is DCO-compatible
-			if [[ $PROTOCOL == "udp" ]] && [[ $CIPHER =~ (GCM|CHACHA20-POLY1305) ]]; then
+			# Check if configuration is DCO-compatible (udp or udp6)
+			if [[ $PROTOCOL =~ ^udp ]] && [[ $CIPHER =~ (GCM|CHACHA20-POLY1305) ]]; then
 				log_info "Data Channel Offload (DCO) is available and will be used for improved performance"
 			else
 				log_info "Data Channel Offload (DCO) is available but not enabled (requires UDP, AEAD cipher)"
@@ -2319,10 +2620,12 @@ function installOpenVPN() {
 	# Generate server.conf
 	log_info "Generating server configuration..."
 	echo "port $PORT" >/etc/openvpn/server/server.conf
-	if [[ $IPV6_SUPPORT == 'n' ]]; then
-		echo "proto $PROTOCOL" >>/etc/openvpn/server/server.conf
-	elif [[ $IPV6_SUPPORT == 'y' ]]; then
+
+	# Protocol selection: use proto6 variants if endpoint is IPv6
+	if [[ $ENDPOINT_TYPE == "6" ]]; then
 		echo "proto ${PROTOCOL}6" >>/etc/openvpn/server/server.conf
+	else
+		echo "proto $PROTOCOL" >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ $MULTI_CLIENT == "y" ]]; then
@@ -2338,8 +2641,20 @@ group $OPENVPN_GROUP" >>/etc/openvpn/server/server.conf
 	echo "persist-key
 persist-tun
 keepalive 10 120
-topology subnet
-server $VPN_SUBNET 255.255.255.0" >>/etc/openvpn/server/server.conf
+topology subnet" >>/etc/openvpn/server/server.conf
+
+	# IPv4 server directive - always assign IPv4 to clients for proper routing
+	# Even for IPv6-only mode, we need IPv4 addresses so redirect-gateway def1 can block IPv4 leaks
+	echo "server $VPN_SUBNET_IPV4 255.255.255.0" >>/etc/openvpn/server/server.conf
+
+	# IPv6 server directive (only if clients get IPv6)
+	if [[ $CLIENT_IPV6 == "y" ]]; then
+		{
+			echo "server-ipv6 ${VPN_SUBNET_IPV6}/112"
+			echo "tun-ipv6"
+			echo "push tun-ipv6"
+		} >>/etc/openvpn/server/server.conf
+	fi
 
 	# ifconfig-pool-persist is incompatible with duplicate-cn
 	if [[ $MULTI_CLIENT != "y" ]]; then
@@ -2358,57 +2673,121 @@ server $VPN_SUBNET 255.255.255.0" >>/etc/openvpn/server/server.conf
 		fi
 		# Obtain the resolvers from resolv.conf and use them for OpenVPN
 		sed -ne 's/^nameserver[[:space:]]\+\([^[:space:]]\+\).*$/\1/p' $RESOLVCONF | while read -r line; do
-			# Copy, if it's a IPv4 |or| if IPv6 is enabled, IPv4/IPv6 does not matter
-			if [[ $line =~ ^[0-9.]*$ ]] || [[ $IPV6_SUPPORT == 'y' ]]; then
+			# Copy IPv4 resolvers if client has IPv4, or IPv6 resolvers if client has IPv6
+			if [[ $line =~ ^[0-9.]*$ ]] && [[ $CLIENT_IPV4 == 'y' ]]; then
+				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server/server.conf
+			elif [[ $line =~ : ]] && [[ $CLIENT_IPV6 == 'y' ]]; then
 				echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server/server.conf
 			fi
 		done
 		;;
 	2) # Self-hosted DNS resolver (Unbound)
-		echo "push \"dhcp-option DNS $VPN_GATEWAY\"" >>/etc/openvpn/server/server.conf
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo 'push "dhcp-option DNS fd42:42:42:42::1"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo "push \"dhcp-option DNS $VPN_GATEWAY_IPV4\"" >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo "push \"dhcp-option DNS $VPN_GATEWAY_IPV6\"" >>/etc/openvpn/server/server.conf
 		fi
 		;;
 	3) # Cloudflare
-		echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2606:4700:4700::1001"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2606:4700:4700::1111"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	4) # Quad9
-		echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2620:fe::fe"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2620:fe::9"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	5) # Quad9 uncensored
-		echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2620:fe::10"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2620:fe::fe:10"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	6) # FDN
-		echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2001:910:800::40"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2001:910:800::12"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	7) # DNS.WATCH
-		echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2001:1608:10:25::1c04:b12f"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2001:1608:10:25::9249:d69b"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	8) # OpenDNS
-		echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2620:119:35::35"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2620:119:53::53"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	9) # Google
-		echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2001:4860:4860::8888"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2001:4860:4860::8844"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	10) # Yandex Basic
-		echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2a02:6b8::feed:0ff"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2a02:6b8:0:1::feed:0ff"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	11) # AdGuard DNS
-		echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2a10:50c0::ad1:ff"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2a10:50c0::ad2:ff"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	12) # NextDNS
-		echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server/server.conf
-		echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server/server.conf
+		fi
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo 'push "dhcp-option DNS 2a07:a8c0::"' >>/etc/openvpn/server/server.conf
+			echo 'push "dhcp-option DNS 2a07:a8c1::"' >>/etc/openvpn/server/server.conf
+		fi
 		;;
 	13) # Custom DNS
 		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server/server.conf
@@ -2417,15 +2796,17 @@ server $VPN_SUBNET 255.255.255.0" >>/etc/openvpn/server/server.conf
 		fi
 		;;
 	esac
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server/server.conf
 
-	# IPv6 network settings if needed
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
-		echo 'server-ipv6 fd42:42:42:42::/112
-tun-ipv6
-push tun-ipv6
-push "route-ipv6 2000::/3"
-push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
+	# Redirect gateway settings - always redirect both IPv4 and IPv6 to prevent leaks
+	# For IPv4: redirect-gateway def1 routes all IPv4 through VPN (or drops it if IPv4 not configured)
+	# For IPv6: route-ipv6 + redirect-gateway ipv6 routes all IPv6, or block-ipv6 drops it
+	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server/server.conf
+	if [[ $CLIENT_IPV6 == "y" ]]; then
+		echo 'push "route-ipv6 2000::/3"' >>/etc/openvpn/server/server.conf
+		echo 'push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
+	else
+		# Block IPv6 on clients to prevent IPv6 leaks when VPN only handles IPv4
+		echo 'push "block-ipv6"' >>/etc/openvpn/server/server.conf
 	fi
 
 	if [[ -n $MTU ]]; then
@@ -2482,8 +2863,15 @@ verb 3" >>/etc/openvpn/server/server.conf
 	# Enable routing
 	log_info "Enabling IP forwarding..."
 	run_cmd_fatal "Creating sysctl.d directory" mkdir -p /etc/sysctl.d
-	echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/99-openvpn.conf
-	if [[ $IPV6_SUPPORT == 'y' ]]; then
+
+	# Enable IPv4 forwarding if clients get IPv4
+	if [[ $CLIENT_IPV4 == 'y' ]]; then
+		echo 'net.ipv4.ip_forward=1' >/etc/sysctl.d/99-openvpn.conf
+	else
+		echo '# IPv4 forwarding not needed (no IPv4 clients)' >/etc/sysctl.d/99-openvpn.conf
+	fi
+	# Enable IPv6 forwarding if clients get IPv6
+	if [[ $CLIENT_IPV6 == 'y' ]]; then
 		echo 'net.ipv6.conf.all.forwarding=1' >>/etc/sysctl.d/99-openvpn.conf
 	fi
 	# Apply sysctl rules
@@ -2493,7 +2881,9 @@ verb 3" >>/etc/openvpn/server/server.conf
 	if hash sestatus 2>/dev/null; then
 		if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 			if [[ $PORT != '1194' ]]; then
-				run_cmd "Configuring SELinux port" semanage port -a -t openvpn_port_t -p "$PROTOCOL" "$PORT"
+				# Strip "6" suffix from protocol (semanage expects "udp" or "tcp", not "udp6"/"tcp6")
+				SELINUX_PROTOCOL="${PROTOCOL%6}"
+				run_cmd "Configuring SELinux port" semanage port -a -t openvpn_port_t -p "$SELINUX_PROTOCOL" "$PORT"
 			fi
 		fi
 	fi
@@ -2548,10 +2938,12 @@ verb 3" >>/etc/openvpn/server/server.conf
 		run_cmd "Adding masquerade to firewalld" firewall-cmd --permanent --add-masquerade
 
 		# Add rich rules for VPN traffic (source-based rules work reliably with dynamic tun0 interface)
-		run_cmd "Adding VPN subnet rule" firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET/24\" accept"
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			run_cmd "Adding IPv4 VPN subnet rule" firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET_IPV4/24\" accept"
+		fi
 
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			run_cmd "Adding IPv6 source rule" firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept'
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			run_cmd "Adding IPv6 VPN subnet rule" firewall-cmd --permanent --add-rich-rule="rule family=\"ipv6\" source address=\"${VPN_SUBNET_IPV6}/112\" accept"
 		fi
 
 		run_cmd "Reloading firewalld" firewall-cmd --reload
@@ -2560,7 +2952,7 @@ verb 3" >>/etc/openvpn/server/server.conf
 		log_info "nftables detected, configuring nftables rules..."
 		run_cmd_fatal "Creating nftables directory" mkdir -p /etc/nftables
 
-		# Create nftables rules file
+		# Create nftables rules file - base filter rules
 		echo "table inet openvpn {
 	chain input {
 		type filter hook input priority 0; policy accept;
@@ -2573,21 +2965,26 @@ verb 3" >>/etc/openvpn/server/server.conf
 		iifname \"$NIC\" oifname \"tun0\" accept
 		iifname \"tun0\" oifname \"$NIC\" accept
 	}
-}
+}" >/etc/nftables/openvpn.nft
 
+		# IPv4 NAT rules (only if clients get IPv4)
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo "
 table ip openvpn-nat {
 	chain postrouting {
 		type nat hook postrouting priority 100; policy accept;
-		ip saddr $VPN_SUBNET/24 oifname \"$NIC\" masquerade
+		ip saddr $VPN_SUBNET_IPV4/24 oifname \"$NIC\" masquerade
 	}
-}" >/etc/nftables/openvpn.nft
+}" >>/etc/nftables/openvpn.nft
+		fi
 
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
+		# IPv6 NAT rules (only if clients get IPv6)
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
 			echo "
 table ip6 openvpn-nat {
 	chain postrouting {
 		type nat hook postrouting priority 100; policy accept;
-		ip6 saddr fd42:42:42:42::/112 oifname \"$NIC\" masquerade
+		ip6 saddr ${VPN_SUBNET_IPV6}/112 oifname \"$NIC\" masquerade
 	}
 }" >>/etc/nftables/openvpn.nft
 		fi
@@ -2604,15 +3001,20 @@ table ip6 openvpn-nat {
 		run_cmd_fatal "Creating iptables directory" mkdir -p /etc/iptables
 
 		# Script to add rules
-		echo "#!/bin/sh
-iptables -t nat -I POSTROUTING 1 -s $VPN_SUBNET/24 -o $NIC -j MASQUERADE
+		echo "#!/bin/sh" >/etc/iptables/add-openvpn-rules.sh
+
+		# IPv4 rules (only if clients get IPv4)
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo "iptables -t nat -I POSTROUTING 1 -s $VPN_SUBNET_IPV4/24 -o $NIC -j MASQUERADE
 iptables -I INPUT 1 -i tun0 -j ACCEPT
 iptables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 iptables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
-iptables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >/etc/iptables/add-openvpn-rules.sh
+iptables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/add-openvpn-rules.sh
+		fi
 
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo "ip6tables -t nat -I POSTROUTING 1 -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
+		# IPv6 rules (only if clients get IPv6)
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo "ip6tables -t nat -I POSTROUTING 1 -s ${VPN_SUBNET_IPV6}/112 -o $NIC -j MASQUERADE
 ip6tables -I INPUT 1 -i tun0 -j ACCEPT
 ip6tables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
 ip6tables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
@@ -2620,15 +3022,20 @@ ip6tables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptabl
 		fi
 
 		# Script to remove rules
-		echo "#!/bin/sh
-iptables -t nat -D POSTROUTING -s $VPN_SUBNET/24 -o $NIC -j MASQUERADE
+		echo "#!/bin/sh" >/etc/iptables/rm-openvpn-rules.sh
+
+		# IPv4 removal rules
+		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			echo "iptables -t nat -D POSTROUTING -s $VPN_SUBNET_IPV4/24 -o $NIC -j MASQUERADE
 iptables -D INPUT -i tun0 -j ACCEPT
 iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT
-iptables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >/etc/iptables/rm-openvpn-rules.sh
+iptables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/rm-openvpn-rules.sh
+		fi
 
-		if [[ $IPV6_SUPPORT == 'y' ]]; then
-			echo "ip6tables -t nat -D POSTROUTING -s fd42:42:42:42::/112 -o $NIC -j MASQUERADE
+		# IPv6 removal rules
+		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			echo "ip6tables -t nat -D POSTROUTING -s ${VPN_SUBNET_IPV6}/112 -o $NIC -j MASQUERADE
 ip6tables -D INPUT -i tun0 -j ACCEPT
 ip6tables -D FORWARD -i $NIC -o tun0 -j ACCEPT
 ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT
@@ -2671,8 +3078,13 @@ WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 	if [[ $PROTOCOL == 'udp' ]]; then
 		echo "proto udp" >>/etc/openvpn/server/client-template.txt
 		echo "explicit-exit-notify" >>/etc/openvpn/server/client-template.txt
+	elif [[ $PROTOCOL == 'udp6' ]]; then
+		echo "proto udp6" >>/etc/openvpn/server/client-template.txt
+		echo "explicit-exit-notify" >>/etc/openvpn/server/client-template.txt
 	elif [[ $PROTOCOL == 'tcp' ]]; then
 		echo "proto tcp-client" >>/etc/openvpn/server/client-template.txt
+	elif [[ $PROTOCOL == 'tcp6' ]]; then
+		echo "proto tcp6-client" >>/etc/openvpn/server/client-template.txt
 	fi
 	echo "remote $IP $PORT
 dev tun
@@ -3422,7 +3834,12 @@ function removeOpenVPN() {
 		# Get OpenVPN configuration
 		PORT=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
 		PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
-		VPN_SUBNET=$(grep '^server ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
+		# Strip "6" suffix for firewall/SELinux commands (they expect "udp"/"tcp", not "udp6"/"tcp6")
+		PROTOCOL_BASE="${PROTOCOL%6}"
+		# Extract IPv4 subnet (may be empty if IPv4 not enabled)
+		VPN_SUBNET_IPV4=$(grep '^server ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
+		# Extract IPv6 subnet (may be empty if IPv6 not enabled)
+		VPN_SUBNET_IPV6=$(grep '^server-ipv6 ' /etc/openvpn/server/server.conf | cut -d " " -f 2 | sed 's|/.*||')
 
 		# Stop OpenVPN
 		log_info "Stopping OpenVPN service..."
@@ -3433,12 +3850,18 @@ function removeOpenVPN() {
 
 		# Remove firewall rules
 		log_info "Removing firewall rules..."
-		if systemctl is-active --quiet firewalld && firewall-cmd --list-ports | grep -q "$PORT/$PROTOCOL"; then
+		if systemctl is-active --quiet firewalld && firewall-cmd --list-ports | grep -q "$PORT/$PROTOCOL_BASE"; then
 			# firewalld was used
-			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL"
+			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL_BASE"
 			run_cmd "Removing masquerade from firewalld" firewall-cmd --permanent --remove-masquerade
-			run_cmd "Removing VPN subnet rule" firewall-cmd --permanent --remove-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET/24\" accept" 2>/dev/null || true
-			run_cmd "Removing IPv6 source rule" firewall-cmd --permanent --remove-rich-rule='rule family="ipv6" source address="fd42:42:42:42::/112" accept' 2>/dev/null || true
+			# Remove IPv4 rule if it was configured
+			if [[ -n $VPN_SUBNET_IPV4 ]]; then
+				run_cmd "Removing IPv4 VPN subnet rule" firewall-cmd --permanent --remove-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET_IPV4/24\" accept" 2>/dev/null || true
+			fi
+			# Remove IPv6 rule if it was configured
+			if [[ -n $VPN_SUBNET_IPV6 ]]; then
+				run_cmd "Removing IPv6 VPN subnet rule" firewall-cmd --permanent --remove-rich-rule="rule family=\"ipv6\" source address=\"${VPN_SUBNET_IPV6}/112\" accept" 2>/dev/null || true
+			fi
 			run_cmd "Reloading firewalld" firewall-cmd --reload
 		elif [[ -f /etc/nftables/openvpn.nft ]]; then
 			# nftables was used
@@ -3462,7 +3885,7 @@ function removeOpenVPN() {
 		if hash sestatus 2>/dev/null; then
 			if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 				if [[ $PORT != '1194' ]]; then
-					run_cmd "Removing SELinux port" semanage port -d -t openvpn_port_t -p "$PROTOCOL" "$PORT"
+					run_cmd "Removing SELinux port" semanage port -d -t openvpn_port_t -p "$PROTOCOL_BASE" "$PORT"
 				fi
 			fi
 		fi

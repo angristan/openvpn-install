@@ -26,11 +26,16 @@ cat /shared/client.ovpn
 if [ -f /shared/vpn-config.env ]; then
 	# shellcheck source=/dev/null
 	source /shared/vpn-config.env
-	echo "VPN config loaded: VPN_SUBNET=$VPN_SUBNET, VPN_GATEWAY=$VPN_GATEWAY"
+	echo "VPN config loaded: VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4, VPN_GATEWAY=$VPN_GATEWAY"
+	if [ "${CLIENT_IPV6:-n}" = "y" ]; then
+		# shellcheck disable=SC2153 # Variables are sourced from vpn-config.env
+		echo "IPv6 enabled: VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6, VPN_GATEWAY_IPV6=$VPN_GATEWAY_IPV6"
+	fi
 else
 	echo "WARNING: vpn-config.env not found, using defaults"
-	VPN_SUBNET="10.8.0.0"
+	VPN_SUBNET_IPV4="10.8.0.0"
 	VPN_GATEWAY="10.8.0.1"
+	CLIENT_IPV6="n"
 fi
 
 # Connect to VPN
@@ -60,24 +65,49 @@ sleep 5
 echo ""
 echo "=== Running connectivity tests ==="
 
-# Test 1: Check tun0 interface
-echo "Test 1: Checking tun0 interface..."
+# Test 1: Check tun0 interface (IPv4)
+echo "Test 1: Checking tun0 interface (IPv4)..."
 # Extract base of subnet (e.g., "10.9.0" from "10.9.0.0")
-VPN_SUBNET_BASE="${VPN_SUBNET%.*}"
+VPN_SUBNET_BASE="${VPN_SUBNET_IPV4%.*}"
 if ip addr show tun0 | grep -q "$VPN_SUBNET_BASE"; then
-	echo "PASS: tun0 interface has correct IP range (${VPN_SUBNET_BASE}.x)"
+	echo "PASS: tun0 interface has correct IPv4 range (${VPN_SUBNET_BASE}.x)"
 else
-	echo "FAIL: tun0 interface doesn't have expected IP"
+	echo "FAIL: tun0 interface doesn't have expected IPv4"
 	exit 1
 fi
 
-# Test 2: Ping VPN gateway (retries indefinitely, relies on job timeout)
-echo "Test 2: Pinging VPN gateway ($VPN_GATEWAY)..."
+# Test 1b: Check tun0 IPv6 address (if IPv6 enabled)
+if [ "${CLIENT_IPV6:-n}" = "y" ]; then
+	echo "Test 1b: Checking tun0 interface (IPv6)..."
+	# Extract prefix of subnet (e.g., "fd42:42:42:42" from "fd42:42:42:42::")
+	VPN_SUBNET_IPV6_PREFIX="${VPN_SUBNET_IPV6%::}"
+	if ip -6 addr show tun0 | grep -q "$VPN_SUBNET_IPV6_PREFIX"; then
+		echo "PASS: tun0 interface has correct IPv6 range (${VPN_SUBNET_IPV6_PREFIX}::x)"
+	else
+		echo "FAIL: tun0 interface doesn't have expected IPv6"
+		ip -6 addr show tun0
+		exit 1
+	fi
+fi
+
+# Test 2: Ping VPN gateway (IPv4) (retries indefinitely, relies on job timeout)
+echo "Test 2: Pinging VPN gateway (IPv4) ($VPN_GATEWAY)..."
 while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
 	echo "Ping failed, retrying..."
 	sleep 3
 done
-echo "PASS: Can ping VPN gateway"
+echo "PASS: Can ping VPN gateway (IPv4)"
+
+# Test 2b: Ping VPN gateway (IPv6, if enabled)
+if [ "${CLIENT_IPV6:-n}" = "y" ]; then
+	echo "Test 2b: Pinging VPN gateway (IPv6) ($VPN_GATEWAY_IPV6)..."
+	if ping6 -c 5 "$VPN_GATEWAY_IPV6"; then
+		echo "PASS: Can ping VPN gateway (IPv6)"
+	else
+		echo "FAIL: Cannot ping VPN gateway (IPv6)"
+		exit 1
+	fi
+fi
 
 # Test 3: DNS resolution through Unbound
 echo "Test 3: Testing DNS resolution via Unbound ($VPN_GATEWAY)..."
