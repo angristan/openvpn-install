@@ -31,6 +31,7 @@ INSTALL_CMD=(/opt/openvpn-install.sh install)
 INSTALL_CMD+=(--endpoint openvpn-server)
 INSTALL_CMD+=(--dns unbound)
 INSTALL_CMD+=(--subnet "$VPN_SUBNET")
+INSTALL_CMD+=(--mtu 1400)
 INSTALL_CMD+=(--client testclient)
 
 # Add TLS signature mode if non-default
@@ -188,6 +189,32 @@ else
 fi
 
 echo "=== systemd service configuration verified ==="
+echo ""
+
+# =====================================================
+# Verify MTU configuration
+# =====================================================
+echo "=== Verifying MTU configuration ==="
+
+# Verify MTU in server config
+if grep -q "tun-mtu 1400" /etc/openvpn/server/server.conf; then
+	echo "PASS: Server config has tun-mtu 1400"
+else
+	echo "FAIL: Server config missing tun-mtu 1400"
+	grep "tun-mtu" /etc/openvpn/server/server.conf || echo "No tun-mtu directive found"
+	exit 1
+fi
+
+# Verify MTU in client template
+if grep -q "tun-mtu 1400" /etc/openvpn/server/client-template.txt; then
+	echo "PASS: Client template has tun-mtu 1400"
+else
+	echo "FAIL: Client template missing tun-mtu 1400"
+	grep "tun-mtu" /etc/openvpn/server/client-template.txt || echo "No tun-mtu directive found"
+	exit 1
+fi
+
+echo "=== MTU configuration verified ==="
 echo ""
 echo "Server config:"
 cat /etc/openvpn/server/server.conf
