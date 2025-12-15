@@ -87,6 +87,12 @@ To be noted:
   - It's only tested on `amd64` architecture.
 - The script requires `systemd`.
 
+### Recommended providers
+
+- [Vultr](https://www.vultr.com/?ref=8948982-8H): Worldwide locations, IPv6 support, starting at \$2.5/month
+- [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Worldwide locations, IPv6, 20 TB of traffic, starting at \€3.59/month
+- [Digital Ocean](https://m.do.co/c/ed0ba143fe53): Worldwide locations, IPv6 support, starting at \$4/month
+
 ## Usage
 
 First, download the script on your server and make it executable:
@@ -370,8 +376,8 @@ More Q&A in [FAQ.md](FAQ.md).
 
 **A:** I recommend these:
 
-- [Vultr](https://www.vultr.com/?ref=8948982-8H): Worldwide locations, IPv6 support, starting at \$5/month
-- [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Germany, Finland and USA. IPv6, 20 TB of traffic, starting at 4.5€/month
+- [Vultr](https://www.vultr.com/?ref=8948982-8H): Worldwide locations, IPv6 support, starting at \$2.5/month
+- [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Worldwide locations, IPv6, 20 TB of traffic, starting at \€3.59/month
 - [Digital Ocean](https://m.do.co/c/ed0ba143fe53): Worldwide locations, IPv6 support, starting at \$4/month
 
 ---
