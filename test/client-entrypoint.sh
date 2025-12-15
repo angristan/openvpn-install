@@ -28,6 +28,7 @@ if [ -f /shared/vpn-config.env ]; then
 	source /shared/vpn-config.env
 	echo "VPN config loaded: VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4, VPN_GATEWAY=$VPN_GATEWAY"
 	if [ "${CLIENT_IPV6:-n}" = "y" ]; then
+		# shellcheck disable=SC2153 # Variables are sourced from vpn-config.env
 		echo "IPv6 enabled: VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6, VPN_GATEWAY_IPV6=$VPN_GATEWAY_IPV6"
 	fi
 else

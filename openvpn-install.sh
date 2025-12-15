@@ -2618,9 +2618,11 @@ topology subnet" >>/etc/openvpn/server/server.conf
 
 	# IPv6 server directive (only if clients get IPv6)
 	if [[ $CLIENT_IPV6 == "y" ]]; then
-		echo "server-ipv6 ${VPN_SUBNET_IPV6}/112" >>/etc/openvpn/server/server.conf
-		echo "tun-ipv6" >>/etc/openvpn/server/server.conf
-		echo "push tun-ipv6" >>/etc/openvpn/server/server.conf
+		{
+			echo "server-ipv6 ${VPN_SUBNET_IPV6}/112"
+			echo "tun-ipv6"
+			echo "push tun-ipv6"
+		} >>/etc/openvpn/server/server.conf
 	fi
 
 	# ifconfig-pool-persist is incompatible with duplicate-cn
