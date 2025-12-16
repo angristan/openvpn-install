@@ -96,8 +96,8 @@ log_debug() {
 
 log_prompt() {
 	# For user-facing prompts/questions (no prefix, just cyan)
-	# Skip display in auto-install mode
-	if [[ $AUTO_INSTALL != "y" ]]; then
+	# Skip display in non-interactive mode
+	if [[ $NON_INTERACTIVE_INSTALL != "y" ]]; then
 		echo -e "${COLOR_CYAN}$*${COLOR_RESET}"
 	fi
 	_log_to_file "[PROMPT] $*"
@@ -105,8 +105,8 @@ log_prompt() {
 
 log_header() {
 	# For section headers
-	# Skip display in auto-install mode
-	if [[ $AUTO_INSTALL != "y" ]]; then
+	# Skip display in non-interactive mode
+	if [[ $NON_INTERACTIVE_INSTALL != "y" ]]; then
 		echo ""
 		echo -e "${COLOR_BOLD}${COLOR_BLUE}=== $* ===${COLOR_RESET}"
 		echo ""
@@ -116,7 +116,7 @@ log_header() {
 
 log_menu() {
 	# For menu options - only show in interactive mode
-	if [[ $AUTO_INSTALL != "y" ]]; then
+	if [[ $NON_INTERACTIVE_INSTALL != "y" ]]; then
 		echo "$@"
 	fi
 }
@@ -1092,10 +1092,9 @@ cmd_install() {
 	if [[ $interactive == true ]]; then
 		# Run interactive installer
 		installQuestions
-		installOpenVPN
 	else
 		# Non-interactive mode - set flags and defaults
-		AUTO_INSTALL=y
+		NON_INTERACTIVE_INSTALL=y
 		APPROVE_INSTALL=y
 		APPROVE_IP=${APPROVE_IP:-y}
 		CONTINUE=y
@@ -1125,9 +1124,14 @@ cmd_install() {
 		# Validate configuration values (catches invalid env vars)
 		validate_configuration
 
-		installQuestions
-		installOpenVPN
+		# Detect IPs and set up network config (interactive mode does this in installQuestions)
+		detect_server_ips
 	fi
+
+	# Prepare derived network configuration (gateways, etc.)
+	prepare_network_config
+
+	installOpenVPN
 }
 
 # Handle uninstall command
@@ -2007,6 +2011,33 @@ function resolvePublicIP() {
 	fi
 }
 
+# Detect server's IPv4 and IPv6 addresses
+function detect_server_ips() {
+	IP_IPV4=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+	IP_IPV6=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+
+	# Set IP based on ENDPOINT_TYPE
+	if [[ $ENDPOINT_TYPE == "6" ]]; then
+		IP="$IP_IPV6"
+	else
+		IP="$IP_IPV4"
+	fi
+}
+
+# Calculate derived network configuration values
+function prepare_network_config() {
+	# Calculate IPv4 gateway (always needed for leak prevention)
+	VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
+
+	# Calculate IPv6 gateway if IPv6 is enabled
+	if [[ $CLIENT_IPV6 == "y" ]]; then
+		VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
+	fi
+
+	# Set legacy variable for backward compatibility
+	IPV6_SUPPORT="$CLIENT_IPV6"
+}
+
 function installQuestions() {
 	log_header "OpenVPN Installer"
 	log_prompt "The git repository is available at: https://github.com/angristan/openvpn-install"
@@ -2186,8 +2217,6 @@ function installQuestions() {
 		# IPv6-only mode: still need IPv4 subnet for leak prevention (redirect-gateway def1)
 		VPN_SUBNET_IPV4="10.8.0.0"
 	fi
-	# Calculate gateway (first usable IP in the subnet)
-	VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
 
 	# ==========================================================================
 	# Step 6: IPv6 subnet (if IPv6 enabled for clients)
@@ -2213,12 +2242,8 @@ function installQuestions() {
 			fi
 			;;
 		esac
-		# Calculate gateway (first usable IP in the subnet)
-		VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
 	fi
 
-	# Set legacy IPV6_SUPPORT variable for backward compatibility
-	IPV6_SUPPORT="$CLIENT_IPV6"
 	log_menu ""
 	log_prompt "What port do you want OpenVPN to listen to?"
 	log_menu "   1) Default: 1194"
@@ -2502,15 +2527,15 @@ function installQuestions() {
 }
 
 function installOpenVPN() {
-	if [[ $AUTO_INSTALL == "y" ]]; then
+	if [[ $NON_INTERACTIVE_INSTALL == "y" ]]; then
 		# Resolve public IP if ENDPOINT not set
 		if [[ -z $ENDPOINT ]]; then
 			ENDPOINT=$(resolvePublicIP)
 		fi
 
-		# Log auto-install mode and parameters
-		log_info "=== OpenVPN Auto-Install ==="
-		log_info "Running in auto-install mode with the following settings:"
+		# Log non-interactive mode and parameters
+		log_info "=== OpenVPN Non-Interactive Install ==="
+		log_info "Running in non-interactive mode with the following settings:"
 		log_info "  ENDPOINT=$ENDPOINT"
 		log_info "  ENDPOINT_TYPE=$ENDPOINT_TYPE"
 		log_info "  CLIENT_IPV4=$CLIENT_IPV4"
