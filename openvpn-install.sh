@@ -2929,6 +2929,7 @@ verb 3" >>/etc/openvpn/server/server.conf
 	fi
 
 	# Configure firewall rules
+	# Use source-based rules for VPN traffic (works reliably regardless of which tun interface OpenVPN uses)
 	log_info "Configuring firewall rules..."
 
 	if systemctl is-active --quiet firewalld; then
@@ -2937,7 +2938,8 @@ verb 3" >>/etc/openvpn/server/server.conf
 		run_cmd "Adding OpenVPN port to firewalld" firewall-cmd --permanent --add-port="$PORT/$PROTOCOL"
 		run_cmd "Adding masquerade to firewalld" firewall-cmd --permanent --add-masquerade
 
-		# Add rich rules for VPN traffic (source-based rules work reliably with dynamic tun0 interface)
+		# Add rich rules for VPN traffic (source-based only, as firewalld doesn't reliably
+		# support interface patterns with direct rules when using nftables backend)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			run_cmd "Adding IPv4 VPN subnet rule" firewall-cmd --permanent --add-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET_IPV4/24\" accept"
 		fi
@@ -2952,20 +2954,33 @@ verb 3" >>/etc/openvpn/server/server.conf
 		log_info "nftables detected, configuring nftables rules..."
 		run_cmd_fatal "Creating nftables directory" mkdir -p /etc/nftables
 
-		# Create nftables rules file - base filter rules
-		echo "table inet openvpn {
-	chain input {
-		type filter hook input priority 0; policy accept;
-		iifname \"tun0\" accept
-		iifname \"$NIC\" $PROTOCOL dport $PORT accept
-	}
-
-	chain forward {
-		type filter hook forward priority 0; policy accept;
-		iifname \"$NIC\" oifname \"tun0\" accept
-		iifname \"tun0\" oifname \"$NIC\" accept
-	}
-}" >/etc/nftables/openvpn.nft
+		# Create nftables rules file
+		{
+			echo "table inet openvpn {"
+			echo "	chain input {"
+			echo "		type filter hook input priority 0; policy accept;"
+			if [[ $CLIENT_IPV4 == 'y' ]]; then
+				echo "		iifname \"tun*\" ip saddr $VPN_SUBNET_IPV4/24 accept"
+			fi
+			if [[ $CLIENT_IPV6 == 'y' ]]; then
+				echo "		iifname \"tun*\" ip6 saddr ${VPN_SUBNET_IPV6}/112 accept"
+			fi
+			echo "		iifname \"$NIC\" $PROTOCOL dport $PORT accept"
+			echo "	}"
+			echo ""
+			echo "	chain forward {"
+			echo "		type filter hook forward priority 0; policy accept;"
+			if [[ $CLIENT_IPV4 == 'y' ]]; then
+				echo "		iifname \"tun*\" ip saddr $VPN_SUBNET_IPV4/24 accept"
+				echo "		oifname \"tun*\" ip daddr $VPN_SUBNET_IPV4/24 accept"
+			fi
+			if [[ $CLIENT_IPV6 == 'y' ]]; then
+				echo "		iifname \"tun*\" ip6 saddr ${VPN_SUBNET_IPV6}/112 accept"
+				echo "		oifname \"tun*\" ip6 daddr ${VPN_SUBNET_IPV6}/112 accept"
+			fi
+			echo "	}"
+			echo "}"
+		} >/etc/nftables/openvpn.nft
 
 		# IPv4 NAT rules (only if clients get IPv4)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
@@ -3006,18 +3021,18 @@ table ip6 openvpn-nat {
 		# IPv4 rules (only if clients get IPv4)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo "iptables -t nat -I POSTROUTING 1 -s $VPN_SUBNET_IPV4/24 -o $NIC -j MASQUERADE
-iptables -I INPUT 1 -i tun0 -j ACCEPT
-iptables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
-iptables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
+iptables -I INPUT 1 -i tun+ -s $VPN_SUBNET_IPV4/24 -j ACCEPT
+iptables -I FORWARD 1 -i tun+ -s $VPN_SUBNET_IPV4/24 -j ACCEPT
+iptables -I FORWARD 1 -o tun+ -d $VPN_SUBNET_IPV4/24 -j ACCEPT
 iptables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/add-openvpn-rules.sh
 		fi
 
 		# IPv6 rules (only if clients get IPv6)
 		if [[ $CLIENT_IPV6 == 'y' ]]; then
 			echo "ip6tables -t nat -I POSTROUTING 1 -s ${VPN_SUBNET_IPV6}/112 -o $NIC -j MASQUERADE
-ip6tables -I INPUT 1 -i tun0 -j ACCEPT
-ip6tables -I FORWARD 1 -i $NIC -o tun0 -j ACCEPT
-ip6tables -I FORWARD 1 -i tun0 -o $NIC -j ACCEPT
+ip6tables -I INPUT 1 -i tun+ -s ${VPN_SUBNET_IPV6}/112 -j ACCEPT
+ip6tables -I FORWARD 1 -i tun+ -s ${VPN_SUBNET_IPV6}/112 -j ACCEPT
+ip6tables -I FORWARD 1 -o tun+ -d ${VPN_SUBNET_IPV6}/112 -j ACCEPT
 ip6tables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/add-openvpn-rules.sh
 		fi
 
@@ -3027,18 +3042,18 @@ ip6tables -I INPUT 1 -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptabl
 		# IPv4 removal rules
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo "iptables -t nat -D POSTROUTING -s $VPN_SUBNET_IPV4/24 -o $NIC -j MASQUERADE
-iptables -D INPUT -i tun0 -j ACCEPT
-iptables -D FORWARD -i $NIC -o tun0 -j ACCEPT
-iptables -D FORWARD -i tun0 -o $NIC -j ACCEPT
+iptables -D INPUT -i tun+ -s $VPN_SUBNET_IPV4/24 -j ACCEPT
+iptables -D FORWARD -i tun+ -s $VPN_SUBNET_IPV4/24 -j ACCEPT
+iptables -D FORWARD -o tun+ -d $VPN_SUBNET_IPV4/24 -j ACCEPT
 iptables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/rm-openvpn-rules.sh
 		fi
 
 		# IPv6 removal rules
 		if [[ $CLIENT_IPV6 == 'y' ]]; then
 			echo "ip6tables -t nat -D POSTROUTING -s ${VPN_SUBNET_IPV6}/112 -o $NIC -j MASQUERADE
-ip6tables -D INPUT -i tun0 -j ACCEPT
-ip6tables -D FORWARD -i $NIC -o tun0 -j ACCEPT
-ip6tables -D FORWARD -i tun0 -o $NIC -j ACCEPT
+ip6tables -D INPUT -i tun+ -s ${VPN_SUBNET_IPV6}/112 -j ACCEPT
+ip6tables -D FORWARD -i tun+ -s ${VPN_SUBNET_IPV6}/112 -j ACCEPT
+ip6tables -D FORWARD -o tun+ -d ${VPN_SUBNET_IPV6}/112 -j ACCEPT
 ip6tables -D INPUT -i $NIC -p $PROTOCOL --dport $PORT -j ACCEPT" >>/etc/iptables/rm-openvpn-rules.sh
 		fi
 
@@ -3854,13 +3869,13 @@ function removeOpenVPN() {
 			# firewalld was used
 			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL_BASE"
 			run_cmd "Removing masquerade from firewalld" firewall-cmd --permanent --remove-masquerade
-			# Remove IPv4 rule if it was configured
+			# Remove IPv4 rich rule if configured
 			if [[ -n $VPN_SUBNET_IPV4 ]]; then
-				run_cmd "Removing IPv4 VPN subnet rule" firewall-cmd --permanent --remove-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET_IPV4/24\" accept" 2>/dev/null || true
+				firewall-cmd --permanent --remove-rich-rule="rule family=\"ipv4\" source address=\"$VPN_SUBNET_IPV4/24\" accept" 2>/dev/null || true
 			fi
-			# Remove IPv6 rule if it was configured
+			# Remove IPv6 rich rule if configured
 			if [[ -n $VPN_SUBNET_IPV6 ]]; then
-				run_cmd "Removing IPv6 VPN subnet rule" firewall-cmd --permanent --remove-rich-rule="rule family=\"ipv6\" source address=\"${VPN_SUBNET_IPV6}/112\" accept" 2>/dev/null || true
+				firewall-cmd --permanent --remove-rich-rule="rule family=\"ipv6\" source address=\"${VPN_SUBNET_IPV6}/112\" accept" 2>/dev/null || true
 			fi
 			run_cmd "Reloading firewalld" firewall-cmd --reload
 		elif [[ -f /etc/nftables/openvpn.nft ]]; then
