@@ -96,8 +96,8 @@ log_debug() {
 
 log_prompt() {
 	# For user-facing prompts/questions (no prefix, just cyan)
-	# Skip display in auto-install mode
-	if [[ $AUTO_INSTALL != "y" ]]; then
+	# Skip display in non-interactive mode
+	if [[ $NON_INTERACTIVE_INSTALL != "y" ]]; then
 		echo -e "${COLOR_CYAN}$*${COLOR_RESET}"
 	fi
 	_log_to_file "[PROMPT] $*"
@@ -105,8 +105,8 @@ log_prompt() {
 
 log_header() {
 	# For section headers
-	# Skip display in auto-install mode
-	if [[ $AUTO_INSTALL != "y" ]]; then
+	# Skip display in non-interactive mode
+	if [[ $NON_INTERACTIVE_INSTALL != "y" ]]; then
 		echo ""
 		echo -e "${COLOR_BOLD}${COLOR_BLUE}=== $* ===${COLOR_RESET}"
 		echo ""
@@ -116,7 +116,7 @@ log_header() {
 
 log_menu() {
 	# For menu options - only show in interactive mode
-	if [[ $AUTO_INSTALL != "y" ]]; then
+	if [[ $NON_INTERACTIVE_INSTALL != "y" ]]; then
 		echo "$@"
 	fi
 }
@@ -425,19 +425,9 @@ requireNoOpenVPN() {
 # Parse DNS provider string to DNS number
 parse_dns_provider() {
 	case "$1" in
-	system) DNS=1 ;;
-	unbound) DNS=2 ;;
-	cloudflare) DNS=3 ;;
-	quad9) DNS=4 ;;
-	quad9-uncensored) DNS=5 ;;
-	fdn) DNS=6 ;;
-	dnswatch) DNS=7 ;;
-	opendns) DNS=8 ;;
-	google) DNS=9 ;;
-	yandex) DNS=10 ;;
-	adguard) DNS=11 ;;
-	nextdns) DNS=12 ;;
-	custom) DNS=13 ;;
+	system | unbound | cloudflare | quad9 | quad9-uncensored | fdn | dnswatch | opendns | google | yandex | adguard | nextdns | custom)
+		DNS="$1"
+		;;
 	*) log_fatal "Invalid DNS provider: $1. See '$SCRIPT_NAME install --help' for valid providers." ;;
 	esac
 }
@@ -460,19 +450,90 @@ parse_curve() {
 	esac
 }
 
-# Set default encryption settings (non-interactive mode)
-set_default_encryption() {
+# =============================================================================
+# Configuration Constants
+# =============================================================================
+# Protocol options
+readonly PROTOCOLS=("udp" "tcp")
+
+# DNS providers (use string names)
+readonly DNS_PROVIDERS=("system" "unbound" "cloudflare" "quad9" "quad9-uncensored" "fdn" "dnswatch" "opendns" "google" "yandex" "adguard" "nextdns" "custom")
+
+# Cipher options
+readonly CIPHERS=("AES-128-GCM" "AES-192-GCM" "AES-256-GCM" "AES-128-CBC" "AES-192-CBC" "AES-256-CBC" "CHACHA20-POLY1305")
+
+# Certificate types (use strings)
+readonly CERT_TYPES=("ecdsa" "rsa")
+
+# ECDSA curves
+readonly CERT_CURVES=("prime256v1" "secp384r1" "secp521r1")
+
+# RSA key sizes
+readonly RSA_KEY_SIZES=("2048" "3072" "4096")
+
+# TLS versions
+readonly TLS_VERSIONS=("1.2" "1.3")
+
+# TLS signature modes (use strings)
+readonly TLS_SIG_MODES=("crypt-v2" "crypt" "auth")
+
+# HMAC algorithms
+readonly HMAC_ALGS=("SHA256" "SHA384" "SHA512")
+
+# TLS 1.3 cipher suite options
+readonly TLS13_OPTIONS=("all" "aes-256-only" "aes-128-only" "chacha20-only")
+
+# TLS groups options
+readonly TLS_GROUPS_OPTIONS=("all" "x25519-only" "nist-only")
+
+# =============================================================================
+# Set Installation Defaults
+# =============================================================================
+# Centralized function to set all defaults - called before configuration
+set_installation_defaults() {
+	# Network
+	ENDPOINT_TYPE="${ENDPOINT_TYPE:-4}"
+	CLIENT_IPV4="${CLIENT_IPV4:-y}"
+	CLIENT_IPV6="${CLIENT_IPV6:-n}"
+	VPN_SUBNET_IPV4="${VPN_SUBNET_IPV4:-10.8.0.0}"
+	VPN_SUBNET_IPV6="${VPN_SUBNET_IPV6:-fd42:42:42:42::}"
+	PORT="${PORT:-1194}"
+	PROTOCOL="${PROTOCOL:-udp}"
+
+	# DNS (use string name)
+	DNS="${DNS:-cloudflare}"
+
+	# Multi-client
+	MULTI_CLIENT="${MULTI_CLIENT:-n}"
+
+	# Encryption
 	CIPHER="${CIPHER:-AES-128-GCM}"
-	CERT_TYPE="${CERT_TYPE:-1}" # ECDSA
+	CERT_TYPE="${CERT_TYPE:-ecdsa}"
 	CERT_CURVE="${CERT_CURVE:-prime256v1}"
-	CC_CIPHER="${CC_CIPHER:-TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256}"
-	# TLS 1.3 cipher suites (OpenSSL format with underscores)
-	TLS13_CIPHERSUITES="${TLS13_CIPHERSUITES:-TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256}"
+	RSA_KEY_SIZE="${RSA_KEY_SIZE:-2048}"
 	TLS_VERSION_MIN="${TLS_VERSION_MIN:-1.2}"
-	# TLS key exchange groups (replaces deprecated ecdh-curve)
+	TLS13_CIPHERSUITES="${TLS13_CIPHERSUITES:-TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256}"
 	TLS_GROUPS="${TLS_GROUPS:-X25519:prime256v1:secp384r1:secp521r1}"
 	HMAC_ALG="${HMAC_ALG:-SHA256}"
-	TLS_SIG="${TLS_SIG:-1}" # tls-crypt-v2
+	TLS_SIG="${TLS_SIG:-crypt-v2}"
+
+	# Derive CC_CIPHER from CERT_TYPE if not set
+	if [[ -z $CC_CIPHER ]]; then
+		if [[ $CERT_TYPE == "ecdsa" ]]; then
+			CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
+		else
+			CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256"
+		fi
+	fi
+
+	# Client
+	CLIENT="${CLIENT:-client}"
+	PASS="${PASS:-1}"
+	CLIENT_CERT_DURATION_DAYS="${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}"
+	SERVER_CERT_DURATION_DAYS="${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}"
+
+	# Note: Gateway values (VPN_GATEWAY_IPV4, VPN_GATEWAY_IPV6) and IPV6_SUPPORT
+	# are computed in prepare_network_config() which is called after validation
 }
 
 # Validation functions
@@ -555,6 +616,233 @@ validate_client_name() {
 	fi
 }
 
+# Validate all configuration values (catches invalid env vars in non-interactive mode)
+validate_configuration() {
+	# Validate PROTOCOL
+	case "$PROTOCOL" in
+	udp | tcp) ;;
+	*) log_fatal "Invalid protocol: $PROTOCOL. Must be 'udp' or 'tcp'." ;;
+	esac
+
+	# Validate DNS
+	case "$DNS" in
+	system | unbound | cloudflare | quad9 | quad9-uncensored | fdn | dnswatch | opendns | google | yandex | adguard | nextdns | custom) ;;
+	*) log_fatal "Invalid DNS provider: $DNS. Valid providers: system, unbound, cloudflare, quad9, quad9-uncensored, fdn, dnswatch, opendns, google, yandex, adguard, nextdns, custom" ;;
+	esac
+
+	# Validate CERT_TYPE
+	case "$CERT_TYPE" in
+	ecdsa | rsa) ;;
+	*) log_fatal "Invalid cert type: $CERT_TYPE. Must be 'ecdsa' or 'rsa'." ;;
+	esac
+
+	# Validate TLS_SIG
+	case "$TLS_SIG" in
+	crypt-v2 | crypt | auth) ;;
+	*) log_fatal "Invalid TLS signature mode: $TLS_SIG. Must be 'crypt-v2', 'crypt', or 'auth'." ;;
+	esac
+
+	# Validate PORT
+	if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [[ "$PORT" -lt 1 ]] || [[ "$PORT" -gt 65535 ]]; then
+		log_fatal "Invalid port: $PORT. Must be a number between 1 and 65535."
+	fi
+
+	# Validate CLIENT_IPV4/CLIENT_IPV6
+	if [[ $CLIENT_IPV4 != "y" ]] && [[ $CLIENT_IPV6 != "y" ]]; then
+		log_fatal "At least one of CLIENT_IPV4 or CLIENT_IPV6 must be 'y'"
+	fi
+
+	# Validate ENDPOINT_TYPE
+	case "$ENDPOINT_TYPE" in
+	4 | 6) ;;
+	*) log_fatal "Invalid endpoint type: $ENDPOINT_TYPE. Must be '4' or '6'." ;;
+	esac
+
+	# Validate CIPHER
+	case "$CIPHER" in
+	AES-128-GCM | AES-192-GCM | AES-256-GCM | AES-128-CBC | AES-192-CBC | AES-256-CBC | CHACHA20-POLY1305) ;;
+	*) log_fatal "Invalid cipher: $CIPHER. Valid ciphers: AES-128-GCM, AES-192-GCM, AES-256-GCM, AES-128-CBC, AES-192-CBC, AES-256-CBC, CHACHA20-POLY1305" ;;
+	esac
+
+	# Validate CERT_CURVE (only if ECDSA)
+	if [[ $CERT_TYPE == "ecdsa" ]]; then
+		case "$CERT_CURVE" in
+		prime256v1 | secp384r1 | secp521r1) ;;
+		*) log_fatal "Invalid cert curve: $CERT_CURVE. Must be 'prime256v1', 'secp384r1', or 'secp521r1'." ;;
+		esac
+	fi
+
+	# Validate RSA_KEY_SIZE (only if RSA)
+	if [[ $CERT_TYPE == "rsa" ]]; then
+		case "$RSA_KEY_SIZE" in
+		2048 | 3072 | 4096) ;;
+		*) log_fatal "Invalid RSA key size: $RSA_KEY_SIZE. Must be 2048, 3072, or 4096." ;;
+		esac
+	fi
+
+	# Validate TLS_VERSION_MIN
+	case "$TLS_VERSION_MIN" in
+	1.2 | 1.3) ;;
+	*) log_fatal "Invalid TLS version: $TLS_VERSION_MIN. Must be '1.2' or '1.3'." ;;
+	esac
+
+	# Validate HMAC_ALG
+	case "$HMAC_ALG" in
+	SHA256 | SHA384 | SHA512) ;;
+	*) log_fatal "Invalid HMAC algorithm: $HMAC_ALG. Must be SHA256, SHA384, or SHA512." ;;
+	esac
+
+	# Validate MTU if set
+	if [[ -n $MTU ]]; then
+		if ! [[ "$MTU" =~ ^[0-9]+$ ]] || [[ "$MTU" -lt 576 ]] || [[ "$MTU" -gt 65535 ]]; then
+			log_fatal "Invalid MTU: $MTU. Must be a number between 576 and 65535."
+		fi
+	fi
+
+	# Validate custom DNS if selected
+	if [[ $DNS == "custom" ]] && [[ -z $DNS1 ]]; then
+		log_fatal "Custom DNS selected but DNS1 (primary DNS) is not set. Use --dns-primary to specify."
+	fi
+
+	# Validate VPN subnets using the dedicated validation functions
+	# These check format, octet ranges, and RFC1918/ULA compliance
+	if [[ -n $VPN_SUBNET_IPV4 ]]; then
+		validate_subnet_ipv4 "$VPN_SUBNET_IPV4"
+	fi
+
+	if [[ $CLIENT_IPV6 == "y" ]] && [[ -n $VPN_SUBNET_IPV6 ]]; then
+		validate_subnet_ipv6 "$VPN_SUBNET_IPV6"
+	fi
+}
+
+# =============================================================================
+# Interactive Helper Functions
+# =============================================================================
+# Generic select-from-menu function for arrays
+# Usage: select_from_array "prompt" array_name "default_value" result_var
+# Note: Uses namerefs (-n) for arrays
+select_from_array() {
+	local prompt="$1"
+	local -n _options_ref="$2"
+	local default="$3"
+	local -n _result_ref="$4"
+
+	# If already set (non-interactive mode), just return
+	if [[ -n $_result_ref ]]; then
+		return
+	fi
+
+	# Find default index (1-based for display)
+	local default_idx=1
+	for i in "${!_options_ref[@]}"; do
+		if [[ "${_options_ref[$i]}" == "$default" ]]; then
+			default_idx=$((i + 1))
+			break
+		fi
+	done
+
+	# Display menu
+	local count=${#_options_ref[@]}
+	for i in "${!_options_ref[@]}"; do
+		log_menu "   $((i + 1))) ${_options_ref[$i]}"
+	done
+
+	# Read selection
+	local choice
+	until [[ $choice =~ ^[0-9]+$ ]] && ((choice >= 1 && choice <= count)); do
+		read -rp "$prompt [1-$count]: " -e -i "$default_idx" choice
+	done
+
+	_result_ref="${_options_ref[$((choice - 1))]}"
+}
+
+# Select with custom labels (for menu items that need different display text)
+# Usage: select_with_labels "prompt" labels_array values_array "default_value" result_var
+select_with_labels() {
+	local prompt="$1"
+	local -n _labels_ref="$2"
+	local -n _values_ref="$3"
+	local default="$4"
+	local -n _result_ref="$5"
+
+	# If already set (non-interactive mode), just return
+	if [[ -n $_result_ref ]]; then
+		return
+	fi
+
+	# Find default index
+	local default_idx=1
+	for i in "${!_values_ref[@]}"; do
+		if [[ "${_values_ref[$i]}" == "$default" ]]; then
+			default_idx=$((i + 1))
+			break
+		fi
+	done
+
+	# Display menu
+	local count=${#_labels_ref[@]}
+	for i in "${!_labels_ref[@]}"; do
+		log_menu "   $((i + 1))) ${_labels_ref[$i]}"
+	done
+
+	# Read selection
+	local choice
+	until [[ $choice =~ ^[0-9]+$ ]] && ((choice >= 1 && choice <= count)); do
+		read -rp "$prompt [1-$count]: " -e -i "$default_idx" choice
+	done
+
+	_result_ref="${_values_ref[$((choice - 1))]}"
+}
+
+# Prompt for yes/no with default
+# Usage: prompt_yes_no "prompt" "default" result_var
+prompt_yes_no() {
+	local prompt="$1"
+	local default="$2"
+	local -n _result_ref="$3"
+
+	# If already set, just return
+	if [[ $_result_ref =~ ^[yn]$ ]]; then
+		return
+	fi
+
+	until [[ $_result_ref =~ ^[yn]$ ]]; do
+		read -rp "$prompt [y/n]: " -e -i "$default" _result_ref
+	done
+}
+
+# Prompt for a value with validation function
+# Usage: prompt_validated "prompt" "validator_func" "default" result_var
+# The validator should return 0 for valid, non-0 for invalid
+prompt_validated() {
+	local prompt="$1"
+	local validator="$2"
+	local default="$3"
+	local -n _result_ref="$4"
+
+	# If already set and valid, return
+	if [[ -n $_result_ref ]] && $validator "$_result_ref" 2>/dev/null; then
+		return
+	fi
+
+	_result_ref=""
+	until [[ -n $_result_ref ]] && $validator "$_result_ref" 2>/dev/null; do
+		read -rp "$prompt: " -e -i "$default" _result_ref
+	done
+}
+
+# Non-fatal port validator (returns 0/1)
+is_valid_port() {
+	local port="$1"
+	[[ "$port" =~ ^[0-9]+$ ]] && ((port >= 1 && port <= 65535))
+}
+
+# Non-fatal MTU validator (returns 0/1)
+is_valid_mtu() {
+	local mtu="$1"
+	[[ "$mtu" =~ ^[0-9]+$ ]] && ((mtu >= 576 && mtu <= 65535))
+}
+
 # Handle install command
 cmd_install() {
 	local interactive=false
@@ -613,14 +901,12 @@ cmd_install() {
 			[[ -z "${2:-}" ]] && log_fatal "--subnet-ipv4 requires an argument"
 			validate_subnet_ipv4 "$2"
 			VPN_SUBNET_IPV4="$2"
-			SUBNET_IPV4_CHOICE=2
 			shift 2
 			;;
 		--subnet-ipv6)
 			[[ -z "${2:-}" ]] && log_fatal "--subnet-ipv6 requires an argument"
 			validate_subnet_ipv6 "$2"
 			VPN_SUBNET_IPV6="$2"
-			SUBNET_IPV6_CHOICE=2
 			shift 2
 			;;
 		--subnet)
@@ -628,30 +914,23 @@ cmd_install() {
 			[[ -z "${2:-}" ]] && log_fatal "--subnet requires an argument"
 			validate_subnet_ipv4 "$2"
 			VPN_SUBNET_IPV4="$2"
-			SUBNET_IPV4_CHOICE=2
 			shift 2
 			;;
 		--port)
 			[[ -z "${2:-}" ]] && log_fatal "--port requires an argument"
 			validate_port "$2"
 			PORT="$2"
-			PORT_CHOICE=2
 			shift 2
 			;;
 		--port-random)
-			PORT_CHOICE=3
+			PORT="random"
 			shift
 			;;
 		--protocol)
 			[[ -z "${2:-}" ]] && log_fatal "--protocol requires an argument"
 			case "$2" in
-			udp)
-				PROTOCOL=udp
-				PROTOCOL_CHOICE=1
-				;;
-			tcp)
-				PROTOCOL=tcp
-				PROTOCOL_CHOICE=2
+			udp | tcp)
+				PROTOCOL="$2"
 				;;
 			*) log_fatal "Invalid protocol: $2. Use 'udp' or 'tcp'." ;;
 			esac
@@ -691,11 +970,9 @@ cmd_install() {
 		--cert-type)
 			[[ -z "${2:-}" ]] && log_fatal "--cert-type requires an argument"
 			case "$2" in
-			ecdsa) CERT_TYPE=1 ;;
-			rsa) CERT_TYPE=2 ;;
+			ecdsa | rsa) CERT_TYPE="$2" ;;
 			*) log_fatal "Invalid cert-type: $2. Use 'ecdsa' or 'rsa'." ;;
 			esac
-			CUSTOMIZE_ENC=y
 			shift 2
 			;;
 		--cert-curve)
@@ -752,12 +1029,9 @@ cmd_install() {
 		--tls-sig)
 			[[ -z "${2:-}" ]] && log_fatal "--tls-sig requires an argument"
 			case "$2" in
-			crypt-v2) TLS_SIG=1 ;;
-			crypt) TLS_SIG=2 ;;
-			auth) TLS_SIG=3 ;;
+			crypt-v2 | crypt | auth) TLS_SIG="$2" ;;
 			*) log_fatal "Invalid TLS mode: $2. Use 'crypt-v2', 'crypt', or 'auth'." ;;
 			esac
-			CUSTOMIZE_ENC=y
 			shift 2
 			;;
 		--server-cert-days)
@@ -802,7 +1076,7 @@ cmd_install() {
 	done
 
 	# Validate custom DNS settings
-	if [[ -n "${DNS1:-}" || -n "${DNS2:-}" ]] && [[ "${DNS:-}" != "13" ]]; then
+	if [[ -n "${DNS1:-}" || -n "${DNS2:-}" ]] && [[ "${DNS:-}" != "custom" ]]; then
 		log_fatal "--dns-primary and --dns-secondary require --dns custom"
 	fi
 
@@ -812,109 +1086,46 @@ cmd_install() {
 	if [[ $interactive == true ]]; then
 		# Run interactive installer
 		installQuestions
-		installOpenVPN
 	else
-		# Non-interactive mode - set defaults
-		AUTO_INSTALL=y
+		# Non-interactive mode - set flags and defaults
+		NON_INTERACTIVE_INSTALL=y
 		APPROVE_INSTALL=y
 		APPROVE_IP=${APPROVE_IP:-y}
+		CONTINUE=y
 
-		# Endpoint type (default: IPv4)
-		ENDPOINT_TYPE=${ENDPOINT_TYPE:-4}
-		# Set ENDPOINT_TYPE_CHOICE for installQuestions (1=IPv4, 2=IPv6)
-		if [[ $ENDPOINT_TYPE == "6" ]]; then
-			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-2}
-		else
-			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-1}
+		# Handle random port
+		if [[ $PORT == "random" ]]; then
+			PORT=$(shuf -i 49152-65535 -n1)
+			log_info "Random Port: $PORT"
 		fi
-
-		# Client IP versions
-		CLIENT_IPV4=${CLIENT_IPV4:-y}
-		CLIENT_IPV6=${CLIENT_IPV6:-n}
-		# Set CLIENT_IP_CHOICE for installQuestions (1=IPv4 only, 2=IPv6 only, 3=Both)
-		if [[ $CLIENT_IPV4 == "y" ]] && [[ $CLIENT_IPV6 == "y" ]]; then
-			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-3}
-		elif [[ $CLIENT_IPV6 == "y" ]]; then
-			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-2}
-		else
-			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-1}
-		fi
-
-		# Validate at least one IP version is enabled
-		if [[ $CLIENT_IPV4 != "y" ]] && [[ $CLIENT_IPV6 != "y" ]]; then
-			log_fatal "At least one of --client-ipv4 or --client-ipv6 must be enabled"
-		fi
-
-		# Set legacy IPV6_SUPPORT for compatibility
-		IPV6_SUPPORT="$CLIENT_IPV6"
-
-		# IPv4 Subnet - always needed for leak prevention (redirect-gateway def1)
-		if [[ -n $VPN_SUBNET_IPV4 ]]; then
-			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-2}
-		else
-			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-1}
-			VPN_SUBNET_IPV4="10.8.0.0"
-		fi
-		VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
-
-		# IPv6 Subnet
-		if [[ $CLIENT_IPV6 == "y" ]]; then
-			if [[ -n $VPN_SUBNET_IPV6 ]]; then
-				SUBNET_IPV6_CHOICE=${SUBNET_IPV6_CHOICE:-2}
-			else
-				SUBNET_IPV6_CHOICE=${SUBNET_IPV6_CHOICE:-1}
-				VPN_SUBNET_IPV6="fd42:42:42:42::"
-			fi
-			VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
-		fi
-
-		# Port
-		PORT_CHOICE=${PORT_CHOICE:-1}
-
-		# Protocol
-		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
-
-		# DNS
-		DNS=${DNS:-3}
-
-		# Multi-client
-		MULTI_CLIENT=${MULTI_CLIENT:-n}
-
-		# MTU
-		if [[ -n $MTU ]]; then
-			MTU_CHOICE=2
-		else
-			MTU_CHOICE=${MTU_CHOICE:-1}
-		fi
-
-		# Encryption - always set defaults for any missing values
-		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
-		set_default_encryption
 
 		# Client setup
 		if [[ $no_client == true ]]; then
 			NEW_CLIENT=n
 		else
 			NEW_CLIENT=y
-			CLIENT=${CLIENT:-client}
 			if [[ $client_password_flag == true ]]; then
 				PASS=2
 				if [[ -n "$client_password_value" ]]; then
 					PASSPHRASE="$client_password_value"
 				fi
-			else
-				PASS=${PASS:-1}
 			fi
 		fi
 
-		# Certificate duration
-		CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
-		SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
-		CONTINUE=y
+		# Set all defaults for any unset values
+		set_installation_defaults
 
-		installQuestions
-		installOpenVPN
+		# Validate configuration values (catches invalid env vars)
+		validate_configuration
+
+		# Detect IPs and set up network config (interactive mode does this in installQuestions)
+		detect_server_ips
 	fi
+
+	# Prepare derived network configuration (gateways, etc.)
+	prepare_network_config
+
+	installOpenVPN
 }
 
 # Handle uninstall command
@@ -1794,6 +2005,33 @@ function resolvePublicIP() {
 	fi
 }
 
+# Detect server's IPv4 and IPv6 addresses
+function detect_server_ips() {
+	IP_IPV4=$(ip -4 addr | sed -ne 's|^.* inet \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+	IP_IPV6=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
+
+	# Set IP based on ENDPOINT_TYPE
+	if [[ $ENDPOINT_TYPE == "6" ]]; then
+		IP="$IP_IPV6"
+	else
+		IP="$IP_IPV4"
+	fi
+}
+
+# Calculate derived network configuration values
+function prepare_network_config() {
+	# Calculate IPv4 gateway (always needed for leak prevention)
+	VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
+
+	# Calculate IPv6 gateway if IPv6 is enabled
+	if [[ $CLIENT_IPV6 == "y" ]]; then
+		VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
+	fi
+
+	# Set legacy variable for backward compatibility
+	IPV6_SUPPORT="$CLIENT_IPV6"
+}
+
 function installQuestions() {
 	log_header "OpenVPN Installer"
 	log_prompt "The git repository is available at: https://github.com/angristan/openvpn-install"
@@ -1973,8 +2211,6 @@ function installQuestions() {
 		# IPv6-only mode: still need IPv4 subnet for leak prevention (redirect-gateway def1)
 		VPN_SUBNET_IPV4="10.8.0.0"
 	fi
-	# Calculate gateway (first usable IP in the subnet)
-	VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
 
 	# ==========================================================================
 	# Step 6: IPv6 subnet (if IPv6 enabled for clients)
@@ -2000,12 +2236,8 @@ function installQuestions() {
 			fi
 			;;
 		esac
-		# Calculate gateway (first usable IP in the subnet)
-		VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
 	fi
 
-	# Set legacy IPV6_SUPPORT variable for backward compatibility
-	IPV6_SUPPORT="$CLIENT_IPV6"
 	log_menu ""
 	log_prompt "What port do you want OpenVPN to listen to?"
 	log_menu "   1) Default: 1194"
@@ -2025,7 +2257,7 @@ function installQuestions() {
 		;;
 	3)
 		# Generate random number within private ports range
-		PORT=$(shuf -i49152-65535 -n1)
+		PORT=$(shuf -i 49152-65535 -n1)
 		log_info "Random Port: $PORT"
 		;;
 	esac
@@ -2047,22 +2279,11 @@ function installQuestions() {
 	esac
 	log_menu ""
 	log_prompt "What DNS resolvers do you want to use with the VPN?"
-	log_menu "   1) Current system resolvers (from /etc/resolv.conf)"
-	log_menu "   2) Self-hosted DNS Resolver (Unbound)"
-	log_menu "   3) Cloudflare (Anycast: worldwide)"
-	log_menu "   4) Quad9 (Anycast: worldwide)"
-	log_menu "   5) Quad9 uncensored (Anycast: worldwide)"
-	log_menu "   6) FDN (France)"
-	log_menu "   7) DNS.WATCH (Germany)"
-	log_menu "   8) OpenDNS (Anycast: worldwide)"
-	log_menu "   9) Google (Anycast: worldwide)"
-	log_menu "   10) Yandex Basic (Russia)"
-	log_menu "   11) AdGuard DNS (Anycast: worldwide)"
-	log_menu "   12) NextDNS (Anycast: worldwide)"
-	log_menu "   13) Custom"
-	until [[ $DNS =~ ^[0-9]+$ ]] && [ "$DNS" -ge 1 ] && [ "$DNS" -le 13 ]; do
-		read -rp "DNS [1-13]: " -e -i 3 DNS
-		if [[ $DNS == 2 ]] && [[ -e /etc/unbound/unbound.conf ]]; then
+	local dns_labels=("Current system resolvers (from /etc/resolv.conf)" "Self-hosted DNS Resolver (Unbound)" "Cloudflare (Anycast: worldwide)" "Quad9 (Anycast: worldwide)" "Quad9 uncensored (Anycast: worldwide)" "FDN (France)" "DNS.WATCH (Germany)" "OpenDNS (Anycast: worldwide)" "Google (Anycast: worldwide)" "Yandex Basic (Russia)" "AdGuard DNS (Anycast: worldwide)" "NextDNS (Anycast: worldwide)" "Custom")
+	local dns_valid=false
+	until [[ $dns_valid == true ]]; do
+		select_with_labels "DNS" dns_labels DNS_PROVIDERS "cloudflare" DNS
+		if [[ $DNS == "unbound" ]] && [[ -e /etc/unbound/unbound.conf ]]; then
 			log_menu ""
 			log_prompt "Unbound is already installed."
 			log_prompt "You can allow the script to configure it in order to use it from your OpenVPN clients"
@@ -2070,15 +2291,16 @@ function installQuestions() {
 			log_prompt "No changes are made to the current configuration."
 			log_menu ""
 
-			until [[ $CONTINUE =~ (y|n) ]]; do
-				read -rp "Apply configuration changes to Unbound? [y/n]: " -e CONTINUE
+			local unbound_continue
+			until [[ $unbound_continue =~ ^[yn]$ ]]; do
+				read -rp "Apply configuration changes to Unbound? [y/n]: " -e unbound_continue
 			done
-			if [[ $CONTINUE == "n" ]]; then
-				# Break the loop and cleanup
+			if [[ $unbound_continue == "n" ]]; then
 				unset DNS
-				unset CONTINUE
+			else
+				dns_valid=true
 			fi
-		elif [[ $DNS == "13" ]]; then
+		elif [[ $DNS == "custom" ]]; then
 			until [[ $DNS1 =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
 				read -rp "Primary DNS: " -e DNS1
 			done
@@ -2088,6 +2310,9 @@ function installQuestions() {
 					break
 				fi
 			done
+			dns_valid=true
+		else
+			dns_valid=true
 		fi
 	done
 	log_menu ""
@@ -2122,14 +2347,14 @@ function installQuestions() {
 	if [[ $CUSTOMIZE_ENC == "n" ]]; then
 		# Use default, sane and fast parameters
 		CIPHER="AES-128-GCM"
-		CERT_TYPE="1" # ECDSA
+		CERT_TYPE="ecdsa"
 		CERT_CURVE="prime256v1"
 		CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
 		TLS13_CIPHERSUITES="TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256"
 		TLS_VERSION_MIN="1.2"
 		TLS_GROUPS="X25519:prime256v1:secp384r1:secp521r1"
 		HMAC_ALG="SHA256"
-		TLS_SIG="1" # tls-crypt-v2
+		TLS_SIG="crypt-v2"
 	else
 		log_menu ""
 		log_prompt "Choose which cipher you want to use for the data channel:"
@@ -2170,95 +2395,35 @@ function installQuestions() {
 		log_prompt "Choose what kind of certificate you want to use:"
 		log_menu "   1) ECDSA (recommended)"
 		log_menu "   2) RSA"
-		until [[ $CERT_TYPE =~ ^[1-2]$ ]]; do
-			read -rp "Certificate key type [1-2]: " -e -i 1 CERT_TYPE
+		local cert_type_choice
+		until [[ $cert_type_choice =~ ^[1-2]$ ]]; do
+			read -rp "Certificate key type [1-2]: " -e -i 1 cert_type_choice
 		done
-		case $CERT_TYPE in
+		case $cert_type_choice in
 		1)
+			CERT_TYPE="ecdsa"
 			log_menu ""
 			log_prompt "Choose which curve you want to use for the certificate's key:"
-			log_menu "   1) prime256v1 (recommended)"
-			log_menu "   2) secp384r1"
-			log_menu "   3) secp521r1"
-			until [[ $CERT_CURVE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "Curve [1-3]: " -e -i 1 CERT_CURVE_CHOICE
-			done
-			case $CERT_CURVE_CHOICE in
-			1)
-				CERT_CURVE="prime256v1"
-				;;
-			2)
-				CERT_CURVE="secp384r1"
-				;;
-			3)
-				CERT_CURVE="secp521r1"
-				;;
-			esac
+			select_from_array "Curve" CERT_CURVES "prime256v1" CERT_CURVE
 			;;
 		2)
+			CERT_TYPE="rsa"
 			log_menu ""
 			log_prompt "Choose which size you want to use for the certificate's RSA key:"
-			log_menu "   1) 2048 bits (recommended)"
-			log_menu "   2) 3072 bits"
-			log_menu "   3) 4096 bits"
-			until [[ $RSA_KEY_SIZE_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "RSA key size [1-3]: " -e -i 1 RSA_KEY_SIZE_CHOICE
-			done
-			case $RSA_KEY_SIZE_CHOICE in
-			1)
-				RSA_KEY_SIZE="2048"
-				;;
-			2)
-				RSA_KEY_SIZE="3072"
-				;;
-			3)
-				RSA_KEY_SIZE="4096"
-				;;
-			esac
+			select_from_array "RSA key size" RSA_KEY_SIZES "2048" RSA_KEY_SIZE
 			;;
 		esac
 		log_menu ""
 		log_prompt "Choose which cipher you want to use for the control channel:"
-		case $CERT_TYPE in
-		1)
-			log_menu "   1) ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)"
-			log_menu "   2) ECDHE-ECDSA-AES-256-GCM-SHA384"
-			log_menu "   3) ECDHE-ECDSA-CHACHA20-POLY1305 (requires OpenVPN 2.5+)"
-			until [[ $CC_CIPHER_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "Control channel cipher [1-3]: " -e -i 1 CC_CIPHER_CHOICE
-			done
-			case $CC_CIPHER_CHOICE in
-			1)
-				CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256"
-				;;
-			2)
-				CC_CIPHER="TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384"
-				;;
-			3)
-				CC_CIPHER="TLS-ECDHE-ECDSA-WITH-CHACHA20-POLY1305-SHA256"
-				;;
-			esac
-			;;
-		2)
-			log_menu "   1) ECDHE-RSA-AES-128-GCM-SHA256 (recommended)"
-			log_menu "   2) ECDHE-RSA-AES-256-GCM-SHA384"
-			log_menu "   3) ECDHE-RSA-CHACHA20-POLY1305 (requires OpenVPN 2.5+)"
-			until [[ $CC_CIPHER_CHOICE =~ ^[1-3]$ ]]; do
-				read -rp "Control channel cipher [1-3]: " -e -i 1 CC_CIPHER_CHOICE
-			done
-			case $CC_CIPHER_CHOICE in
-			1)
-				CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256"
-				;;
-			2)
-				CC_CIPHER="TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384"
-				;;
-			3)
-				CC_CIPHER="TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256"
-				;;
-			esac
-			;;
-		esac
+		local cc_labels cc_values
+		if [[ $CERT_TYPE == "ecdsa" ]]; then
+			cc_labels=("ECDHE-ECDSA-AES-128-GCM-SHA256 (recommended)" "ECDHE-ECDSA-AES-256-GCM-SHA384" "ECDHE-ECDSA-CHACHA20-POLY1305 (OpenVPN 2.5+)")
+			cc_values=("TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256" "TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384" "TLS-ECDHE-ECDSA-WITH-CHACHA20-POLY1305-SHA256")
+		else
+			cc_labels=("ECDHE-RSA-AES-128-GCM-SHA256 (recommended)" "ECDHE-RSA-AES-256-GCM-SHA384" "ECDHE-RSA-CHACHA20-POLY1305 (OpenVPN 2.5+)")
+			cc_values=("TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256" "TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384" "TLS-ECDHE-RSA-WITH-CHACHA20-POLY1305-SHA256")
+		fi
+		select_with_labels "Control channel cipher" cc_labels cc_values "${cc_values[0]}" CC_CIPHER
 		log_menu ""
 		log_prompt "Choose the minimum TLS version:"
 		log_menu "   1) TLS 1.2 (recommended, compatible with all clients)"
@@ -2343,12 +2508,8 @@ function installQuestions() {
 		esac
 		log_menu ""
 		log_prompt "You can add an additional layer of security to the control channel."
-		log_menu "   1) tls-crypt-v2 (recommended): Encrypts control channel, unique key per client"
-		log_menu "   2) tls-crypt: Encrypts control channel, shared key for all clients"
-		log_menu "   3) tls-auth: Authenticates control channel, no encryption"
-		until [[ $TLS_SIG =~ ^[1-3]$ ]]; do
-			read -rp "Control channel additional security mechanism [1-3]: " -e -i 1 TLS_SIG
-		done
+		local tls_sig_labels=("tls-crypt-v2 (recommended): Encrypts control channel, unique key per client" "tls-crypt: Encrypts control channel, shared key for all clients" "tls-auth: Authenticates control channel, no encryption")
+		select_with_labels "Control channel security" tls_sig_labels TLS_SIG_MODES "crypt-v2" TLS_SIG
 	fi
 	log_menu ""
 	log_prompt "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
@@ -2360,87 +2521,27 @@ function installQuestions() {
 }
 
 function installOpenVPN() {
-	if [[ $AUTO_INSTALL == "y" ]]; then
-		# Set default choices so that no questions will be asked.
-		APPROVE_INSTALL=${APPROVE_INSTALL:-y}
-		APPROVE_IP=${APPROVE_IP:-y}
-
-		# Endpoint type defaults
-		ENDPOINT_TYPE=${ENDPOINT_TYPE:-4}
-		# Set ENDPOINT_TYPE_CHOICE for installQuestions (1=IPv4, 2=IPv6)
-		if [[ $ENDPOINT_TYPE == "6" ]]; then
-			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-2}
-		else
-			ENDPOINT_TYPE_CHOICE=${ENDPOINT_TYPE_CHOICE:-1}
-		fi
-
-		# Client IP version defaults
-		CLIENT_IPV4=${CLIENT_IPV4:-y}
-		CLIENT_IPV6=${CLIENT_IPV6:-n}
-		# Set CLIENT_IP_CHOICE for installQuestions (1=IPv4 only, 2=IPv6 only, 3=Both)
-		if [[ $CLIENT_IPV4 == "y" ]] && [[ $CLIENT_IPV6 == "y" ]]; then
-			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-3}
-		elif [[ $CLIENT_IPV6 == "y" ]]; then
-			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-2}
-		else
-			CLIENT_IP_CHOICE=${CLIENT_IP_CHOICE:-1}
-		fi
-		IPV6_SUPPORT="$CLIENT_IPV6"
-
-		# IPv4 subnet defaults - always needed for leak prevention
-		if [[ -n $VPN_SUBNET_IPV4 ]]; then
-			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-2}
-		else
-			SUBNET_IPV4_CHOICE=${SUBNET_IPV4_CHOICE:-1}
-			VPN_SUBNET_IPV4="10.8.0.0"
-		fi
-		VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
-
-		# IPv6 subnet defaults
-		if [[ $CLIENT_IPV6 == "y" ]]; then
-			if [[ -n $VPN_SUBNET_IPV6 ]]; then
-				SUBNET_IPV6_CHOICE=${SUBNET_IPV6_CHOICE:-2}
-			else
-				SUBNET_IPV6_CHOICE=${SUBNET_IPV6_CHOICE:-1}
-				VPN_SUBNET_IPV6="fd42:42:42:42::"
-			fi
-			VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
-		fi
-
-		PORT_CHOICE=${PORT_CHOICE:-1}
-		PROTOCOL_CHOICE=${PROTOCOL_CHOICE:-1}
-		DNS=${DNS:-3}
-		MTU_CHOICE=${MTU_CHOICE:-1}
-		MULTI_CLIENT=${MULTI_CLIENT:-n}
-		CUSTOMIZE_ENC=${CUSTOMIZE_ENC:-n}
-		CLIENT=${CLIENT:-client}
-		PASS=${PASS:-1}
-		CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
-		SERVER_CERT_DURATION_DAYS=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
-		CONTINUE=${CONTINUE:-y}
-		NEW_CLIENT=${NEW_CLIENT:-y}
-
+	if [[ $NON_INTERACTIVE_INSTALL == "y" ]]; then
+		# Resolve public IP if ENDPOINT not set
 		if [[ -z $ENDPOINT ]]; then
 			ENDPOINT=$(resolvePublicIP)
 		fi
 
-		# Log auto-install mode and parameters
-		log_info "=== OpenVPN Auto-Install ==="
-		log_info "Running in auto-install mode with the following settings:"
+		# Log non-interactive mode and parameters
+		log_info "=== OpenVPN Non-Interactive Install ==="
+		log_info "Running in non-interactive mode with the following settings:"
 		log_info "  ENDPOINT=$ENDPOINT"
 		log_info "  ENDPOINT_TYPE=$ENDPOINT_TYPE"
 		log_info "  CLIENT_IPV4=$CLIENT_IPV4"
 		log_info "  CLIENT_IPV6=$CLIENT_IPV6"
 		log_info "  VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4"
 		log_info "  VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6"
-		log_info "  PORT_CHOICE=$PORT_CHOICE"
-		log_info "  PROTOCOL_CHOICE=$PROTOCOL_CHOICE"
+		log_info "  PORT=$PORT"
+		log_info "  PROTOCOL=$PROTOCOL"
 		log_info "  DNS=$DNS"
 		[[ -n $MTU ]] && log_info "  MTU=$MTU"
 		log_info "  MULTI_CLIENT=$MULTI_CLIENT"
-		log_info "  CUSTOMIZE_ENC=$CUSTOMIZE_ENC"
 		log_info "  CLIENT=$CLIENT"
-		log_info "  PASS=$PASS"
 		log_info "  CLIENT_CERT_DURATION_DAYS=$CLIENT_CERT_DURATION_DAYS"
 		log_info "  SERVER_CERT_DURATION_DAYS=$SERVER_CERT_DURATION_DAYS"
 	fi
@@ -2559,11 +2660,11 @@ function installOpenVPN() {
 
 		cd /etc/openvpn/server/easy-rsa/ || return
 		case $CERT_TYPE in
-		1)
+		ecdsa)
 			echo "set_var EASYRSA_ALGO ec" >vars
 			echo "set_var EASYRSA_CURVE $CERT_CURVE" >>vars
 			;;
-		2)
+		rsa)
 			echo "set_var EASYRSA_KEY_SIZE $RSA_KEY_SIZE" >vars
 			;;
 		esac
@@ -2590,15 +2691,15 @@ function installOpenVPN() {
 
 		log_info "Generating TLS key..."
 		case $TLS_SIG in
-		1)
+		crypt-v2)
 			# Generate tls-crypt-v2 server key
 			run_cmd_fatal "Generating tls-crypt-v2 server key" openvpn --genkey tls-crypt-v2-server /etc/openvpn/server/tls-crypt-v2.key
 			;;
-		2)
+		crypt)
 			# Generate tls-crypt key
 			run_cmd_fatal "Generating tls-crypt key" openvpn --genkey secret /etc/openvpn/server/tls-crypt.key
 			;;
-		3)
+		auth)
 			# Generate tls-auth key
 			run_cmd_fatal "Generating tls-auth key" openvpn --genkey secret /etc/openvpn/server/tls-auth.key
 			;;
@@ -2663,7 +2764,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 
 	# DNS resolvers
 	case $DNS in
-	1) # Current system resolvers
+	system)
 		# Locate the proper resolv.conf
 		# Needed for systems running systemd-resolved
 		if grep -q "127.0.0.53" "/etc/resolv.conf"; then
@@ -2681,7 +2782,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			fi
 		done
 		;;
-	2) # Self-hosted DNS resolver (Unbound)
+	unbound)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo "push \"dhcp-option DNS $VPN_GATEWAY_IPV4\"" >>/etc/openvpn/server/server.conf
 		fi
@@ -2689,7 +2790,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo "push \"dhcp-option DNS $VPN_GATEWAY_IPV6\"" >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	3) # Cloudflare
+	cloudflare)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 1.0.0.1"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 1.1.1.1"' >>/etc/openvpn/server/server.conf
@@ -2699,7 +2800,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2606:4700:4700::1111"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	4) # Quad9
+	quad9)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 9.9.9.9"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 149.112.112.112"' >>/etc/openvpn/server/server.conf
@@ -2709,7 +2810,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2620:fe::9"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	5) # Quad9 uncensored
+	quad9-uncensored)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 9.9.9.10"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 149.112.112.10"' >>/etc/openvpn/server/server.conf
@@ -2719,7 +2820,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2620:fe::fe:10"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	6) # FDN
+	fdn)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 80.67.169.40"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 80.67.169.12"' >>/etc/openvpn/server/server.conf
@@ -2729,7 +2830,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2001:910:800::12"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	7) # DNS.WATCH
+	dnswatch)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 84.200.69.80"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 84.200.70.40"' >>/etc/openvpn/server/server.conf
@@ -2739,7 +2840,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2001:1608:10:25::9249:d69b"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	8) # OpenDNS
+	opendns)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 208.67.222.222"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 208.67.220.220"' >>/etc/openvpn/server/server.conf
@@ -2749,7 +2850,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2620:119:53::53"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	9) # Google
+	google)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 8.8.8.8"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 8.8.4.4"' >>/etc/openvpn/server/server.conf
@@ -2759,7 +2860,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2001:4860:4860::8844"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	10) # Yandex Basic
+	yandex)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 77.88.8.8"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 77.88.8.1"' >>/etc/openvpn/server/server.conf
@@ -2769,7 +2870,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2a02:6b8:0:1::feed:0ff"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	11) # AdGuard DNS
+	adguard)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 94.140.14.14"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 94.140.15.15"' >>/etc/openvpn/server/server.conf
@@ -2779,7 +2880,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2a10:50c0::ad2:ff"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	12) # NextDNS
+	nextdns)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
 			echo 'push "dhcp-option DNS 45.90.28.167"' >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 45.90.30.167"' >>/etc/openvpn/server/server.conf
@@ -2789,7 +2890,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 			echo 'push "dhcp-option DNS 2a07:a8c1::"' >>/etc/openvpn/server/server.conf
 		fi
 		;;
-	13) # Custom DNS
+	custom)
 		echo "push \"dhcp-option DNS $DNS1\"" >>/etc/openvpn/server/server.conf
 		if [[ $DNS2 != "" ]]; then
 			echo "push \"dhcp-option DNS $DNS2\"" >>/etc/openvpn/server/server.conf
@@ -2818,13 +2919,13 @@ topology subnet" >>/etc/openvpn/server/server.conf
 	echo "tls-groups $TLS_GROUPS" >>/etc/openvpn/server/server.conf
 
 	case $TLS_SIG in
-	1)
+	crypt-v2)
 		echo "tls-crypt-v2 tls-crypt-v2.key" >>/etc/openvpn/server/server.conf
 		;;
-	2)
+	crypt)
 		echo "tls-crypt tls-crypt.key" >>/etc/openvpn/server/server.conf
 		;;
-	3)
+	auth)
 		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server/server.conf
 		;;
 	esac
@@ -2924,7 +3025,7 @@ verb 3" >>/etc/openvpn/server/server.conf
 	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
 	run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
 
-	if [[ $DNS == 2 ]]; then
+	if [[ $DNS == "unbound" ]]; then
 		installUnbound
 	fi
 
