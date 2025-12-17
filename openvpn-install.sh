@@ -532,10 +532,8 @@ set_installation_defaults() {
 	CLIENT_CERT_DURATION_DAYS="${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}"
 	SERVER_CERT_DURATION_DAYS="${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}"
 
-	# Compute derived values
-	VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
-	[[ $CLIENT_IPV6 == "y" ]] && VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
-	IPV6_SUPPORT="$CLIENT_IPV6" # Legacy compatibility
+	# Note: Gateway values (VPN_GATEWAY_IPV4, VPN_GATEWAY_IPV6) and IPV6_SUPPORT
+	# are computed in prepare_network_config() which is called after validation
 }
 
 # Validation functions
@@ -706,18 +704,14 @@ validate_configuration() {
 		log_fatal "Custom DNS selected but DNS1 (primary DNS) is not set. Use --dns-primary to specify."
 	fi
 
-	# Validate VPN_SUBNET_IPV4 format
+	# Validate VPN subnets using the dedicated validation functions
+	# These check format, octet ranges, and RFC1918/ULA compliance
 	if [[ -n $VPN_SUBNET_IPV4 ]]; then
-		if ! [[ "$VPN_SUBNET_IPV4" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.0$ ]]; then
-			log_fatal "Invalid IPv4 subnet: $VPN_SUBNET_IPV4. Must be in format x.x.x.0 (e.g., 10.8.0.0)"
-		fi
+		validate_subnet_ipv4 "$VPN_SUBNET_IPV4"
 	fi
 
-	# Validate VPN_SUBNET_IPV6 format (if IPv6 enabled)
 	if [[ $CLIENT_IPV6 == "y" ]] && [[ -n $VPN_SUBNET_IPV6 ]]; then
-		if ! [[ "$VPN_SUBNET_IPV6" =~ ^fd[0-9a-fA-F]{0,2}(:[0-9a-fA-F]{0,4}){0,6}::$ ]]; then
-			log_fatal "Invalid IPv6 subnet: $VPN_SUBNET_IPV6. Must be a ULA prefix (e.g., fd42:42:42:42::)"
-		fi
+		validate_subnet_ipv6 "$VPN_SUBNET_IPV6"
 	fi
 }
 
@@ -1101,7 +1095,7 @@ cmd_install() {
 
 		# Handle random port
 		if [[ $PORT == "random" ]]; then
-			PORT=$(shuf -i49152-65535 -n1)
+			PORT=$(shuf -i 49152-65535 -n1)
 			log_info "Random Port: $PORT"
 		fi
 
@@ -2263,7 +2257,7 @@ function installQuestions() {
 		;;
 	3)
 		# Generate random number within private ports range
-		PORT=$(shuf -i49152-65535 -n1)
+		PORT=$(shuf -i 49152-65535 -n1)
 		log_info "Random Port: $PORT"
 		;;
 	esac
