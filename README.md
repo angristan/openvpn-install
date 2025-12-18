@@ -497,9 +497,9 @@ A simplified WireGuard-like authentication model using SHA256 certificate finger
 
 Benefits:
 
-- **Simpler setup**: No CA infrastructure needed
-- **Easier to understand**: Similar to SSH's `known_hosts` model
-- **Ideal for small setups**: Home networks, labs, small teams
+- Simpler setup: No CA infrastructure needed
+- Easier to understand: Similar to SSH's `known_hosts` model
+- Ideal for small setups: Home networks, labs, small teams
 
 How it works:
 
