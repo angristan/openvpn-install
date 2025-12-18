@@ -183,3 +183,21 @@ label fc00::/7      1
 ```
 
 This will not work properly unless you add you your VPN server `server.conf` one or two lines to push at least 1 (one) IPv6 DNS server. Most providers have IPv6 servers as well, add two more lines of `push "dhcp-option DNS <IPv6>"`
+
+---
+
+**Q:** How can I run OpenVPN on port 443 alongside a web server?
+
+**A:** Use OpenVPN's `port-share` feature to multiplex both services on the same port. When OpenVPN receives non-VPN traffic, it forwards it to your web server.
+
+1. During installation, select **TCP** and port **443**
+2. Configure your web server to listen on a different port (e.g., 8443)
+3. Add to `/etc/openvpn/server/server.conf`:
+
+   ```
+   port-share 127.0.0.1 8443
+   ```
+
+4. Restart OpenVPN: `systemctl restart openvpn-server@server`
+
+This is useful when your network only allows outbound connections on port 443. Note that TCP has worse performance than UDP for VPN traffic due to head-of-line blocking, so only use this when necessary.
