@@ -509,11 +509,6 @@ How it works:
 4. Clients verify the server using the server's fingerprint
 5. Revocation removes the fingerprint from the server config (no CRL needed)
 
-Requirements:
-
-- OpenVPN 2.6.0 or later on both server and clients
-- Easy-RSA 3.2+ (bundled with the script)
-
 ### Data channel
 
 > [!NOTE]
