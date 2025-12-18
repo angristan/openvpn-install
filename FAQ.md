@@ -108,9 +108,38 @@ Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
 
 ---
 
-**Q:** How can I access computers the OpenVPN server's remote LAN?
+**Q:** How can I access computers on the OpenVPN server's LAN?
 
-**A:** Add a route with the subnet of the remote network to `/etc/openvpn/server/server.conf` and restart OpenVPN. Example: `push "route 192.168.1.0 255.255.255.0"` if the server's LAN is `192.168.1.0/24`
+**A:** Two steps are required:
+
+1. **Push a route to clients** - Add the LAN subnet to `/etc/openvpn/server/server.conf`:
+
+   ```
+   push "route 192.168.1.0 255.255.255.0"
+   ```
+
+   Replace `192.168.1.0/24` with your actual LAN subnet.
+
+2. **Enable routing back to VPN clients** - Choose one of these options:
+   - **Option A: Add a static route on your router** (recommended when you can configure your router)
+
+     On your LAN router, add a route for the VPN subnet (default `10.8.0.0/24`) pointing to the OpenVPN server's LAN IP. This allows LAN devices to reply to VPN clients without NAT.
+
+   - **Option B: Masquerade VPN traffic to LAN**
+
+     If you can't modify your router, add a masquerade rule so VPN traffic appears to come from the server:
+
+     ```bash
+     # iptables
+     iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -d 192.168.1.0/24 -j MASQUERADE
+
+     # or nftables
+     nft add rule ip nat postrouting ip saddr 10.8.0.0/24 ip daddr 192.168.1.0/24 masquerade
+     ```
+
+     Make this persistent by adding it to your firewall scripts.
+
+Restart OpenVPN after making changes: `systemctl restart openvpn-server@server`
 
 ---
 
