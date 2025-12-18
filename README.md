@@ -62,6 +62,7 @@ That said, OpenVPN still makes sense when you need:
 - Randomised server certificate name
 - Choice to protect clients with a password (private key encryption)
 - Option to allow multiple devices to use the same client profile simultaneously (disables persistent IP addresses)
+- **Peer fingerprint authentication** (OpenVPN 2.6+): Simplified WireGuard-like authentication without a CA
 - Many other little things!
 
 ## Compatibility
@@ -317,6 +318,7 @@ The `install` command supports many options for customization:
 - `--rsa-bits <2048|3072|4096>` - RSA key size (default: `2048`)
 - `--hmac <alg>` - HMAC algorithm (default: `SHA256`). Options: `SHA256`, `SHA384`, `SHA512`
 - `--tls-sig <mode>` - TLS mode (default: `crypt-v2`). Options: `crypt-v2`, `crypt`, `auth`
+- `--auth-mode <mode>` - Authentication mode (default: `pki`). Options: `pki` (CA-based), `fingerprint` (peer-fingerprint, requires OpenVPN 2.6+)
 - `--tls-version-min <1.2|1.3>` - Minimum TLS version (default: `1.2`)
 - `--tls-ciphersuites <list>` - TLS 1.3 cipher suites, colon-separated (default: `TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256`)
 - `--tls-groups <list>` - Key exchange groups, colon-separated (default: `X25519:prime256v1:secp384r1:secp521r1`)
@@ -469,6 +471,45 @@ This script provides:
 It defaults to ECDSA with `prime256v1`.
 
 OpenVPN uses `SHA-256` as the signature hash by default, and so does the script. It provides no other choice as of now.
+
+### Authentication Mode
+
+The script supports two authentication modes:
+
+#### PKI Mode (default)
+
+Traditional Certificate Authority (CA) based authentication. The server and all clients have certificates signed by the same CA. Client revocation is handled via Certificate Revocation Lists (CRL).
+
+This is the recommended mode for larger deployments where you need:
+
+- Centralized certificate management
+- Standard CRL-based revocation
+- Compatibility with all OpenVPN versions
+
+#### Peer Fingerprint Mode (OpenVPN 2.6+)
+
+A simplified WireGuard-like authentication model using SHA256 certificate fingerprints instead of a CA chain. Each peer (server and clients) has a self-signed certificate, and peers authenticate each other by verifying fingerprints.
+
+```bash
+# Install with fingerprint mode
+./openvpn-install.sh install --auth-mode fingerprint
+```
+
+Benefits:
+
+- Simpler setup: No CA infrastructure needed
+- Easier to understand: Similar to SSH's `known_hosts` model
+- Ideal for small setups: Home networks, labs, small teams
+
+How it works:
+
+1. Server generates a self-signed certificate and stores its fingerprint
+2. Each client generates a self-signed certificate
+3. Client fingerprints are added to the server's `<peer-fingerprint>` block
+4. Clients verify the server using the server's fingerprint
+5. Revocation removes the fingerprint from the server config (no CRL needed)
+
+Trade-off: Revoking a client requires reloading OpenVPN (fingerprints are in server.conf). In PKI mode, the CRL file is re-read automatically on new connections.
 
 ### Data channel
 

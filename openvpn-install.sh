@@ -239,6 +239,8 @@ show_install_help() {
 				(default: X25519:prime256v1:secp384r1:secp521r1)
 			--hmac <alg>          HMAC algorithm: SHA256, SHA384, SHA512 (default: SHA256)
 			--tls-sig <mode>      TLS mode: crypt-v2, crypt, auth (default: crypt-v2)
+			--auth-mode <mode>    Auth mode: pki, fingerprint (default: pki)
+				fingerprint requires OpenVPN 2.6+
 			--server-cert-days <n>  Server cert validity in days (default: 3650)
 
 		Other Options:
@@ -477,6 +479,9 @@ readonly TLS_VERSIONS=("1.2" "1.3")
 # TLS signature modes (use strings)
 readonly TLS_SIG_MODES=("crypt-v2" "crypt" "auth")
 
+# Authentication modes: pki (CA-based) or fingerprint (peer-fingerprint, OpenVPN 2.6+)
+readonly AUTH_MODES=("pki" "fingerprint")
+
 # HMAC algorithms
 readonly HMAC_ALGS=("SHA256" "SHA384" "SHA512")
 
@@ -516,6 +521,7 @@ set_installation_defaults() {
 	TLS_GROUPS="${TLS_GROUPS:-X25519:prime256v1:secp384r1:secp521r1}"
 	HMAC_ALG="${HMAC_ALG:-SHA256}"
 	TLS_SIG="${TLS_SIG:-crypt-v2}"
+	AUTH_MODE="${AUTH_MODE:-pki}"
 
 	# Derive CC_CIPHER from CERT_TYPE if not set
 	if [[ -z $CC_CIPHER ]]; then
@@ -534,6 +540,18 @@ set_installation_defaults() {
 
 	# Note: Gateway values (VPN_GATEWAY_IPV4, VPN_GATEWAY_IPV6) and IPV6_SUPPORT
 	# are computed in prepare_network_config() which is called after validation
+}
+
+# Version comparison: returns 0 if version1 >= version2
+version_ge() {
+	local ver1="$1" ver2="$2"
+	# Use sort -V for version comparison
+	[[ "$(printf '%s\n%s' "$ver1" "$ver2" | sort -V | head -n1)" == "$ver2" ]]
+}
+
+# Get installed OpenVPN version (e.g., "2.6.12")
+get_openvpn_version() {
+	openvpn --version 2>/dev/null | head -1 | awk '{print $2}'
 }
 
 # Validation functions
@@ -641,6 +659,21 @@ validate_configuration() {
 	crypt-v2 | crypt | auth) ;;
 	*) log_fatal "Invalid TLS signature mode: $TLS_SIG. Must be 'crypt-v2', 'crypt', or 'auth'." ;;
 	esac
+
+	# Validate AUTH_MODE
+	case "$AUTH_MODE" in
+	pki | fingerprint) ;;
+	*) log_fatal "Invalid auth mode: $AUTH_MODE. Must be 'pki' or 'fingerprint'." ;;
+	esac
+
+	# Fingerprint mode requires OpenVPN 2.6+
+	if [[ $AUTH_MODE == "fingerprint" ]]; then
+		local openvpn_ver
+		openvpn_ver=$(get_openvpn_version)
+		if [[ -n "$openvpn_ver" ]] && ! version_ge "$openvpn_ver" "2.6.0"; then
+			log_fatal "Fingerprint mode requires OpenVPN 2.6.0 or later. Installed version: $openvpn_ver"
+		fi
+	fi
 
 	# Validate PORT
 	if ! [[ "$PORT" =~ ^[0-9]+$ ]] || [[ "$PORT" -lt 1 ]] || [[ "$PORT" -gt 65535 ]]; then
@@ -1034,6 +1067,14 @@ cmd_install() {
 			esac
 			shift 2
 			;;
+		--auth-mode)
+			[[ -z "${2:-}" ]] && log_fatal "--auth-mode requires an argument"
+			case "$2" in
+			pki | fingerprint) AUTH_MODE="$2" ;;
+			*) log_fatal "Invalid auth mode: $2. Use 'pki' or 'fingerprint'." ;;
+			esac
+			shift 2
+			;;
 		--server-cert-days)
 			[[ -z "${2:-}" ]] && log_fatal "--server-cert-days requires an argument"
 			validate_positive_int "$2" "server-cert-days"
@@ -1251,6 +1292,7 @@ cmd_client_add() {
 	fi
 
 	newClient
+	exit 0
 }
 
 # Handle client list command
@@ -2336,6 +2378,30 @@ function installQuestions() {
 		done
 	fi
 	log_menu ""
+	log_prompt "Choose the authentication mode:"
+	log_menu "   1) PKI (Certificate Authority) - Traditional CA-based authentication (recommended for larger setups)"
+	log_menu "   2) Peer Fingerprint - Simplified WireGuard-like authentication using certificate fingerprints"
+	log_menu "      Note: Fingerprint mode requires OpenVPN 2.6+ and is ideal for small/home setups"
+	local auth_mode_choice
+	until [[ $auth_mode_choice =~ ^[1-2]$ ]]; do
+		read -rp "Authentication mode [1-2]: " -e -i 1 auth_mode_choice
+	done
+	case $auth_mode_choice in
+	1)
+		AUTH_MODE="pki"
+		;;
+	2)
+		AUTH_MODE="fingerprint"
+		# Verify OpenVPN 2.6+ is available for fingerprint mode
+		local openvpn_ver
+		openvpn_ver=$(get_openvpn_version)
+		if [[ -n "$openvpn_ver" ]] && ! version_ge "$openvpn_ver" "2.6.0"; then
+			log_warn "OpenVPN $openvpn_ver detected. Fingerprint mode requires 2.6.0+."
+			log_warn "OpenVPN 2.6+ will be installed during setup."
+		fi
+		;;
+	esac
+	log_menu ""
 	log_prompt "Do you want to customize encryption settings?"
 	log_prompt "Unless you know what you're doing, you should stick with the default parameters provided by the script."
 	log_prompt "Note that whatever you choose, all the choices presented in the script are safe (unlike OpenVPN's defaults)."
@@ -2541,6 +2607,7 @@ function installOpenVPN() {
 		log_info "  DNS=$DNS"
 		[[ -n $MTU ]] && log_info "  MTU=$MTU"
 		log_info "  MULTI_CLIENT=$MULTI_CLIENT"
+		log_info "  AUTH_MODE=$AUTH_MODE"
 		log_info "  CLIENT=$CLIENT"
 		log_info "  CLIENT_CERT_DURATION_DAYS=$CLIENT_CERT_DURATION_DAYS"
 		log_info "  SERVER_CERT_DURATION_DAYS=$SERVER_CERT_DURATION_DAYS"
@@ -2680,15 +2747,34 @@ function installOpenVPN() {
 		# Create the PKI, set up the CA, the DH params and the server certificate
 		log_info "Initializing PKI..."
 		run_cmd_fatal "Initializing PKI" ./easyrsa init-pki
-		export EASYRSA_CA_EXPIRE=$DEFAULT_CERT_VALIDITY_DURATION_DAYS
-		log_info "Building CA..."
-		run_cmd_fatal "Building CA" ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
 
-		export EASYRSA_CERT_EXPIRE=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
-		log_info "Building server certificate..."
-		run_cmd_fatal "Building server certificate" ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
-		export EASYRSA_CRL_DAYS=$DEFAULT_CRL_VALIDITY_DURATION_DAYS
-		run_cmd_fatal "Generating CRL" ./easyrsa gen-crl
+		if [[ $AUTH_MODE == "pki" ]]; then
+			# Traditional PKI mode with CA
+			export EASYRSA_CA_EXPIRE=$DEFAULT_CERT_VALIDITY_DURATION_DAYS
+			log_info "Building CA..."
+			run_cmd_fatal "Building CA" ./easyrsa --batch --req-cn="$SERVER_CN" build-ca nopass
+
+			export EASYRSA_CERT_EXPIRE=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+			log_info "Building server certificate..."
+			run_cmd_fatal "Building server certificate" ./easyrsa --batch build-server-full "$SERVER_NAME" nopass
+			export EASYRSA_CRL_DAYS=$DEFAULT_CRL_VALIDITY_DURATION_DAYS
+			run_cmd_fatal "Generating CRL" ./easyrsa gen-crl
+		else
+			# Fingerprint mode with self-signed certificates (OpenVPN 2.6+)
+			log_info "Building self-signed server certificate for fingerprint mode..."
+			export EASYRSA_CERT_EXPIRE=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+			run_cmd_fatal "Building self-signed server certificate" ./easyrsa --batch self-sign-server "$SERVER_NAME" nopass
+
+			# Extract and store server fingerprint
+			SERVER_FINGERPRINT=$(openssl x509 -in "pki/issued/$SERVER_NAME.crt" -fingerprint -sha256 -noout | cut -d'=' -f2)
+			if [[ -z $SERVER_FINGERPRINT ]]; then
+				log_error "Failed to extract server certificate fingerprint"
+				exit 1
+			fi
+			mkdir -p /etc/openvpn/server
+			echo "$SERVER_FINGERPRINT" >/etc/openvpn/server/server-fingerprint
+			log_info "Server fingerprint: $SERVER_FINGERPRINT"
+		fi
 
 		log_info "Generating TLS key..."
 		case $TLS_SIG in
@@ -2705,19 +2791,32 @@ function installOpenVPN() {
 			run_cmd_fatal "Generating tls-auth key" openvpn --genkey secret /etc/openvpn/server/tls-auth.key
 			;;
 		esac
+		# Store auth mode for later use
+		echo "$AUTH_MODE" >AUTH_MODE_GENERATED
 	else
 		# If easy-rsa is already installed, grab the generated SERVER_NAME
 		# for client configs
 		cd /etc/openvpn/server/easy-rsa/ || return
 		SERVER_NAME=$(cat SERVER_NAME_GENERATED)
+		# Read stored auth mode
+		if [[ -f AUTH_MODE_GENERATED ]]; then
+			AUTH_MODE=$(cat AUTH_MODE_GENERATED)
+		else
+			# Default to pki for existing installations
+			AUTH_MODE="pki"
+		fi
 	fi
 
 	# Move all the generated files
 	log_info "Copying certificates..."
-	run_cmd_fatal "Copying certificates to /etc/openvpn/server" cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server
-
-	# Make cert revocation list readable for non-root
-	run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/server/crl.pem
+	if [[ $AUTH_MODE == "pki" ]]; then
+		run_cmd_fatal "Copying certificates to /etc/openvpn/server" cp pki/ca.crt pki/private/ca.key "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server/easy-rsa/pki/crl.pem /etc/openvpn/server
+		# Make cert revocation list readable for non-root
+		run_cmd "Setting CRL permissions" chmod 644 /etc/openvpn/server/crl.pem
+	else
+		# Fingerprint mode: only copy server cert and key (no CA or CRL)
+		run_cmd_fatal "Copying certificates to /etc/openvpn/server" cp "pki/issued/$SERVER_NAME.crt" "pki/private/$SERVER_NAME.key" /etc/openvpn/server
+	fi
 
 	# Generate server.conf
 	log_info "Generating server configuration..."
@@ -2931,9 +3030,13 @@ topology subnet" >>/etc/openvpn/server/server.conf
 		;;
 	esac
 
-	echo "crl-verify crl.pem
-ca ca.crt
-cert $SERVER_NAME.crt
+	# Common server config options
+	# PKI mode adds crl-verify, ca, and remote-cert-tls
+	# Fingerprint mode: <peer-fingerprint> block is added when first client is created
+	{
+		[[ $AUTH_MODE == "pki" ]] && echo "crl-verify crl.pem
+ca ca.crt"
+		echo "cert $SERVER_NAME.crt
 key $SERVER_NAME.key
 auth $HMAC_ALG
 cipher $CIPHER
@@ -2941,14 +3044,15 @@ ignore-unknown-option data-ciphers
 data-ciphers $CIPHER
 ncp-ciphers $CIPHER
 tls-server
-tls-version-min $TLS_VERSION_MIN
-remote-cert-tls client
-tls-cipher $CC_CIPHER
+tls-version-min $TLS_VERSION_MIN"
+		[[ $AUTH_MODE == "pki" ]] && echo "remote-cert-tls client"
+		echo "tls-cipher $CC_CIPHER
 tls-ciphersuites $TLS13_CIPHERSUITES
 client-config-dir ccd
 status /var/log/openvpn/status.log
 management /var/run/openvpn/server.sock unix
-verb 3" >>/etc/openvpn/server/server.conf
+verb 3"
+	} >>/etc/openvpn/server/server.conf
 
 	# Create management socket directory
 	run_cmd_fatal "Creating management socket directory" mkdir -p /var/run/openvpn
@@ -3028,7 +3132,11 @@ verb 3" >>/etc/openvpn/server/server.conf
 
 	run_cmd "Reloading systemd" systemctl daemon-reload
 	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
-	run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+	# In fingerprint mode, delay service start until first client is created
+	# (OpenVPN requires at least one fingerprint or a CA to start)
+	if [[ $AUTH_MODE == "pki" ]]; then
+		run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+	fi
 
 	if [[ $DNS == "unbound" ]]; then
 		installUnbound
@@ -3207,15 +3315,19 @@ WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 	elif [[ $PROTOCOL == 'tcp6' ]]; then
 		echo "proto tcp6-client" >>/etc/openvpn/server/client-template.txt
 	fi
-	echo "remote $IP $PORT
+	# Common client template options
+	# PKI mode adds remote-cert-tls and verify-x509-name
+	# Fingerprint mode adds peer-fingerprint when generating client config
+	{
+		echo "remote $IP $PORT
 dev tun
 resolv-retry infinite
 nobind
 persist-key
-persist-tun
-remote-cert-tls server
-verify-x509-name $SERVER_NAME name
-auth $HMAC_ALG
+persist-tun"
+		[[ $AUTH_MODE == "pki" ]] && echo "remote-cert-tls server
+verify-x509-name $SERVER_NAME name"
+		echo "auth $HMAC_ALG
 auth-nocache
 cipher $CIPHER
 ignore-unknown-option data-ciphers
@@ -3227,7 +3339,8 @@ tls-cipher $CC_CIPHER
 tls-ciphersuites $TLS13_CIPHERSUITES
 ignore-unknown-option block-outside-dns
 setenv opt block-outside-dns # Prevent Windows 10 DNS leak
-verb 3" >>/etc/openvpn/server/client-template.txt
+verb 3"
+	} >>/etc/openvpn/server/client-template.txt
 
 	if [[ -n $MTU ]]; then
 		echo "tun-mtu $MTU" >>/etc/openvpn/server/client-template.txt
@@ -3235,10 +3348,18 @@ verb 3" >>/etc/openvpn/server/client-template.txt
 
 	# Generate the custom client.ovpn
 	if [[ $NEW_CLIENT == "n" ]]; then
-		log_info "No clients added. To add clients, simply run the script again."
+		if [[ $AUTH_MODE == "fingerprint" ]]; then
+			log_info "No clients added. OpenVPN will not start until you add at least one client."
+		else
+			log_info "No clients added. To add clients, simply run the script again."
+		fi
 	else
 		log_info "Generating first client certificate..."
 		newClient
+		# In fingerprint mode, start service now that we have at least one fingerprint
+		if [[ $AUTH_MODE == "fingerprint" ]]; then
+			run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+		fi
 		log_success "If you want to add more clients, you simply need to run this script another time!"
 	fi
 }
@@ -3333,6 +3454,12 @@ function generateClientConfig() {
 	local client="$1"
 	local filepath="$2"
 
+	# Read auth mode
+	local auth_mode="pki"
+	if [[ -f /etc/openvpn/server/easy-rsa/AUTH_MODE_GENERATED ]]; then
+		auth_mode=$(cat /etc/openvpn/server/easy-rsa/AUTH_MODE_GENERATED)
+	fi
+
 	# Determine if we use tls-crypt-v2, tls-crypt, or tls-auth
 	local tls_sig=""
 	if grep -qs "^tls-crypt-v2" /etc/openvpn/server/server.conf; then
@@ -3346,9 +3473,25 @@ function generateClientConfig() {
 	# Generate the custom client.ovpn
 	run_cmd "Creating client config" cp /etc/openvpn/server/client-template.txt "$filepath"
 	{
-		echo "<ca>"
-		cat "/etc/openvpn/server/easy-rsa/pki/ca.crt"
-		echo "</ca>"
+		if [[ $auth_mode == "pki" ]]; then
+			# PKI mode: include CA certificate
+			echo "<ca>"
+			cat "/etc/openvpn/server/easy-rsa/pki/ca.crt"
+			echo "</ca>"
+		else
+			# Fingerprint mode: use server fingerprint instead of CA
+			local server_fingerprint
+			if [[ ! -f /etc/openvpn/server/server-fingerprint ]]; then
+				log_error "Server fingerprint file not found"
+				exit 1
+			fi
+			server_fingerprint=$(cat /etc/openvpn/server/server-fingerprint)
+			if [[ -z $server_fingerprint ]]; then
+				log_error "Server fingerprint is empty"
+				exit 1
+			fi
+			echo "peer-fingerprint $server_fingerprint"
+		fi
 
 		echo "<cert>"
 		awk '/BEGIN/,/END CERTIFICATE/' "/etc/openvpn/server/easy-rsa/pki/issued/$client.crt"
@@ -3677,36 +3820,89 @@ function newClient() {
 		done
 	fi
 
-	CLIENTEXISTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
+	cd /etc/openvpn/server/easy-rsa/ || return
+
+	# Read auth mode
+	if [[ -f AUTH_MODE_GENERATED ]]; then
+		AUTH_MODE=$(cat AUTH_MODE_GENERATED)
+	else
+		AUTH_MODE="pki"
+	fi
+
+	# Check if client already exists
+	if [[ -f pki/index.txt ]]; then
+		CLIENTEXISTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
+	else
+		CLIENTEXISTS=0
+	fi
+
 	if [[ $CLIENTEXISTS != '0' ]]; then
 		log_error "The specified client CN was already found in easy-rsa, please choose another name."
 		exit 1
-	else
-		cd /etc/openvpn/server/easy-rsa/ || return
-		log_info "Generating client certificate..."
-		export EASYRSA_CERT_EXPIRE=$CLIENT_CERT_DURATION_DAYS
-		case $PASS in
-		1)
-			run_cmd_fatal "Building client certificate" ./easyrsa --batch build-client-full "$CLIENT" nopass
-			;;
-		2)
-			if [[ -z "$PASSPHRASE" ]]; then
-				log_warn "You will be asked for the client password below"
-				# Run directly (not via run_cmd) so password prompt is visible to user
-				if ! ./easyrsa --batch build-client-full "$CLIENT"; then
-					log_fatal "Building client certificate failed"
-				fi
-			else
-				log_info "Using provided passphrase for client certificate"
-				# Use env var to avoid exposing passphrase in install log
-				export EASYRSA_PASSPHRASE="$PASSPHRASE"
-				run_cmd_fatal "Building client certificate" ./easyrsa --batch --passin=env:EASYRSA_PASSPHRASE --passout=env:EASYRSA_PASSPHRASE build-client-full "$CLIENT"
-				unset EASYRSA_PASSPHRASE
-			fi
-			;;
-		esac
-		log_success "Client $CLIENT added and is valid for $CLIENT_CERT_DURATION_DAYS days."
 	fi
+
+	log_info "Generating client certificate..."
+	export EASYRSA_CERT_EXPIRE=$CLIENT_CERT_DURATION_DAYS
+
+	# Determine easyrsa command based on auth mode
+	local easyrsa_cmd cert_desc
+	if [[ $AUTH_MODE == "pki" ]]; then
+		easyrsa_cmd="build-client-full"
+		cert_desc="client certificate"
+	else
+		easyrsa_cmd="self-sign-client"
+		cert_desc="self-signed client certificate"
+	fi
+
+	case $PASS in
+	1)
+		run_cmd_fatal "Building $cert_desc" ./easyrsa --batch "$easyrsa_cmd" "$CLIENT" nopass
+		;;
+	2)
+		if [[ -z "$PASSPHRASE" ]]; then
+			log_warn "You will be asked for the client password below"
+			if ! ./easyrsa --batch "$easyrsa_cmd" "$CLIENT"; then
+				log_fatal "Building $cert_desc failed"
+			fi
+		else
+			log_info "Using provided passphrase for client certificate"
+			export EASYRSA_PASSPHRASE="$PASSPHRASE"
+			run_cmd_fatal "Building $cert_desc" ./easyrsa --batch --passin=env:EASYRSA_PASSPHRASE --passout=env:EASYRSA_PASSPHRASE "$easyrsa_cmd" "$CLIENT"
+			unset EASYRSA_PASSPHRASE
+		fi
+		;;
+	esac
+
+	# Fingerprint mode: register client fingerprint with server
+	if [[ $AUTH_MODE == "fingerprint" ]]; then
+		CLIENT_FINGERPRINT=$(openssl x509 -in "pki/issued/$CLIENT.crt" -fingerprint -sha256 -noout | cut -d'=' -f2)
+		if [[ -z $CLIENT_FINGERPRINT ]]; then
+			log_error "Failed to extract client certificate fingerprint"
+			exit 1
+		fi
+		log_info "Client fingerprint: $CLIENT_FINGERPRINT"
+
+		# Add fingerprint to server.conf's <peer-fingerprint> block
+		# Create the block if this is the first client
+		if ! grep -q '<peer-fingerprint>' /etc/openvpn/server/server.conf; then
+			echo "# Client fingerprints are listed below
+<peer-fingerprint>
+# $CLIENT
+$CLIENT_FINGERPRINT
+</peer-fingerprint>" >>/etc/openvpn/server/server.conf
+		else
+			# Insert comment and fingerprint before closing tag
+			sed -i "/<\/peer-fingerprint>/i # $CLIENT\n$CLIENT_FINGERPRINT" /etc/openvpn/server/server.conf
+		fi
+
+		# Reload OpenVPN to pick up new fingerprint
+		log_info "Reloading OpenVPN to apply new fingerprint..."
+		if systemctl is-active --quiet openvpn-server@server; then
+			systemctl reload openvpn-server@server 2>/dev/null || systemctl restart openvpn-server@server
+		fi
+	fi
+
+	log_success "Client $CLIENT added and is valid for $CLIENT_CERT_DURATION_DAYS days."
 
 	# Write the .ovpn config file with proper path and permissions
 	writeClientConfig "$CLIENT"
@@ -3714,8 +3910,6 @@ function newClient() {
 	log_menu ""
 	log_success "The configuration file has been written to $GENERATED_CONFIG_PATH."
 	log_info "Download the .ovpn file and import it in your OpenVPN client."
-
-	exit 0
 }
 
 function revokeClient() {
@@ -3724,13 +3918,45 @@ function revokeClient() {
 	selectClient
 
 	cd /etc/openvpn/server/easy-rsa/ || return
+
+	# Read auth mode
+	local auth_mode="pki"
+	if [[ -f AUTH_MODE_GENERATED ]]; then
+		auth_mode=$(cat AUTH_MODE_GENERATED)
+	fi
+
 	log_info "Revoking certificate for $CLIENT..."
-	run_cmd_fatal "Revoking certificate" ./easyrsa --batch revoke-issued "$CLIENT"
-	regenerateCRL
+
+	if [[ $auth_mode == "pki" ]]; then
+		# PKI mode: use Easy-RSA revocation and CRL
+		run_cmd_fatal "Revoking certificate" ./easyrsa --batch revoke-issued "$CLIENT"
+		regenerateCRL
+		run_cmd "Backing up index" cp /etc/openvpn/server/easy-rsa/pki/index.txt{,.bk}
+	else
+		# Fingerprint mode: remove fingerprint from server.conf and delete cert files
+		log_info "Removing client fingerprint from server configuration..."
+
+		# Remove comment line and fingerprint line below it from server.conf
+		sed -i "/^# $CLIENT\$/{N;d;}" /etc/openvpn/server/server.conf
+
+		# Remove client certificate and key
+		rm -f "pki/issued/$CLIENT.crt" "pki/private/$CLIENT.key"
+
+		# Mark as revoked in index.txt if it exists (for client listing)
+		if [[ -f pki/index.txt ]]; then
+			sed -i "s|^V\(.*\)/CN=$CLIENT\$|R\1/CN=$CLIENT|" pki/index.txt
+		fi
+
+		# Reload OpenVPN to apply fingerprint removal
+		log_info "Reloading OpenVPN to apply fingerprint removal..."
+		if systemctl is-active --quiet openvpn-server@server; then
+			systemctl reload openvpn-server@server 2>/dev/null || systemctl restart openvpn-server@server
+		fi
+	fi
+
 	run_cmd "Removing client config from /home" find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	run_cmd "Removing client config from /root" rm -f "/root/$CLIENT.ovpn"
 	run_cmd "Removing IP assignment" sed -i "/^$CLIENT,.*/d" /etc/openvpn/server/ipp.txt
-	run_cmd "Backing up index" cp /etc/openvpn/server/easy-rsa/pki/index.txt{,.bk}
 
 	# Disconnect the client if currently connected
 	disconnectClient "$CLIENT"
@@ -4102,6 +4328,7 @@ function manageMenu() {
 	case $menu_option in
 	1)
 		newClient
+		exit 0
 		;;
 	2)
 		listClients

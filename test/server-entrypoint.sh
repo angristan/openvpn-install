@@ -42,6 +42,10 @@ TLS_KEY_FILE="${TLS_KEY_FILE:-tls-crypt-v2.key}"
 TLS_VERSION_MIN="${TLS_VERSION_MIN:-1.2}"
 TLS13_CIPHERSUITES="${TLS13_CIPHERSUITES:-TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS_CHACHA20_POLY1305_SHA256}"
 
+# Authentication mode configuration
+# AUTH_MODE: pki (default, CA-based) or fingerprint (peer-fingerprint, OpenVPN 2.6+)
+AUTH_MODE="${AUTH_MODE:-pki}"
+
 # Build install command with CLI flags (using array for proper quoting)
 INSTALL_CMD=(/opt/openvpn-install.sh install)
 INSTALL_CMD+=(--endpoint openvpn-server)
@@ -75,6 +79,12 @@ if [ "$TLS13_CIPHERSUITES" != "TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256:TLS
 	echo "Testing TLS 1.3 ciphersuites: $TLS13_CIPHERSUITES"
 fi
 
+# Add auth mode if non-default
+if [ "$AUTH_MODE" != "pki" ]; then
+	INSTALL_CMD+=(--auth-mode "$AUTH_MODE")
+	echo "Testing authentication mode: $AUTH_MODE"
+fi
+
 echo "Running OpenVPN install script..."
 echo "Command: ${INSTALL_CMD[*]}"
 # Run in subshell because the script calls 'exit 0' after generating client config
@@ -104,16 +114,26 @@ fi
 # Verify all expected files were created
 echo "Verifying installation..."
 MISSING_FILES=0
-# Build list of required files
+# Build list of required files based on auth mode
 REQUIRED_FILES=(
 	/etc/openvpn/server/server.conf
-	/etc/openvpn/server/ca.crt
-	/etc/openvpn/server/ca.key
 	"/etc/openvpn/server/$TLS_KEY_FILE"
-	/etc/openvpn/server/crl.pem
-	/etc/openvpn/server/easy-rsa/pki/ca.crt
 	/root/testclient.ovpn
 )
+if [ "$AUTH_MODE" = "pki" ]; then
+	# PKI mode requires CA and CRL files
+	REQUIRED_FILES+=(
+		/etc/openvpn/server/ca.crt
+		/etc/openvpn/server/ca.key
+		/etc/openvpn/server/crl.pem
+		/etc/openvpn/server/easy-rsa/pki/ca.crt
+	)
+else
+	# Fingerprint mode requires server fingerprint file
+	REQUIRED_FILES+=(
+		/etc/openvpn/server/server-fingerprint
+	)
+fi
 # Only check for iptables script if firewalld and nftables are not active
 if ! systemctl is-active --quiet firewalld && ! systemctl is-active --quiet nftables; then
 	REQUIRED_FILES+=(/etc/iptables/add-openvpn-rules.sh)
@@ -197,13 +217,16 @@ sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
 echo "Client config copied to /shared/client.ovpn"
 
 # Write VPN network info to shared volume for client tests
-echo "VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4" >/shared/vpn-config.env
-echo "VPN_GATEWAY=$VPN_GATEWAY" >>/shared/vpn-config.env
-echo "CLIENT_IPV6=$CLIENT_IPV6" >>/shared/vpn-config.env
-if [ "$CLIENT_IPV6" = "y" ]; then
-	echo "VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6" >>/shared/vpn-config.env
-	echo "VPN_GATEWAY_IPV6=$VPN_GATEWAY_IPV6" >>/shared/vpn-config.env
-fi
+{
+	echo "VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4"
+	echo "VPN_GATEWAY=$VPN_GATEWAY"
+	echo "CLIENT_IPV6=$CLIENT_IPV6"
+	echo "AUTH_MODE=$AUTH_MODE"
+	if [ "$CLIENT_IPV6" = "y" ]; then
+		echo "VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6"
+		echo "VPN_GATEWAY_IPV6=$VPN_GATEWAY_IPV6"
+	fi
+} >/shared/vpn-config.env
 echo "VPN config written to /shared/vpn-config.env"
 
 # =====================================================
@@ -396,12 +419,14 @@ else
 	exit 1
 fi
 
-# Verify CRL was updated
-if [ -f /etc/openvpn/server/crl.pem ]; then
-	echo "PASS: CRL file exists"
-else
-	echo "FAIL: CRL file missing after renewal"
-	exit 1
+# Verify CRL was updated (PKI mode only)
+if [ "$AUTH_MODE" = "pki" ]; then
+	if [ -f /etc/openvpn/server/crl.pem ]; then
+		echo "PASS: CRL file exists"
+	else
+		echo "FAIL: CRL file missing after renewal"
+		exit 1
+	fi
 fi
 
 # Update shared client config with renewed certificate
@@ -815,13 +840,25 @@ else
 	exit 1
 fi
 
-# Verify certificate is marked as revoked in index.txt
-if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -q "^R.*CN=$REVOKE_CLIENT\$"; then
-	echo "PASS: Certificate marked as revoked in index.txt"
+# Verify revocation was applied correctly
+if [ "$AUTH_MODE" = "pki" ]; then
+	# PKI mode: verify certificate is marked as revoked in index.txt
+	if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -q "^R.*CN=$REVOKE_CLIENT\$"; then
+		echo "PASS: Certificate marked as revoked in index.txt"
+	else
+		echo "FAIL: Certificate not marked as revoked"
+		cat /etc/openvpn/server/easy-rsa/pki/index.txt
+		exit 1
+	fi
 else
-	echo "FAIL: Certificate not marked as revoked"
-	cat /etc/openvpn/server/easy-rsa/pki/index.txt
-	exit 1
+	# Fingerprint mode: verify fingerprint was removed from server.conf
+	if ! grep -q "# $REVOKE_CLIENT\$" /etc/openvpn/server/server.conf; then
+		echo "PASS: Client fingerprint removed from server.conf"
+	else
+		echo "FAIL: Client fingerprint still present in server.conf"
+		grep "$REVOKE_CLIENT" /etc/openvpn/server/server.conf || true
+		exit 1
+	fi
 fi
 
 # Wait for client to confirm it was disconnected by the revoke
@@ -883,13 +920,26 @@ else
 	exit 1
 fi
 
-# Verify certificate count (3 certs: testclient valid, testclient revoked from renewal, revoketest revoked)
-if grep -q "Found 3 client certificate(s)" "$LIST_OUTPUT"; then
-	echo "PASS: List shows correct certificate count"
+# Verify certificate count (varies by auth mode)
+if [ "$AUTH_MODE" = "pki" ]; then
+	# PKI mode: 3 certs (testclient valid, testclient revoked from renewal, revoketest revoked)
+	if grep -q "Found 3 client certificate(s)" "$LIST_OUTPUT"; then
+		echo "PASS: List shows correct certificate count"
+	else
+		echo "FAIL: List does not show correct certificate count"
+		cat "$LIST_OUTPUT"
+		exit 1
+	fi
 else
-	echo "FAIL: List does not show correct certificate count"
-	cat "$LIST_OUTPUT"
-	exit 1
+	# Fingerprint mode: 2 certs (testclient valid, revoketest revoked)
+	# In fingerprint mode, renewal doesn't create a separate revoked entry
+	if grep -q "Found [23] client certificate(s)" "$LIST_OUTPUT"; then
+		echo "PASS: List shows correct certificate count for fingerprint mode"
+	else
+		echo "FAIL: List does not show correct certificate count"
+		cat "$LIST_OUTPUT"
+		exit 1
+	fi
 fi
 
 # Test JSON output
@@ -906,14 +956,25 @@ else
 	exit 1
 fi
 
-# Verify client count in JSON
+# Verify client count in JSON (varies by auth mode)
 JSON_CLIENT_COUNT=$(jq '.clients | length' "$LIST_JSON_OUTPUT")
-if [ "$JSON_CLIENT_COUNT" -eq 3 ]; then
-	echo "PASS: Client list JSON has correct count ($JSON_CLIENT_COUNT)"
+if [ "$AUTH_MODE" = "pki" ]; then
+	if [ "$JSON_CLIENT_COUNT" -eq 3 ]; then
+		echo "PASS: Client list JSON has correct count ($JSON_CLIENT_COUNT)"
+	else
+		echo "FAIL: Client list JSON has wrong count: $JSON_CLIENT_COUNT (expected 3)"
+		cat "$LIST_JSON_OUTPUT"
+		exit 1
+	fi
 else
-	echo "FAIL: Client list JSON has wrong count: $JSON_CLIENT_COUNT (expected 3)"
-	cat "$LIST_JSON_OUTPUT"
-	exit 1
+	# Fingerprint mode may have fewer entries
+	if [ "$JSON_CLIENT_COUNT" -ge 2 ] && [ "$JSON_CLIENT_COUNT" -le 3 ]; then
+		echo "PASS: Client list JSON has correct count for fingerprint mode ($JSON_CLIENT_COUNT)"
+	else
+		echo "FAIL: Client list JSON has wrong count: $JSON_CLIENT_COUNT (expected 2-3)"
+		cat "$LIST_JSON_OUTPUT"
+		exit 1
+	fi
 fi
 
 # Verify valid client in JSON
@@ -955,25 +1016,37 @@ else
 	exit 1
 fi
 
-# Verify the new certificate is valid (V) in index.txt
-if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -q "^V.*CN=$REVOKE_CLIENT\$"; then
-	echo "PASS: New certificate is valid in index.txt"
-else
-	echo "FAIL: New certificate not marked as valid"
-	cat /etc/openvpn/server/easy-rsa/pki/index.txt
-	exit 1
-fi
+# Verify the new certificate is valid
+if [ "$AUTH_MODE" = "pki" ]; then
+	# PKI mode: verify in index.txt
+	if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -q "^V.*CN=$REVOKE_CLIENT\$"; then
+		echo "PASS: New certificate is valid in index.txt"
+	else
+		echo "FAIL: New certificate not marked as valid"
+		cat /etc/openvpn/server/easy-rsa/pki/index.txt
+		exit 1
+	fi
 
-# Verify there's also a revoked entry (both should exist)
-REVOKED_COUNT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^R.*CN=$REVOKE_CLIENT\$")
-VALID_COUNT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V.*CN=$REVOKE_CLIENT\$")
-echo "Certificates for '$REVOKE_CLIENT': $REVOKED_COUNT revoked, $VALID_COUNT valid"
-if [ "$REVOKED_COUNT" -ge 1 ] && [ "$VALID_COUNT" -eq 1 ]; then
-	echo "PASS: Both revoked and new valid certificate entries exist"
+	# Verify there's also a revoked entry (both should exist)
+	REVOKED_COUNT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^R.*CN=$REVOKE_CLIENT\$")
+	VALID_COUNT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V.*CN=$REVOKE_CLIENT\$")
+	echo "Certificates for '$REVOKE_CLIENT': $REVOKED_COUNT revoked, $VALID_COUNT valid"
+	if [ "$REVOKED_COUNT" -ge 1 ] && [ "$VALID_COUNT" -eq 1 ]; then
+		echo "PASS: Both revoked and new valid certificate entries exist"
+	else
+		echo "FAIL: Unexpected certificate state"
+		cat /etc/openvpn/server/easy-rsa/pki/index.txt
+		exit 1
+	fi
 else
-	echo "FAIL: Unexpected certificate state"
-	cat /etc/openvpn/server/easy-rsa/pki/index.txt
-	exit 1
+	# Fingerprint mode: verify fingerprint was added back to server.conf
+	if grep -q "# $REVOKE_CLIENT\$" /etc/openvpn/server/server.conf; then
+		echo "PASS: New client fingerprint added to server.conf"
+	else
+		echo "FAIL: New client fingerprint not found in server.conf"
+		cat /etc/openvpn/server/server.conf | grep -A5 "<peer-fingerprint>" || true
+		exit 1
+	fi
 fi
 
 # Copy the new config

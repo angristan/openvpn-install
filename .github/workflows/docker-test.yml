@@ -118,6 +118,15 @@ jobs:
               name: tls-crypt-v2
               sig: crypt-v2
               key_file: tls-crypt-v2.key
+          # Test peer-fingerprint authentication mode (OpenVPN 2.6+)
+          - os:
+              name: ubuntu-24.04-fingerprint
+              image: ubuntu:24.04
+              auth_mode: fingerprint
+            tls:
+              name: tls-crypt-v2
+              sig: crypt-v2
+              key_file: tls-crypt-v2.key
 
     name: ${{ matrix.os.name }}
     steps:
@@ -166,6 +175,7 @@ jobs:
             -e TLS_SIG=${{ matrix.tls.sig }} \
             -e TLS_KEY_FILE=${{ matrix.tls.key_file }} \
             -e CLIENT_IPV6=${{ matrix.os.client_ipv6 && 'y' || 'n' }} \
+            -e AUTH_MODE=${{ matrix.os.auth_mode || 'pki' }} \
             openvpn-server
 
       - name: Wait for server installation and startup
