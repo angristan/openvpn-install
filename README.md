@@ -507,7 +507,7 @@ How it works:
 2. Each client generates a self-signed certificate
 3. Client fingerprints are added to the server's `<peer-fingerprint>` block
 4. Clients verify the server using the server's fingerprint
-5. Revocation is instant: remove the fingerprint and reload OpenVPN
+5. Revocation removes the fingerprint from the server config (no CRL needed)
 
 Requirements:
 
