@@ -3873,7 +3873,8 @@ function newClient() {
 		log_info "Client fingerprint: $CLIENT_FINGERPRINT"
 
 		# Add fingerprint to server.conf's <peer-fingerprint> block
-		sed -i "/<\/peer-fingerprint>/i $CLIENT_FINGERPRINT # $CLIENT" /etc/openvpn/server/server.conf
+		# Comment line above fingerprint identifies the client (for revocation)
+		sed -i "/<\/peer-fingerprint>/i # $CLIENT\n$CLIENT_FINGERPRINT" /etc/openvpn/server/server.conf
 
 		# Reload OpenVPN to pick up new fingerprint
 		log_info "Reloading OpenVPN to apply new fingerprint..."
@@ -3917,8 +3918,9 @@ function revokeClient() {
 	else
 		# Fingerprint mode: remove fingerprint from server.conf and delete cert files
 		log_info "Removing client fingerprint from server configuration..."
-		# Remove the line containing the client name comment from peer-fingerprint block
-		sed -i "/ # $CLIENT\$/d" /etc/openvpn/server/server.conf
+
+		# Remove comment line and fingerprint line below it from server.conf
+		sed -i "/^# $CLIENT\$/{N;d;}" /etc/openvpn/server/server.conf
 
 		# Remove client certificate and key
 		rm -f "pki/issued/$CLIENT.crt" "pki/private/$CLIENT.key"
