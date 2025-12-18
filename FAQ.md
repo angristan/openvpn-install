@@ -121,7 +121,6 @@ Sysctl options are at `/etc/sysctl.d/99-openvpn.conf`
    Replace `192.168.1.0/24` with your actual LAN subnet.
 
 2. **Enable routing back to VPN clients** - Choose one of these options:
-
    - **Option A: Add a static route on your router** (recommended when you can configure your router)
 
      On your LAN router, add a route for the VPN subnet (default `10.8.0.0/24`) pointing to the OpenVPN server's LAN IP. This allows LAN devices to reply to VPN clients without NAT.
