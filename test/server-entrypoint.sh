@@ -218,14 +218,16 @@ sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
 echo "Client config copied to /shared/client.ovpn"
 
 # Write VPN network info to shared volume for client tests
-echo "VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4" >/shared/vpn-config.env
-echo "VPN_GATEWAY=$VPN_GATEWAY" >>/shared/vpn-config.env
-echo "CLIENT_IPV6=$CLIENT_IPV6" >>/shared/vpn-config.env
-echo "AUTH_MODE=$AUTH_MODE" >>/shared/vpn-config.env
-if [ "$CLIENT_IPV6" = "y" ]; then
-	echo "VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6" >>/shared/vpn-config.env
-	echo "VPN_GATEWAY_IPV6=$VPN_GATEWAY_IPV6" >>/shared/vpn-config.env
-fi
+{
+	echo "VPN_SUBNET_IPV4=$VPN_SUBNET_IPV4"
+	echo "VPN_GATEWAY=$VPN_GATEWAY"
+	echo "CLIENT_IPV6=$CLIENT_IPV6"
+	echo "AUTH_MODE=$AUTH_MODE"
+	if [ "$CLIENT_IPV6" = "y" ]; then
+		echo "VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6"
+		echo "VPN_GATEWAY_IPV6=$VPN_GATEWAY_IPV6"
+	fi
+} >/shared/vpn-config.env
 echo "VPN config written to /shared/vpn-config.env"
 
 # =====================================================
