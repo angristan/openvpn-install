@@ -202,8 +202,6 @@ So for example - here it would route all traffic of `10.0.0.0/8` to the VPN. And
 
 5. Restart OpenVPN: `systemctl restart openvpn-server@server`
 
-**Security note:** Split-tunnel mode means non-routed traffic (including potentially DNS queries) bypasses the VPN and is visible to your local network. Only use this if you understand the privacy implications.
-
 ---
 
 **Q:** I have enabled IPv6 and my VPN client gets an IPv6 address. Why do I reach the sites or other dual-stacked destinations via IPv4 only?
