@@ -3031,7 +3031,7 @@ topology subnet" >>/etc/openvpn/server/server.conf
 
 	# Common server config options
 	# PKI mode adds crl-verify, ca, and remote-cert-tls
-	# Fingerprint mode adds <peer-fingerprint> block
+	# Fingerprint mode: <peer-fingerprint> block is added when first client is created
 	{
 		[[ $AUTH_MODE == "pki" ]] && echo "crl-verify crl.pem
 ca ca.crt"
@@ -3051,9 +3051,6 @@ client-config-dir ccd
 status /var/log/openvpn/status.log
 management /var/run/openvpn/server.sock unix
 verb 3"
-		[[ $AUTH_MODE == "fingerprint" ]] && echo "# Client fingerprints are listed below (one per line)
-<peer-fingerprint>
-</peer-fingerprint>"
 	} >>/etc/openvpn/server/server.conf
 
 	# Create management socket directory
@@ -3134,7 +3131,11 @@ verb 3"
 
 	run_cmd "Reloading systemd" systemctl daemon-reload
 	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
-	run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+	# In fingerprint mode, delay service start until first client is created
+	# (OpenVPN requires at least one fingerprint or a CA to start)
+	if [[ $AUTH_MODE == "pki" ]]; then
+		run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+	fi
 
 	if [[ $DNS == "unbound" ]]; then
 		installUnbound
@@ -3346,10 +3347,18 @@ verb 3"
 
 	# Generate the custom client.ovpn
 	if [[ $NEW_CLIENT == "n" ]]; then
-		log_info "No clients added. To add clients, simply run the script again."
+		if [[ $AUTH_MODE == "fingerprint" ]]; then
+			log_info "No clients added. OpenVPN will not start until you add at least one client."
+		else
+			log_info "No clients added. To add clients, simply run the script again."
+		fi
 	else
 		log_info "Generating first client certificate..."
 		newClient
+		# In fingerprint mode, start service now that we have at least one fingerprint
+		if [[ $AUTH_MODE == "fingerprint" ]]; then
+			run_cmd "Starting OpenVPN service" systemctl restart openvpn-server@server
+		fi
 		log_success "If you want to add more clients, you simply need to run this script another time!"
 	fi
 }
@@ -3873,8 +3882,17 @@ function newClient() {
 		log_info "Client fingerprint: $CLIENT_FINGERPRINT"
 
 		# Add fingerprint to server.conf's <peer-fingerprint> block
-		# Comment line above fingerprint identifies the client (for revocation)
-		sed -i "/<\/peer-fingerprint>/i # $CLIENT\n$CLIENT_FINGERPRINT" /etc/openvpn/server/server.conf
+		# Create the block if this is the first client
+		if ! grep -q '<peer-fingerprint>' /etc/openvpn/server/server.conf; then
+			echo "# Client fingerprints are listed below
+<peer-fingerprint>
+# $CLIENT
+$CLIENT_FINGERPRINT
+</peer-fingerprint>" >>/etc/openvpn/server/server.conf
+		else
+			# Insert comment and fingerprint before closing tag
+			sed -i "/<\/peer-fingerprint>/i # $CLIENT\n$CLIENT_FINGERPRINT" /etc/openvpn/server/server.conf
+		fi
 
 		# Reload OpenVPN to pick up new fingerprint
 		log_info "Reloading OpenVPN to apply new fingerprint..."
