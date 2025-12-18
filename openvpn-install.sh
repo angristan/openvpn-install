@@ -1292,6 +1292,7 @@ cmd_client_add() {
 	fi
 
 	newClient
+	exit 0
 }
 
 # Handle client list command
@@ -3909,8 +3910,6 @@ $CLIENT_FINGERPRINT
 	log_menu ""
 	log_success "The configuration file has been written to $GENERATED_CONFIG_PATH."
 	log_info "Download the .ovpn file and import it in your OpenVPN client."
-
-	exit 0
 }
 
 function revokeClient() {
@@ -4329,6 +4328,7 @@ function manageMenu() {
 	case $menu_option in
 	1)
 		newClient
+		exit 0
 		;;
 	2)
 		listClients
