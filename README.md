@@ -509,6 +509,8 @@ How it works:
 4. Clients verify the server using the server's fingerprint
 5. Revocation removes the fingerprint from the server config (no CRL needed)
 
+Tradeoff: Revoking a client requires reloading OpenVPN (fingerprints are in server.conf). In PKI mode, the CRL file is re-read automatically on new connections.
+
 ### Data channel
 
 > [!NOTE]
