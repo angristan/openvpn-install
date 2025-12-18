@@ -136,6 +136,39 @@ fi
 echo "All required files present"
 
 # =====================================================
+# Verify management interface configuration
+# =====================================================
+echo ""
+echo "=== Verifying Management Interface Configuration ==="
+
+# Verify management socket is configured in server.conf
+if grep -q "management /var/run/openvpn/server.sock unix" /etc/openvpn/server/server.conf; then
+	echo "PASS: Management interface configured in server.conf"
+else
+	echo "FAIL: Management interface not found in server.conf"
+	grep "management" /etc/openvpn/server/server.conf || echo "No management directive found"
+	exit 1
+fi
+
+# Verify management socket directory exists
+if [ -d /var/run/openvpn ]; then
+	echo "PASS: Management socket directory exists"
+else
+	echo "FAIL: Management socket directory /var/run/openvpn not found"
+	exit 1
+fi
+
+# Verify socat is available (needed for management interface communication)
+if command -v socat >/dev/null 2>&1; then
+	echo "PASS: socat is available"
+else
+	echo "FAIL: socat is not installed (required for management interface)"
+	exit 1
+fi
+
+echo "=== Management Interface Configuration Verified ==="
+
+# =====================================================
 # Test duplicate client name handling
 # =====================================================
 echo ""
@@ -769,18 +802,8 @@ fi
 
 echo "=== Server Status Tests PASSED ==="
 
-# Signal client to disconnect before revocation
-touch /shared/revoke-client-disconnect
-
-# Wait for client to disconnect
-echo "Waiting for client to disconnect..."
-while [ ! -f /shared/revoke-client-disconnected ]; do
-	sleep 2
-done
-echo "Client disconnected"
-
-# Now revoke the certificate
-echo "Revoking certificate for '$REVOKE_CLIENT'..."
+# Now revoke the certificate (this should auto-disconnect the client via management interface)
+echo "Revoking certificate for '$REVOKE_CLIENT' (should auto-disconnect client)..."
 REVOKE_OUTPUT="/tmp/revoke-output.log"
 (bash /opt/openvpn-install.sh client revoke "$REVOKE_CLIENT" --force) 2>&1 | tee "$REVOKE_OUTPUT" || true
 
@@ -798,6 +821,22 @@ if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -q "^R.*CN=$REVO
 else
 	echo "FAIL: Certificate not marked as revoked"
 	cat /etc/openvpn/server/easy-rsa/pki/index.txt
+	exit 1
+fi
+
+# Wait for client to confirm it was disconnected by the revoke
+echo "Waiting for client to confirm auto-disconnect..."
+DISCONNECT_WAIT=0
+while [ ! -f /shared/revoke-client-disconnected ] && [ $DISCONNECT_WAIT -lt 60 ]; do
+	sleep 2
+	DISCONNECT_WAIT=$((DISCONNECT_WAIT + 2))
+	echo "Waiting for disconnect confirmation... ($DISCONNECT_WAIT/60s)"
+done
+
+if [ -f /shared/revoke-client-disconnected ]; then
+	echo "PASS: Client was auto-disconnected by revoke command"
+else
+	echo "FAIL: Client was not disconnected within 60 seconds"
 	exit 1
 fi
 
@@ -1025,8 +1064,41 @@ done
 echo "PASS: Client connected with passphrase-protected certificate"
 
 echo "=== PASSPHRASE Support Tests PASSED ==="
+
+# =====================================================
+# Test management interface is running
+# =====================================================
 echo ""
-echo "=== All Revocation Tests PASSED ==="
+echo "=== Testing Management Interface ==="
+
+MGMT_SOCKET="/var/run/openvpn/server.sock"
+
+# Verify management socket exists and is accessible
+if [ -S "$MGMT_SOCKET" ]; then
+	echo "PASS: Management socket exists at $MGMT_SOCKET"
+else
+	echo "FAIL: Management socket not found at $MGMT_SOCKET"
+	ls -la /var/run/openvpn/ || true
+	exit 1
+fi
+
+# Test that we can communicate with the management interface
+echo "Testing management interface communication..."
+MGMT_STATUS=$(echo "status" | socat - UNIX-CONNECT:"$MGMT_SOCKET" 2>&1 | head -20)
+if echo "$MGMT_STATUS" | grep -q "CLIENT LIST"; then
+	echo "PASS: Management interface is responsive"
+	echo "Status output:"
+	echo "$MGMT_STATUS"
+else
+	echo "FAIL: Management interface not responding correctly"
+	echo "Response: $MGMT_STATUS"
+	exit 1
+fi
+
+echo "=== Management Interface Tests PASSED ==="
+
+echo ""
+echo "=== All Tests PASSED ==="
 
 # Server tests complete - systemd keeps the container running via /sbin/init
 # OpenVPN service (openvpn-server@server) continues independently
