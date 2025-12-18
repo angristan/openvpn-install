@@ -169,27 +169,33 @@ So for example - here it would route all traffic of `10.0.0.0/8` to the VPN. And
 **A:** By default, the script configures full-tunnel mode where all client traffic goes through the VPN. To configure split-tunnel (only specific networks routed through VPN), edit `/etc/openvpn/server/server.conf`:
 
 1. Remove or comment out the redirect-gateway line:
+
    ```
    #push "redirect-gateway def1 bypass-dhcp"
    ```
 
 2. Add routes for the networks you want to tunnel:
+
    ```
    push "route 10.0.0.0 255.0.0.0"
    push "route 192.168.1.0 255.255.255.0"
    ```
 
 3. Optionally remove DNS push directives if you don't want VPN DNS:
+
    ```
    #push "dhcp-option DNS 1.1.1.1"
    ```
 
 4. For IPv6, remove or comment out:
+
    ```
    #push "route-ipv6 2000::/3"
    #push "redirect-gateway ipv6"
    ```
+
    Or add specific IPv6 routes:
+
    ```
    push "route-ipv6 2001:db8::/32"
    ```
