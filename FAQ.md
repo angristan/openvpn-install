@@ -193,6 +193,46 @@ So for example - here it would route all traffic of `10.0.0.0/8` to the VPN. And
 
 ---
 
+**Q:** How do I configure split-tunnel mode on the server (route only specific networks through VPN for all clients)?
+
+**A:** By default, the script configures full-tunnel mode where all client traffic goes through the VPN. To configure split-tunnel (only specific networks routed through VPN), edit `/etc/openvpn/server/server.conf`:
+
+1. Remove or comment out the redirect-gateway line:
+
+   ```
+   #push "redirect-gateway def1 bypass-dhcp"
+   ```
+
+2. Add routes for the networks you want to tunnel:
+
+   ```
+   push "route 10.0.0.0 255.0.0.0"
+   push "route 192.168.1.0 255.255.255.0"
+   ```
+
+3. Optionally remove DNS push directives if you don't want VPN DNS:
+
+   ```
+   #push "dhcp-option DNS 1.1.1.1"
+   ```
+
+4. For IPv6, remove or comment out:
+
+   ```
+   #push "route-ipv6 2000::/3"
+   #push "redirect-gateway ipv6"
+   ```
+
+   Or add specific IPv6 routes:
+
+   ```
+   push "route-ipv6 2001:db8::/32"
+   ```
+
+5. Restart OpenVPN: `systemctl restart openvpn-server@server`
+
+---
+
 **Q:** I have enabled IPv6 and my VPN client gets an IPv6 address. Why do I reach the sites or other dual-stacked destinations via IPv4 only?
 
 **A:** This is because inside the tunnel you don't get a publicly routable IPv6 address, instead you get an ULA (Unlique Local Lan) address. Operating systems don't prefer this all the time. You can fix this in your operating system policies as it's unrelated to the VPN itself:
