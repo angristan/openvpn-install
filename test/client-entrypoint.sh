@@ -192,36 +192,35 @@ echo "PASS: Can ping VPN gateway with revoke test client"
 # Signal server that we're connected with revoke test client
 touch /shared/revoke-client-connected
 
-# Wait for server to signal us to disconnect
-echo "Waiting for server to signal disconnect..."
-while [ ! -f /shared/revoke-client-disconnect ]; do
-	sleep 2
-done
-
-# Disconnect
-echo "Disconnecting revoke test client..."
-pkill openvpn || true
-
-# Wait for openvpn to fully exit and tun0 to be released
-WAITED=0
-MAX_WAIT_DISCONNECT=10
-while (pgrep openvpn >/dev/null || ip addr show tun0 2>/dev/null | grep -q "inet ") && [ $WAITED -lt $MAX_WAIT_DISCONNECT ]; do
+# Wait for server to revoke and auto-disconnect us via management interface
+# We detect disconnect by checking if ping to VPN gateway fails
+echo "Waiting for server to revoke certificate and disconnect us..."
+DISCONNECT_DETECTED=false
+for i in $(seq 1 60); do
+	if ! ping -c 1 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; then
+		echo "Disconnect detected: cannot ping VPN gateway"
+		DISCONNECT_DETECTED=true
+		break
+	fi
 	sleep 1
-	WAITED=$((WAITED + 1))
+	echo "Still connected, waiting for revoke/disconnect ($i/60)..."
 done
 
-# Verify disconnected
-if ip addr show tun0 2>/dev/null | grep -q "inet "; then
-	echo "FAIL: tun0 still has IP after disconnect"
+if [ "$DISCONNECT_DETECTED" = true ]; then
+	echo "PASS: Client was auto-disconnected by revoke"
+	# Kill openvpn process to clean up
+	pkill openvpn 2>/dev/null || true
+	sleep 1
+else
+	echo "FAIL: Client was not disconnected within 60 seconds"
 	exit 1
 fi
-echo "PASS: Disconnected successfully"
 
-# Signal server that we're disconnected
+# Signal server that we detected the disconnect
 touch /shared/revoke-client-disconnected
 
-# Wait for server to revoke the certificate and signal us to reconnect
-echo "Waiting for server to revoke certificate and signal reconnect..."
+# Wait for server to signal us to try reconnecting
+echo "Waiting for server to signal reconnect attempt..."
 while [ ! -f /shared/revoke-try-reconnect ]; do
 	sleep 2
 done

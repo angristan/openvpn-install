@@ -15,6 +15,7 @@ ENV ENABLE_NFTABLES=${ENABLE_NFTABLES}
 
 # Install basic dependencies based on the OS
 # dnsutils/bind-utils provides dig for DNS testing with Unbound
+# Note: socat is installed by openvpn-install.sh during OpenVPN installation
 RUN if command -v apt-get >/dev/null; then \
         apt-get update && apt-get install -y --no-install-recommends \
             iproute2 iptables curl procps systemd systemd-sysv dnsutils jq \

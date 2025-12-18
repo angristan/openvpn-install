@@ -41,6 +41,7 @@ That said, OpenVPN still makes sense when you need:
 - CLI interface for automation and scripting (non-interactive mode with JSON output)
 - Certificate renewal for both client and server certificates
 - List and monitor connected clients
+- Immediate client disconnect on certificate revocation (via management interface)
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
 - Configurable VPN subnets (IPv4: default `10.8.0.0/24`, IPv6: default `fd42:42:42:42::/112`)
@@ -135,7 +136,7 @@ For automation and scripting, use the CLI interface:
 # List clients
 ./openvpn-install.sh client list
 
-# Revoke a client
+# Revoke a client (immediately disconnects if connected)
 ./openvpn-install.sh client revoke alice
 ```
 

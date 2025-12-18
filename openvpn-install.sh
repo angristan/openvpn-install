@@ -2574,20 +2574,21 @@ function installOpenVPN() {
 		installOpenVPNRepo
 
 		log_info "Installing OpenVPN and dependencies..."
+		# socat is used for communicating with the OpenVPN management interface (client disconnect on revoke)
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			run_cmd_fatal "Installing OpenVPN" apt-get install -y openvpn iptables openssl curl ca-certificates tar dnsutils
+			run_cmd_fatal "Installing OpenVPN" apt-get install -y openvpn iptables openssl curl ca-certificates tar dnsutils socat
 		elif [[ $OS == 'centos' ]]; then
-			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils 'policycoreutils-python*'
+			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils policycoreutils-python-utils
+			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat policycoreutils-python-utils
 		elif [[ $OS == 'amzn2023' ]]; then
-			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils
+			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat
 		elif [[ $OS == 'fedora' ]]; then
-			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils policycoreutils-python-utils
+			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat policycoreutils-python-utils
 		elif [[ $OS == 'opensuse' ]]; then
-			run_cmd_fatal "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl tar bind-utils
+			run_cmd_fatal "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat
 		elif [[ $OS == 'arch' ]]; then
-			run_cmd_fatal "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl tar bind
+			run_cmd_fatal "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl tar bind socat
 		fi
 
 		# Verify ChaCha20-Poly1305 compatibility if selected
@@ -2946,7 +2947,11 @@ tls-cipher $CC_CIPHER
 tls-ciphersuites $TLS13_CIPHERSUITES
 client-config-dir ccd
 status /var/log/openvpn/status.log
+management /var/run/openvpn/server.sock unix
 verb 3" >>/etc/openvpn/server/server.conf
+
+	# Create management socket directory
+	run_cmd_fatal "Creating management socket directory" mkdir -p /var/run/openvpn
 
 	# Create client-config-dir dir
 	run_cmd_fatal "Creating client config directory" mkdir -p /etc/openvpn/server/ccd
@@ -3727,7 +3732,28 @@ function revokeClient() {
 	run_cmd "Removing IP assignment" sed -i "/^$CLIENT,.*/d" /etc/openvpn/server/ipp.txt
 	run_cmd "Backing up index" cp /etc/openvpn/server/easy-rsa/pki/index.txt{,.bk}
 
+	# Disconnect the client if currently connected
+	disconnectClient "$CLIENT"
+
 	log_success "Certificate for client $CLIENT revoked."
+}
+
+# Disconnect a client via the management interface
+function disconnectClient() {
+	local client_name="$1"
+	local mgmt_socket="/var/run/openvpn/server.sock"
+
+	if [[ ! -S "$mgmt_socket" ]]; then
+		log_warning "Management socket not found. Client may still be connected until they reconnect."
+		return 0
+	fi
+
+	log_info "Disconnecting client $client_name..."
+	if echo "kill $client_name" | socat - UNIX-CONNECT:"$mgmt_socket" >/dev/null 2>&1; then
+		log_success "Client $client_name disconnected."
+	else
+		log_warning "Could not disconnect client (they may not be connected)."
+	fi
 }
 
 function renewClient() {
