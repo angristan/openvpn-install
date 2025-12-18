@@ -132,7 +132,6 @@ else
 	# Fingerprint mode requires server fingerprint file
 	REQUIRED_FILES+=(
 		/etc/openvpn/server/server-fingerprint
-		/etc/openvpn/server/client-fingerprints
 	)
 fi
 # Only check for iptables script if firewalld and nftables are not active

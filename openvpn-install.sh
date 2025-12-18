@@ -2764,12 +2764,13 @@ function installOpenVPN() {
 			export EASYRSA_CERT_EXPIRE=${SERVER_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
 			run_cmd_fatal "Building self-signed server certificate" ./easyrsa --batch self-sign-server "$SERVER_NAME" nopass
 
-			# Create empty peer-fingerprint file for client fingerprints
-			mkdir -p /etc/openvpn/server
-			touch /etc/openvpn/server/client-fingerprints
-
 			# Extract and store server fingerprint
 			SERVER_FINGERPRINT=$(openssl x509 -in "pki/issued/$SERVER_NAME.crt" -fingerprint -sha256 -noout | cut -d'=' -f2)
+			if [[ -z $SERVER_FINGERPRINT ]]; then
+				log_error "Failed to extract server certificate fingerprint"
+				exit 1
+			fi
+			mkdir -p /etc/openvpn/server
 			echo "$SERVER_FINGERPRINT" >/etc/openvpn/server/server-fingerprint
 			log_info "Server fingerprint: $SERVER_FINGERPRINT"
 		fi
@@ -3470,7 +3471,15 @@ function generateClientConfig() {
 		else
 			# Fingerprint mode: use server fingerprint instead of CA
 			local server_fingerprint
+			if [[ ! -f /etc/openvpn/server/server-fingerprint ]]; then
+				log_error "Server fingerprint file not found"
+				exit 1
+			fi
 			server_fingerprint=$(cat /etc/openvpn/server/server-fingerprint)
+			if [[ -z $server_fingerprint ]]; then
+				log_error "Server fingerprint is empty"
+				exit 1
+			fi
 			echo "peer-fingerprint $server_fingerprint"
 		fi
 
@@ -3857,6 +3866,10 @@ function newClient() {
 	# Fingerprint mode: register client fingerprint with server
 	if [[ $AUTH_MODE == "fingerprint" ]]; then
 		CLIENT_FINGERPRINT=$(openssl x509 -in "pki/issued/$CLIENT.crt" -fingerprint -sha256 -noout | cut -d'=' -f2)
+		if [[ -z $CLIENT_FINGERPRINT ]]; then
+			log_error "Failed to extract client certificate fingerprint"
+			exit 1
+		fi
 		log_info "Client fingerprint: $CLIENT_FINGERPRINT"
 
 		# Add fingerprint to server.conf's <peer-fingerprint> block
