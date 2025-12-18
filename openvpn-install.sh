@@ -240,7 +240,7 @@ show_install_help() {
 			--hmac <alg>          HMAC algorithm: SHA256, SHA384, SHA512 (default: SHA256)
 			--tls-sig <mode>      TLS mode: crypt-v2, crypt, auth (default: crypt-v2)
 			--auth-mode <mode>    Auth mode: pki, fingerprint (default: pki)
-			                      fingerprint requires OpenVPN 2.6+
+				fingerprint requires OpenVPN 2.6+
 			--server-cert-days <n>  Server cert validity in days (default: 3650)
 
 		Other Options:
