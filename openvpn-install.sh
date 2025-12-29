@@ -3536,6 +3536,42 @@ function generateClientConfig() {
 	} >>"$filepath"
 }
 
+# Helper function to get the current auth mode
+# Returns: "pki" or "fingerprint"
+function getAuthMode() {
+	if [[ -f /etc/openvpn/server/easy-rsa/AUTH_MODE_GENERATED ]]; then
+		cat /etc/openvpn/server/easy-rsa/AUTH_MODE_GENERATED
+	else
+		echo "pki"
+	fi
+}
+
+# Helper function to get valid client names from server.conf fingerprint block
+# In fingerprint mode, clients are tracked via comments in the <peer-fingerprint> block
+# Format in server.conf:
+#   <peer-fingerprint>
+#   # client_name
+#   SHA256:fingerprint
+#   </peer-fingerprint>
+# Returns: newline-separated list of client names
+function getClientsFromFingerprints() {
+	local server_conf="/etc/openvpn/server/server.conf"
+	if [[ ! -f "$server_conf" ]]; then
+		return
+	fi
+	# Extract client names from comments in peer-fingerprint block
+	# Comments are in format "# client_name" on lines before fingerprints
+	sed -n '/<peer-fingerprint>/,/<\/peer-fingerprint>/p' "$server_conf" | grep "^# " | sed 's/^# //'
+}
+
+# Helper function to check if a client exists in fingerprint mode
+# Arguments: client_name
+# Returns: 0 if exists, 1 if not
+function clientExistsInFingerprints() {
+	local client_name="$1"
+	getClientsFromFingerprints | grep -qx "$client_name"
+}
+
 # Helper function to list valid clients and select one
 # Arguments: show_expiry (optional, "true" to show expiry info)
 # Sets global variables:
@@ -3545,21 +3581,36 @@ function generateClientConfig() {
 function selectClient() {
 	local show_expiry="${1:-false}"
 	local client_number
+	local auth_mode
+	local clients_list
 
-	NUMBEROFCLIENTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -c "^V")
+	auth_mode=$(getAuthMode)
+
+	# Get list of valid clients based on auth mode
+	if [[ $auth_mode == "fingerprint" ]]; then
+		# Fingerprint mode: get clients from server.conf peer-fingerprint block
+		clients_list=$(getClientsFromFingerprints)
+		NUMBEROFCLIENTS=$(echo "$clients_list" | grep -c . || echo 0)
+	else
+		# PKI mode: get valid clients from index.txt
+		clients_list=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt 2>/dev/null | grep "^V" | cut -d '=' -f 2)
+		NUMBEROFCLIENTS=$(echo "$clients_list" | grep -c . || echo 0)
+	fi
+
 	if [[ $NUMBEROFCLIENTS == '0' ]]; then
 		log_fatal "You have no existing clients!"
 	fi
 
 	# If CLIENT is set, validate it exists as a valid client
 	if [[ -n $CLIENT ]]; then
-		if tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | grep -qx "$CLIENT"; then
+		if echo "$clients_list" | grep -qx "$CLIENT"; then
 			return
 		else
 			log_fatal "Client '$CLIENT' not found or not valid"
 		fi
 	fi
 
+	# Display client list
 	if [[ $show_expiry == "true" ]]; then
 		local i=1
 		while read -r client; do
@@ -3570,11 +3621,12 @@ function selectClient() {
 			expiry=$(formatExpiry "$days")
 			echo "     $i) $client $expiry"
 			((i++))
-		done < <(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2)
+		done <<< "$clients_list"
 	else
-		tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | nl -s ') '
+		echo "$clients_list" | nl -s ') '
 	fi
 
+	# Prompt for selection
 	until [[ ${CLIENTNUMBER:-$client_number} -ge 1 && ${CLIENTNUMBER:-$client_number} -le $NUMBEROFCLIENTS ]]; do
 		if [[ $NUMBEROFCLIENTS == '1' ]]; then
 			read -rp "Select one client [1]: " client_number
@@ -3583,7 +3635,7 @@ function selectClient() {
 		fi
 	done
 	CLIENTNUMBER="${CLIENTNUMBER:-$client_number}"
-	CLIENT=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | cut -d '=' -f 2 | sed -n "$CLIENTNUMBER"p)
+	CLIENT=$(echo "$clients_list" | sed -n "${CLIENTNUMBER}p")
 }
 
 # Escape a string for JSON output
@@ -3603,58 +3655,107 @@ function listClients() {
 	local cert_dir="/etc/openvpn/server/easy-rsa/pki/issued"
 	local number_of_clients
 	local format="${OUTPUT_FORMAT:-table}"
+	local auth_mode
 
-	# Exclude server certificates (CN starting with server_)
-	number_of_clients=$(tail -n +2 "$index_file" | grep "^[VR]" | grep -cv "/CN=server_")
+	auth_mode=$(getAuthMode)
 
-	if [[ $number_of_clients == '0' ]]; then
-		if [[ $format == "json" ]]; then
-			echo '{"clients":[]}'
-		else
-			log_warn "You have no existing client certificates!"
-		fi
-		return
-	fi
-
-	# Collect client data
+	# Collect client data based on auth mode
 	local clients_data=()
-	while read -r line; do
-		local status="${line:0:1}"
-		local client_name
-		client_name=$(echo "$line" | sed 's/.*\/CN=//')
 
-		local status_text
-		if [[ "$status" == "V" ]]; then
-			status_text="valid"
-		elif [[ "$status" == "R" ]]; then
-			status_text="revoked"
-		else
-			status_text="unknown"
+	if [[ $auth_mode == "fingerprint" ]]; then
+		# Fingerprint mode: get clients from server.conf peer-fingerprint block
+		# All clients in the block are valid (revoked clients are removed)
+		local clients_list
+		clients_list=$(getClientsFromFingerprints)
+		number_of_clients=$(echo "$clients_list" | grep -c . || echo 0)
+
+		if [[ $number_of_clients == '0' ]]; then
+			if [[ $format == "json" ]]; then
+				echo '{"clients":[]}'
+			else
+				log_warn "You have no existing client certificates!"
+			fi
+			return
 		fi
 
-		local cert_file="$cert_dir/$client_name.crt"
-		local expiry_date="unknown"
-		local days_remaining="null"
+		while read -r client_name; do
+			[[ -z "$client_name" ]] && continue
+			local status_text="valid"
+			local cert_file="$cert_dir/$client_name.crt"
+			local expiry_date="unknown"
+			local days_remaining="null"
 
-		if [[ -f "$cert_file" ]]; then
-			local enddate
-			enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+			if [[ -f "$cert_file" ]]; then
+				local enddate
+				enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
 
-			if [[ -n "$enddate" ]]; then
-				local expiry_epoch
-				expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
+				if [[ -n "$enddate" ]]; then
+					local expiry_epoch
+					expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
 
-				if [[ -n "$expiry_epoch" ]]; then
-					expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
-					local now_epoch
-					now_epoch=$(date +%s)
-					days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+					if [[ -n "$expiry_epoch" ]]; then
+						expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
+						local now_epoch
+						now_epoch=$(date +%s)
+						days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+					fi
 				fi
 			fi
+
+			clients_data+=("$client_name|$status_text|$expiry_date|$days_remaining")
+		done <<< "$clients_list"
+	else
+		# PKI mode: get clients from index.txt
+		# Exclude server certificates (CN starting with server_)
+		number_of_clients=$(tail -n +2 "$index_file" 2>/dev/null | grep "^[VR]" | grep -cv "/CN=server_" || echo 0)
+
+		if [[ $number_of_clients == '0' ]]; then
+			if [[ $format == "json" ]]; then
+				echo '{"clients":[]}'
+			else
+				log_warn "You have no existing client certificates!"
+			fi
+			return
 		fi
 
-		clients_data+=("$client_name|$status_text|$expiry_date|$days_remaining")
-	done < <(tail -n +2 "$index_file" | grep "^[VR]" | grep -v "/CN=server_" | sort -t$'\t' -k2)
+		while read -r line; do
+			local status="${line:0:1}"
+			local client_name
+			client_name=$(echo "$line" | sed 's/.*\/CN=//')
+
+			local status_text
+			if [[ "$status" == "V" ]]; then
+				status_text="valid"
+			elif [[ "$status" == "R" ]]; then
+				status_text="revoked"
+			else
+				status_text="unknown"
+			fi
+
+			local cert_file="$cert_dir/$client_name.crt"
+			local expiry_date="unknown"
+			local days_remaining="null"
+
+			if [[ -f "$cert_file" ]]; then
+				local enddate
+				enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+
+				if [[ -n "$enddate" ]]; then
+					local expiry_epoch
+					expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
+
+					if [[ -n "$expiry_epoch" ]]; then
+						expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
+						local now_epoch
+						now_epoch=$(date +%s)
+						days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+					fi
+				fi
+			fi
+
+			clients_data+=("$client_name|$status_text|$expiry_date|$days_remaining")
+		done < <(tail -n +2 "$index_file" | grep "^[VR]" | grep -v "/CN=server_" | sort -t$'\t' -k2)
+	fi
 
 	if [[ $format == "json" ]]; then
 		# Output JSON
@@ -3830,14 +3931,21 @@ function newClient() {
 	fi
 
 	# Check if client already exists
-	if [[ -f pki/index.txt ]]; then
-		CLIENTEXISTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
+	local CLIENTEXISTS=0
+	if [[ $AUTH_MODE == "fingerprint" ]]; then
+		# Fingerprint mode: check server.conf peer-fingerprint block
+		if clientExistsInFingerprints "$CLIENT"; then
+			CLIENTEXISTS=1
+		fi
 	else
-		CLIENTEXISTS=0
+		# PKI mode: check index.txt
+		if [[ -f pki/index.txt ]]; then
+			CLIENTEXISTS=$(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep -E "^V" | grep -c -E "/CN=$CLIENT\$")
+		fi
 	fi
 
 	if [[ $CLIENTEXISTS != '0' ]]; then
-		log_error "The specified client CN was already found in easy-rsa, please choose another name."
+		log_error "The specified client CN was already found, please choose another name."
 		exit 1
 	fi
 
@@ -3984,6 +4092,7 @@ function disconnectClient() {
 
 function renewClient() {
 	local client_cert_duration_days
+	local auth_mode
 
 	log_header "Renew Client Certificate"
 	log_prompt "Select the existing client certificate you want to renew"
@@ -4001,20 +4110,60 @@ function renewClient() {
 	fi
 
 	cd /etc/openvpn/server/easy-rsa/ || return
+	auth_mode=$(getAuthMode)
 	log_info "Renewing certificate for $CLIENT..."
 
 	# Backup the old certificate before renewal
 	run_cmd "Backing up old certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$CLIENT.crt" "/etc/openvpn/server/easy-rsa/pki/issued/$CLIENT.crt.bak"
 
-	# Renew the certificate (keeps the same private key)
 	export EASYRSA_CERT_EXPIRE=$client_cert_duration_days
-	run_cmd_fatal "Renewing certificate" ./easyrsa --batch renew "$CLIENT"
 
-	# Revoke the old certificate
-	run_cmd_fatal "Revoking old certificate" ./easyrsa --batch revoke-renewed "$CLIENT"
+	if [[ $auth_mode == "fingerprint" ]]; then
+		# Fingerprint mode: cannot use easyrsa renew (requires CA)
+		# Instead: delete old cert, generate new self-signed, update fingerprint
 
-	# Regenerate the CRL
-	regenerateCRL
+		# Remove old certificate files (keep the key for continuity, or regenerate)
+		run_cmd "Removing old certificate" rm -f "pki/issued/$CLIENT.crt"
+
+		# Generate new self-signed certificate
+		run_cmd_fatal "Generating new certificate" ./easyrsa --batch self-sign-client "$CLIENT" nopass
+
+		# Extract new fingerprint
+		local new_fingerprint
+		new_fingerprint=$(openssl x509 -in "pki/issued/$CLIENT.crt" -fingerprint -sha256 -noout | cut -d'=' -f2)
+		if [[ -z "$new_fingerprint" ]]; then
+			log_error "Failed to extract new certificate fingerprint"
+			exit 1
+		fi
+		log_info "New fingerprint: $new_fingerprint"
+
+		# Update fingerprint in server.conf
+		# The format is: "# CLIENT_NAME" on one line, fingerprint on next line
+		# Use sed to find the comment line and replace the following fingerprint line
+		if grep -q "^# $CLIENT\$" /etc/openvpn/server/server.conf; then
+			# Replace the fingerprint line after the comment
+			sed -i "/^# $CLIENT\$/{n;s/.*/$new_fingerprint/}" /etc/openvpn/server/server.conf
+			log_info "Updated fingerprint in server configuration"
+		else
+			log_error "Client fingerprint entry not found in server.conf"
+			exit 1
+		fi
+
+		# Reload OpenVPN to apply new fingerprint
+		log_info "Reloading OpenVPN to apply new fingerprint..."
+		if systemctl is-active --quiet openvpn-server@server; then
+			systemctl reload openvpn-server@server 2>/dev/null || systemctl restart openvpn-server@server
+		fi
+	else
+		# PKI mode: use easyrsa renew
+		run_cmd_fatal "Renewing certificate" ./easyrsa --batch renew "$CLIENT"
+
+		# Revoke the old certificate
+		run_cmd_fatal "Revoking old certificate" ./easyrsa --batch revoke-renewed "$CLIENT"
+
+		# Regenerate the CRL
+		regenerateCRL
+	fi
 
 	# Write the .ovpn config file with proper path and permissions
 	writeClientConfig "$CLIENT"
@@ -4026,9 +4175,12 @@ function renewClient() {
 }
 
 function renewServer() {
-	local server_name server_cert_duration_days
+	local server_name server_cert_duration_days auth_mode
 
 	log_header "Renew Server Certificate"
+
+	# Determine auth mode
+	auth_mode=$(getAuthMode)
 
 	# Get the server name from the config (extract basename since path may be relative)
 	server_name=$(basename "$(grep '^cert ' /etc/openvpn/server/server.conf | cut -d ' ' -f 2)" .crt)
@@ -4038,6 +4190,9 @@ function renewServer() {
 
 	log_prompt "This will renew the server certificate: $server_name"
 	log_warn "The OpenVPN service will be restarted after renewal."
+	if [[ "$auth_mode" == "fingerprint" ]]; then
+		log_warn "All client configurations will be regenerated with the new server fingerprint."
+	fi
 	if [[ -z $CONTINUE ]]; then
 		read -rp "Do you want to continue? [y/n]: " -e -i n CONTINUE
 	fi
@@ -4060,21 +4215,68 @@ function renewServer() {
 	cd /etc/openvpn/server/easy-rsa/ || return
 	log_info "Renewing server certificate..."
 
-	# Backup the old certificate before renewal
-	run_cmd "Backing up old certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt" "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt.bak"
+	if [[ "$auth_mode" == "fingerprint" ]]; then
+		# Fingerprint mode: cannot use easyrsa renew (requires CA)
+		# Instead: delete old cert and regenerate with self-sign-server
 
-	# Renew the certificate (keeps the same private key)
-	export EASYRSA_CERT_EXPIRE=$server_cert_duration_days
-	run_cmd_fatal "Renewing certificate" ./easyrsa --batch renew "$server_name"
+		# Backup the old certificate
+		run_cmd "Backing up old certificate" cp "pki/issued/$server_name.crt" "pki/issued/$server_name.crt.bak"
 
-	# Revoke the old certificate
-	run_cmd_fatal "Revoking old certificate" ./easyrsa --batch revoke-renewed "$server_name"
+		# Delete old certificate files (keep private key)
+		run_cmd "Removing old certificate" rm -f "pki/issued/$server_name.crt"
+		run_cmd "Removing old certificate request" rm -f "pki/reqs/$server_name.req"
 
-	# Regenerate the CRL
-	regenerateCRL
+		# Generate new self-signed server certificate
+		export EASYRSA_CERT_EXPIRE=$server_cert_duration_days
+		run_cmd_fatal "Generating new server certificate" ./easyrsa --batch --days="$server_cert_duration_days" self-sign-server "$server_name"
 
-	# Copy the new certificate to /etc/openvpn/server/
-	run_cmd_fatal "Copying new certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt" /etc/openvpn/server/
+		# Extract the new fingerprint
+		local new_fingerprint
+		new_fingerprint=$(openssl x509 -in "pki/issued/$server_name.crt" -fingerprint -sha256 -noout | cut -d'=' -f2)
+		if [[ -z "$new_fingerprint" ]]; then
+			log_error "Failed to extract new server certificate fingerprint"
+			return 1
+		fi
+
+		# Update the server fingerprint file
+		echo "$new_fingerprint" >/etc/openvpn/server/server-fingerprint
+		log_info "New server fingerprint: $new_fingerprint"
+
+		# Copy the new certificate to /etc/openvpn/server/
+		run_cmd_fatal "Copying new certificate" cp "pki/issued/$server_name.crt" /etc/openvpn/server/
+
+		# Regenerate all client configurations (they contain the server fingerprint)
+		log_info "Regenerating client configurations with new server fingerprint..."
+		local clients client
+		clients=$(getClientsFromFingerprints)
+		if [[ -n "$clients" ]]; then
+			while IFS= read -r client; do
+				if [[ -n "$client" ]] && [[ -f "pki/issued/$client.crt" ]]; then
+					local client_config_path="$HOME/$client.ovpn"
+					log_info "Regenerating config for client: $client"
+					generateClientConfig "$client" "$client_config_path"
+				fi
+			done <<<"$clients"
+		fi
+	else
+		# PKI mode: use standard easyrsa renew
+
+		# Backup the old certificate before renewal
+		run_cmd "Backing up old certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt" "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt.bak"
+
+		# Renew the certificate (keeps the same private key)
+		export EASYRSA_CERT_EXPIRE=$server_cert_duration_days
+		run_cmd_fatal "Renewing certificate" ./easyrsa --batch renew "$server_name"
+
+		# Revoke the old certificate
+		run_cmd_fatal "Revoking old certificate" ./easyrsa --batch revoke-renewed "$server_name"
+
+		# Regenerate the CRL
+		regenerateCRL
+
+		# Copy the new certificate to /etc/openvpn/server/
+		run_cmd_fatal "Copying new certificate" cp "/etc/openvpn/server/easy-rsa/pki/issued/$server_name.crt" /etc/openvpn/server/
+	fi
 
 	# Restart OpenVPN
 	log_info "Restarting OpenVPN service..."
