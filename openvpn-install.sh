@@ -4120,13 +4120,15 @@ function renewClient() {
 
 	if [[ $auth_mode == "fingerprint" ]]; then
 		# Fingerprint mode: cannot use easyrsa renew (requires CA)
-		# Instead: delete old cert, generate new self-signed, update fingerprint
+		# Instead: delete old cert/key/req, generate new self-signed, update fingerprint
 
-		# Remove old certificate files (keep the key for continuity, or regenerate)
+		# Remove old certificate files (all must be removed for self-sign-client to work)
 		run_cmd "Removing old certificate" rm -f "pki/issued/$CLIENT.crt"
+		run_cmd "Removing old private key" rm -f "pki/private/$CLIENT.key"
+		run_cmd "Removing old request" rm -f "pki/reqs/$CLIENT.req"
 
 		# Generate new self-signed certificate
-		run_cmd_fatal "Generating new certificate" ./easyrsa --batch self-sign-client "$CLIENT" nopass
+		run_cmd_fatal "Generating new certificate" ./easyrsa --batch --days="$client_cert_duration_days" self-sign-client "$CLIENT" nopass
 
 		# Extract new fingerprint
 		local new_fingerprint
