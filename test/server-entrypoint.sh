@@ -203,7 +203,7 @@ if [ "$DUPLICATE_EXIT_CODE" -ne 1 ]; then
 	cat "$DUPLICATE_OUTPUT"
 	exit 1
 fi
-if grep -q "The specified client CN was already found in easy-rsa" "$DUPLICATE_OUTPUT"; then
+if grep -q "The specified client CN was already found" "$DUPLICATE_OUTPUT"; then
 	echo "PASS: Duplicate client name correctly rejected with exit code 1"
 else
 	echo "FAIL: Expected error message for duplicate client name not found"
@@ -537,6 +537,11 @@ done
 
 # Allow routing to stabilize after renewal restart
 sleep 3
+
+# Update shared client config after server renewal (fingerprint changed)
+cp /root/testclient.ovpn /shared/client.ovpn
+sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
+echo "Updated client config with new server fingerprint"
 
 # =====================================================
 # Verify Unbound DNS resolver (started by systemd via install script)
