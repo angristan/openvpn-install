@@ -4224,13 +4224,14 @@ function renewServer() {
 		# Backup the old certificate
 		run_cmd "Backing up old certificate" cp "pki/issued/$server_name.crt" "pki/issued/$server_name.crt.bak"
 
-		# Delete old certificate files (keep private key)
+		# Delete old certificate files (all must be removed for self-sign-server to work)
 		run_cmd "Removing old certificate" rm -f "pki/issued/$server_name.crt"
+		run_cmd "Removing old private key" rm -f "pki/private/$server_name.key"
 		run_cmd "Removing old certificate request" rm -f "pki/reqs/$server_name.req"
 
 		# Generate new self-signed server certificate
 		export EASYRSA_CERT_EXPIRE=$server_cert_duration_days
-		run_cmd_fatal "Generating new server certificate" ./easyrsa --batch --days="$server_cert_duration_days" self-sign-server "$server_name"
+		run_cmd_fatal "Generating new server certificate" ./easyrsa --batch --days="$server_cert_duration_days" self-sign-server "$server_name" nopass
 
 		# Extract the new fingerprint
 		local new_fingerprint
@@ -4244,8 +4245,9 @@ function renewServer() {
 		echo "$new_fingerprint" >/etc/openvpn/server/server-fingerprint
 		log_info "New server fingerprint: $new_fingerprint"
 
-		# Copy the new certificate to /etc/openvpn/server/
+		# Copy the new certificate and key to /etc/openvpn/server/
 		run_cmd_fatal "Copying new certificate" cp "pki/issued/$server_name.crt" /etc/openvpn/server/
+		run_cmd_fatal "Copying new private key" cp "pki/private/$server_name.key" /etc/openvpn/server/
 
 		# Regenerate all client configurations (they contain the server fingerprint)
 		log_info "Regenerating client configurations with new server fingerprint..."
