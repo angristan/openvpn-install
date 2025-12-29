@@ -3968,6 +3968,14 @@ function newClient() {
 		exit 1
 	fi
 
+	# In fingerprint mode, clean up any revoked cert files so we can reuse the name
+	if [[ $AUTH_MODE == "fingerprint" ]]; then
+		if [[ -f "pki/issued/$CLIENT.crt" ]] || [[ -f "pki/private/$CLIENT.key" ]]; then
+			log_info "Removing old revoked certificate files for $CLIENT..."
+			rm -f "pki/issued/$CLIENT.crt" "pki/private/$CLIENT.key" "pki/reqs/$CLIENT.req"
+		fi
+	fi
+
 	log_info "Generating client certificate..."
 	export EASYRSA_CERT_EXPIRE=$CLIENT_CERT_DURATION_DAYS
 
@@ -4060,19 +4068,12 @@ function revokeClient() {
 		regenerateCRL
 		run_cmd "Backing up index" cp /etc/openvpn/server/easy-rsa/pki/index.txt{,.bk}
 	else
-		# Fingerprint mode: remove fingerprint from server.conf and delete cert files
+		# Fingerprint mode: remove fingerprint from server.conf
+		# Keep cert files so revoked clients appear in client list
 		log_info "Removing client fingerprint from server configuration..."
 
 		# Remove comment line and fingerprint line below it from server.conf
 		sed -i "/^# $CLIENT\$/{N;d;}" /etc/openvpn/server/server.conf
-
-		# Remove client certificate and key
-		rm -f "pki/issued/$CLIENT.crt" "pki/private/$CLIENT.key"
-
-		# Mark as revoked in index.txt if it exists (for client listing)
-		if [[ -f pki/index.txt ]]; then
-			sed -i "s|^V\(.*\)/CN=$CLIENT\$|R\1/CN=$CLIENT|" pki/index.txt
-		fi
 
 		# Reload OpenVPN to apply fingerprint removal
 		log_info "Reloading OpenVPN to apply fingerprint removal..."
