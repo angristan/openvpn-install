@@ -3572,6 +3572,31 @@ function clientExistsInFingerprints() {
 	getClientsFromFingerprints | grep -qx "$client_name"
 }
 
+# Helper function to get certificate expiry info
+# Arguments: cert_file_path
+# Outputs: expiry_date|days_remaining (pipe-separated)
+function getCertExpiry() {
+	local cert_file="$1"
+	local expiry_date="unknown"
+	local days_remaining="null"
+
+	if [[ -f "$cert_file" ]]; then
+		local enddate
+		enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
+		if [[ -n "$enddate" ]]; then
+			local expiry_epoch
+			expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
+			if [[ -n "$expiry_epoch" ]]; then
+				expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
+				local now_epoch
+				now_epoch=$(date +%s)
+				days_remaining=$(((expiry_epoch - now_epoch) / 86400))
+			fi
+		fi
+	fi
+	echo "$expiry_date|$days_remaining"
+}
+
 # Helper function to list valid clients and select one
 # Arguments: show_expiry (optional, "true" to show expiry info)
 # Sets global variables:
@@ -3700,28 +3725,9 @@ function listClients() {
 			else
 				status_text="revoked"
 			fi
-			local cert_file="$cert_dir/$client_name.crt"
-			local expiry_date="unknown"
-			local days_remaining="null"
-
-			if [[ -f "$cert_file" ]]; then
-				local enddate
-				enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
-
-				if [[ -n "$enddate" ]]; then
-					local expiry_epoch
-					expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
-
-					if [[ -n "$expiry_epoch" ]]; then
-						expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
-						local now_epoch
-						now_epoch=$(date +%s)
-						days_remaining=$(((expiry_epoch - now_epoch) / 86400))
-					fi
-				fi
-			fi
-
-			clients_data+=("$client_name|$status_text|$expiry_date|$days_remaining")
+			local expiry_info
+			expiry_info=$(getCertExpiry "$cert_dir/$client_name.crt")
+			clients_data+=("$client_name|$status_text|$expiry_info")
 		done
 	else
 		# PKI mode: get clients from index.txt
@@ -3751,28 +3757,9 @@ function listClients() {
 				status_text="unknown"
 			fi
 
-			local cert_file="$cert_dir/$client_name.crt"
-			local expiry_date="unknown"
-			local days_remaining="null"
-
-			if [[ -f "$cert_file" ]]; then
-				local enddate
-				enddate=$(openssl x509 -enddate -noout -in "$cert_file" 2>/dev/null | cut -d= -f2)
-
-				if [[ -n "$enddate" ]]; then
-					local expiry_epoch
-					expiry_epoch=$(date -d "$enddate" +%s 2>/dev/null || date -j -f "%b %d %H:%M:%S %Y %Z" "$enddate" +%s 2>/dev/null)
-
-					if [[ -n "$expiry_epoch" ]]; then
-						expiry_date=$(date -d "@$expiry_epoch" +%Y-%m-%d 2>/dev/null || date -r "$expiry_epoch" +%Y-%m-%d 2>/dev/null)
-						local now_epoch
-						now_epoch=$(date +%s)
-						days_remaining=$(((expiry_epoch - now_epoch) / 86400))
-					fi
-				fi
-			fi
-
-			clients_data+=("$client_name|$status_text|$expiry_date|$days_remaining")
+			local expiry_info
+			expiry_info=$(getCertExpiry "$cert_dir/$client_name.crt")
+			clients_data+=("$client_name|$status_text|$expiry_info")
 		done < <(tail -n +2 "$index_file" | grep "^[VR]" | grep -v "/CN=server_" | sort -t$'\t' -k2)
 	fi
 
