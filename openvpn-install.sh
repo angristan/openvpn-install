@@ -4128,7 +4128,7 @@ function renewClient() {
 		run_cmd "Removing old request" rm -f "pki/reqs/$CLIENT.req"
 
 		# Generate new self-signed certificate
-		run_cmd_fatal "Generating new certificate" ./easyrsa --batch --days="$client_cert_duration_days" self-sign-client "$CLIENT" nopass
+		run_cmd_fatal "Generating new certificate" ./easyrsa --batch self-sign-client "$CLIENT" nopass
 
 		# Extract new fingerprint
 		local new_fingerprint
@@ -4231,7 +4231,7 @@ function renewServer() {
 
 		# Generate new self-signed server certificate
 		export EASYRSA_CERT_EXPIRE=$server_cert_duration_days
-		run_cmd_fatal "Generating new server certificate" ./easyrsa --batch --days="$server_cert_duration_days" self-sign-server "$server_name" nopass
+		run_cmd_fatal "Generating new server certificate" ./easyrsa --batch self-sign-server "$server_name" nopass
 
 		# Extract the new fingerprint
 		local new_fingerprint
@@ -4256,9 +4256,8 @@ function renewServer() {
 		if [[ -n "$clients" ]]; then
 			while IFS= read -r client; do
 				if [[ -n "$client" ]] && [[ -f "pki/issued/$client.crt" ]]; then
-					local client_config_path="$HOME/$client.ovpn"
 					log_info "Regenerating config for client: $client"
-					generateClientConfig "$client" "$client_config_path"
+					CLIENT="$client" writeClientConfig "$client"
 				fi
 			done <<<"$clients"
 		fi
