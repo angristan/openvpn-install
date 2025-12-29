@@ -3663,11 +3663,24 @@ function listClients() {
 	local clients_data=()
 
 	if [[ $auth_mode == "fingerprint" ]]; then
-		# Fingerprint mode: get clients from server.conf peer-fingerprint block
-		# All clients in the block are valid (revoked clients are removed)
-		local clients_list
-		clients_list=$(getClientsFromFingerprints)
-		number_of_clients=$(echo "$clients_list" | grep -c . || echo 0)
+		# Fingerprint mode: get clients from certificates in pki/issued/
+		# Valid clients have their fingerprint in server.conf, revoked ones don't
+		local valid_clients
+		valid_clients=$(getClientsFromFingerprints)
+
+		# Get all client certificates (exclude server certs)
+		local all_clients=()
+		for cert_file in "$cert_dir"/*.crt; do
+			[[ ! -f "$cert_file" ]] && continue
+			local client_name
+			client_name=$(basename "$cert_file" .crt)
+			# Skip server certificates and backup files
+			[[ "$client_name" == server_* ]] && continue
+			[[ "$client_name" == *.bak ]] && continue
+			all_clients+=("$client_name")
+		done
+
+		number_of_clients=${#all_clients[@]}
 
 		if [[ $number_of_clients == '0' ]]; then
 			if [[ $format == "json" ]]; then
@@ -3678,9 +3691,15 @@ function listClients() {
 			return
 		fi
 
-		while read -r client_name; do
+		for client_name in "${all_clients[@]}"; do
 			[[ -z "$client_name" ]] && continue
-			local status_text="valid"
+			local status_text
+			# Check if client is in the valid fingerprints list
+			if echo "$valid_clients" | grep -qx "$client_name"; then
+				status_text="valid"
+			else
+				status_text="revoked"
+			fi
 			local cert_file="$cert_dir/$client_name.crt"
 			local expiry_date="unknown"
 			local days_remaining="null"
@@ -3703,7 +3722,7 @@ function listClients() {
 			fi
 
 			clients_data+=("$client_name|$status_text|$expiry_date|$days_remaining")
-		done <<<"$clients_list"
+		done
 	else
 		# PKI mode: get clients from index.txt
 		# Exclude server certificates (CN starting with server_)
