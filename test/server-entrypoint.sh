@@ -203,7 +203,7 @@ if [ "$DUPLICATE_EXIT_CODE" -ne 1 ]; then
 	cat "$DUPLICATE_OUTPUT"
 	exit 1
 fi
-if grep -q "The specified client CN was already found in easy-rsa" "$DUPLICATE_OUTPUT"; then
+if grep -q "The specified client CN was already found" "$DUPLICATE_OUTPUT"; then
 	echo "PASS: Duplicate client name correctly rejected with exit code 1"
 else
 	echo "FAIL: Expected error message for duplicate client name not found"
