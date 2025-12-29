@@ -538,6 +538,11 @@ done
 # Allow routing to stabilize after renewal restart
 sleep 3
 
+# Update shared client config after server renewal (fingerprint changed)
+cp /root/testclient.ovpn /shared/client.ovpn
+sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
+echo "Updated client config with new server fingerprint"
+
 # =====================================================
 # Verify Unbound DNS resolver (started by systemd via install script)
 # =====================================================
