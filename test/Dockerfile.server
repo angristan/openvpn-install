@@ -71,6 +71,7 @@ COPY test/validate-output.sh /opt/test/validate-output.sh
 RUN chmod +x /entrypoint.sh /opt/test/validate-output.sh
 
 # Create systemd service for the test script
+# PassEnvironment passes Docker env vars (-e) from PID 1 to the service
 RUN printf '%s\n' \
     '[Unit]' \
     'Description=OpenVPN Installation Test' \
@@ -79,6 +80,7 @@ RUN printf '%s\n' \
     '[Service]' \
     'Type=oneshot' \
     'Environment=HOME=/root' \
+    'PassEnvironment=AUTH_MODE TLS_SIG TLS_KEY_FILE TLS_VERSION_MIN TLS13_CIPHERSUITES CLIENT_IPV6 VPN_SUBNET_IPV6' \
     'WorkingDirectory=/root' \
     'ExecStart=/entrypoint.sh' \
     'RemainAfterExit=yes' \
