@@ -3621,7 +3621,7 @@ function selectClient() {
 			expiry=$(formatExpiry "$days")
 			echo "     $i) $client $expiry"
 			((i++))
-		done <<< "$clients_list"
+		done <<<"$clients_list"
 	else
 		echo "$clients_list" | nl -s ') '
 	fi
@@ -3703,7 +3703,7 @@ function listClients() {
 			fi
 
 			clients_data+=("$client_name|$status_text|$expiry_date|$days_remaining")
-		done <<< "$clients_list"
+		done <<<"$clients_list"
 	else
 		# PKI mode: get clients from index.txt
 		# Exclude server certificates (CN starting with server_)
