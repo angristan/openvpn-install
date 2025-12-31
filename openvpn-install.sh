@@ -4099,7 +4099,7 @@ function disconnectClient() {
 	local mgmt_socket="/var/run/openvpn/server.sock"
 
 	if [[ ! -S "$mgmt_socket" ]]; then
-		log_warning "Management socket not found. Client may still be connected until they reconnect."
+		log_warn "Management socket not found. Client may still be connected until they reconnect."
 		return 0
 	fi
 
@@ -4107,7 +4107,7 @@ function disconnectClient() {
 	if echo "kill $client_name" | socat - UNIX-CONNECT:"$mgmt_socket" >/dev/null 2>&1; then
 		log_success "Client $client_name disconnected."
 	else
-		log_warning "Could not disconnect client (they may not be connected)."
+		log_warn "Could not disconnect client (they may not be connected)."
 	fi
 }
 
