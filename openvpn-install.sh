@@ -2680,6 +2680,67 @@ function installOpenVPN() {
 			log_info "Data Channel Offload (DCO) is not available (requires OpenVPN 2.6+ and kernel support)"
 		fi
 
+		# AppArmor compatability
+	    log_info "Checking whether AppArmor is enabled..."
+	    if !((command -v aa-status >/dev/null 2>&1) && (aa-status --enabled >/dev/null 2>&1)); then
+			log_warn "AppArmor not installed or disabled, continuing..."
+		else
+			set -euo pipefail
+			PROFILE_PATH="/etc/apparmor.d/usr.sbin.openvpn"
+			cat <<'EOF' | sudo tee "$PROFILE_PATH" >/dev/null
+# vim:syntax=apparmor
+
+#include <tunables/global>
+
+profile openvpn /usr/sbin/openvpn flags=(attach_disconnected) {
+  #include <abstractions/base>
+  #include <abstractions/openssl>
+
+  capability net_admin,
+  capability setuid,
+  capability setgid,
+
+  network inet dgram,
+  network inet stream,
+  network inet6 dgram,
+  network inet6 stream,
+
+  /etc/group                         r,
+  /etc/passwd                        r,
+  /etc/gai.conf                      r,
+  /etc/nsswitch.conf                 r,
+
+  /etc/openvpn/server/*              rw,
+  /etc/openvpn/client/*              rw,
+  /etc/openvpn/server/ipp.txt        rw,
+
+  /dev/net/tun rw,
+
+  /{,var/}run/systemd/notify w,
+
+  @{PROC}/@{pid}/net/route r,
+
+  /var/log/openvpn/status.log                   rw,
+  /var/log/openvpn/openvpn.log                  rw,
+  /var/log/openvpn/ipp.txt                      rw,
+  /{,var/}run/openvpn/*                         rw,
+
+  /{,usr/}bin/ip Cx,
+  profile ip /{,usr/}bin/ip {
+    /{,usr/}bin/ip r,
+    #include <abstractions/base>
+
+    capability net_admin,
+
+    /var/log/openvpn/openvpn.log w,
+  }
+}
+EOF
+		run_cmd_fatal "AppArmor enabled, adding profile..." apparmor_parser -r "$PROFILE_PATH"
+		set +e
+		set +u
+		set +o pipefail
+	fi
 		# Create the server directory (OpenVPN 2.4+ directory structure)
 		run_cmd_fatal "Creating server directory" mkdir -p /etc/openvpn/server
 	fi
@@ -3131,6 +3192,7 @@ verb 3"
 	fi
 
 	run_cmd "Reloading systemd" systemctl daemon-reload
+	
 	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
 	# In fingerprint mode, delay service start until first client is created
 	# (OpenVPN requires at least one fingerprint or a CA to start)
@@ -4488,6 +4550,9 @@ function removeOpenVPN() {
 		if [[ -e /etc/unbound/unbound.conf.d/openvpn.conf ]]; then
 			removeUnbound
 		fi
+		
+		# AppArmor
+		run_cmd "Removing AppArmor profile" apparmor_parser -R /etc/apparmor.d/usr.sbin.openvpn && rm -f /etc/apparmor.d/usr.sbin.openvpn
 		log_success "OpenVPN removed!"
 	else
 		log_info "Removal aborted!"
