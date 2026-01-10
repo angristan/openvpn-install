@@ -162,7 +162,7 @@ echo ""
 echo "=== Verifying Management Interface Configuration ==="
 
 # Verify management socket is configured in server.conf
-if grep -q "management /var/run/openvpn/server.sock unix" /etc/openvpn/server/server.conf; then
+if grep -q "management /var/run/openvpn-server/server.sock unix" /etc/openvpn/server/server.conf; then
 	echo "PASS: Management interface configured in server.conf"
 else
 	echo "FAIL: Management interface not found in server.conf"
@@ -171,10 +171,10 @@ else
 fi
 
 # Verify management socket directory exists
-if [ -d /var/run/openvpn ]; then
+if [ -d /var/run/openvpn-server ]; then
 	echo "PASS: Management socket directory exists"
 else
-	echo "FAIL: Management socket directory /var/run/openvpn not found"
+	echo "FAIL: Management socket directory /var/run/openvpn-server not found"
 	exit 1
 fi
 
@@ -1149,14 +1149,14 @@ echo "=== PASSPHRASE Support Tests PASSED ==="
 echo ""
 echo "=== Testing Management Interface ==="
 
-MGMT_SOCKET="/var/run/openvpn/server.sock"
+MGMT_SOCKET="/var/run/openvpn-server/server.sock"
 
 # Verify management socket exists and is accessible
 if [ -S "$MGMT_SOCKET" ]; then
 	echo "PASS: Management socket exists at $MGMT_SOCKET"
 else
 	echo "FAIL: Management socket not found at $MGMT_SOCKET"
-	ls -la /var/run/openvpn/ || true
+	ls -la /var/run/openvpn-server/ || true
 	exit 1
 fi
 

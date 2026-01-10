@@ -3050,12 +3050,9 @@ tls-version-min $TLS_VERSION_MIN"
 tls-ciphersuites $TLS13_CIPHERSUITES
 client-config-dir ccd
 status /var/log/openvpn/status.log
-management /var/run/openvpn/server.sock unix
+management /var/run/openvpn-server/server.sock unix
 verb 3"
 	} >>/etc/openvpn/server/server.conf
-
-	# Create management socket directory
-	run_cmd_fatal "Creating management socket directory" mkdir -p /var/run/openvpn
 
 	# Create client-config-dir dir
 	run_cmd_fatal "Creating client config directory" mkdir -p /etc/openvpn/server/ccd
@@ -3128,6 +3125,12 @@ verb 3"
 	# This is needed for openSUSE which uses old-style paths by default
 	if grep -q "cd /etc/openvpn/" /etc/systemd/system/openvpn-server@.service; then
 		run_cmd "Patching service file (paths)" sed -i 's|/etc/openvpn/|/etc/openvpn/server/|g' /etc/systemd/system/openvpn-server@.service
+	fi
+
+	# Ensure RuntimeDirectory is set for the management socket
+	# Some distros (e.g., openSUSE) don't include this in their service file
+	if ! grep -q "RuntimeDirectory=" /etc/systemd/system/openvpn-server@.service; then
+		run_cmd "Patching service file (RuntimeDirectory)" sed -i '/\[Service\]/a RuntimeDirectory=openvpn-server' /etc/systemd/system/openvpn-server@.service
 	fi
 
 	run_cmd "Reloading systemd" systemctl daemon-reload
@@ -4096,7 +4099,7 @@ function revokeClient() {
 # Disconnect a client via the management interface
 function disconnectClient() {
 	local client_name="$1"
-	local mgmt_socket="/var/run/openvpn/server.sock"
+	local mgmt_socket="/var/run/openvpn-server/server.sock"
 
 	if [[ ! -S "$mgmt_socket" ]]; then
 		log_warn "Management socket not found. Client may still be connected until they reconnect."
