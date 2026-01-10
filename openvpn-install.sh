@@ -3127,6 +3127,12 @@ verb 3"
 		run_cmd "Patching service file (paths)" sed -i 's|/etc/openvpn/|/etc/openvpn/server/|g' /etc/systemd/system/openvpn-server@.service
 	fi
 
+	# Ensure RuntimeDirectory is set for the management socket
+	# Some distros (e.g., openSUSE) don't include this in their service file
+	if ! grep -q "RuntimeDirectory=" /etc/systemd/system/openvpn-server@.service; then
+		run_cmd "Patching service file (RuntimeDirectory)" sed -i '/\[Service\]/a RuntimeDirectory=openvpn-server' /etc/systemd/system/openvpn-server@.service
+	fi
+
 	run_cmd "Reloading systemd" systemctl daemon-reload
 	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
 	# In fingerprint mode, delay service start until first client is created
