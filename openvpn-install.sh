@@ -3050,12 +3050,9 @@ tls-version-min $TLS_VERSION_MIN"
 tls-ciphersuites $TLS13_CIPHERSUITES
 client-config-dir ccd
 status /var/log/openvpn/status.log
-management /var/run/openvpn/server.sock unix
+management /var/run/openvpn-server/server.sock unix
 verb 3"
 	} >>/etc/openvpn/server/server.conf
-
-	# Create management socket directory
-	run_cmd_fatal "Creating management socket directory" mkdir -p /var/run/openvpn
 
 	# Create client-config-dir dir
 	run_cmd_fatal "Creating client config directory" mkdir -p /etc/openvpn/server/ccd
@@ -4096,7 +4093,7 @@ function revokeClient() {
 # Disconnect a client via the management interface
 function disconnectClient() {
 	local client_name="$1"
-	local mgmt_socket="/var/run/openvpn/server.sock"
+	local mgmt_socket="/var/run/openvpn-server/server.sock"
 
 	if [[ ! -S "$mgmt_socket" ]]; then
 		log_warn "Management socket not found. Client may still be connected until they reconnect."
