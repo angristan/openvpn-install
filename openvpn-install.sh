@@ -1682,7 +1682,7 @@ function checkOS() {
 			log_fatal "Your version is not supported."
 		fi
 		if [[ $ID == "amzn" ]]; then
-			if [[ "$(echo "$PRETTY_NAME" | cut -c 1-18)" == "Amazon Linux 2023." ]] && [[ "$(echo "$PRETTY_NAME" | cut -c 19)" -ge 6 ]]; then
+			if [[ "$PRETTY_NAME" =~ ^Amazon\ Linux\ 2023\.([0-9]+) ]] && [[ "${BASH_REMATCH[1]}" -ge 6 ]]; then
 				OS="amzn2023"
 			else
 				log_info "The script only supports Amazon Linux 2023.6+"
