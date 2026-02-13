@@ -3133,6 +3133,21 @@ verb 3"
 		run_cmd "Patching service file (RuntimeDirectory)" sed -i '/\[Service\]/a RuntimeDirectory=openvpn-server' /etc/systemd/system/openvpn-server@.service
 	fi
 
+	# AppArmor: Ubuntu 25.04+ ships an enforcing profile for OpenVPN
+	# (/etc/apparmor.d/openvpn) that doesn't allow the management unix socket
+	# in /run/openvpn-server/. Add a local override to permit this.
+	if [[ -f /etc/apparmor.d/openvpn ]]; then
+		log_info "Configuring AppArmor for OpenVPN..."
+		mkdir -p /etc/apparmor.d/local
+		if [[ ! -f /etc/apparmor.d/local/openvpn ]] || ! grep -q "openvpn-server" /etc/apparmor.d/local/openvpn; then
+			{
+				echo "# Allow OpenVPN management socket and status files in openvpn-server directory"
+				echo "/{,var/}run/openvpn-server/** rw,"
+			} >>/etc/apparmor.d/local/openvpn
+		fi
+		run_cmd "Reloading AppArmor profile" apparmor_parser -r /etc/apparmor.d/openvpn
+	fi
+
 	run_cmd "Reloading systemd" systemctl daemon-reload
 	run_cmd "Enabling OpenVPN service" systemctl enable openvpn-server@server
 	# In fingerprint mode, delay service start until first client is created
@@ -4486,6 +4501,14 @@ function removeOpenVPN() {
 		run_cmd "Removing OpenVPN docs" rm -rf /usr/share/doc/openvpn*
 		run_cmd "Removing sysctl config" rm -f /etc/sysctl.d/99-openvpn.conf
 		run_cmd "Removing OpenVPN logs" rm -rf /var/log/openvpn
+
+		# AppArmor local override
+		if [[ -f /etc/apparmor.d/local/openvpn ]]; then
+			run_cmd "Removing AppArmor local override" rm -f /etc/apparmor.d/local/openvpn
+			if [[ -f /etc/apparmor.d/openvpn ]]; then
+				run_cmd "Reloading AppArmor profile" apparmor_parser -r /etc/apparmor.d/openvpn 2>/dev/null || true
+			fi
+		fi
 
 		# Unbound
 		if [[ -e /etc/unbound/unbound.conf.d/openvpn.conf ]]; then
