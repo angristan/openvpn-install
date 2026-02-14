@@ -12,6 +12,8 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: write
+  statuses: write
 
 jobs:
   super-linter:
