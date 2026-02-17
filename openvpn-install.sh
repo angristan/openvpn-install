@@ -238,7 +238,8 @@ show_install_help() {
 			--tls-groups <list>   Key exchange groups, colon-separated
 				(default: X25519:prime256v1:secp384r1:secp521r1)
 			--hmac <alg>          HMAC algorithm: SHA256, SHA384, SHA512 (default: SHA256)
-			--tls-sig <mode>      TLS mode: crypt-v2, crypt, auth (default: crypt-v2)
+			--tls-sig <mode>      TLS mode: crypt-v2, crypt, auth, none (default: crypt-v2)
+				none disables TLS control channel security (required for Cisco/MikroTik)
 			--auth-mode <mode>    Auth mode: pki, fingerprint (default: pki)
 				fingerprint requires OpenVPN 2.6+
 			--server-cert-days <n>  Server cert validity in days (default: 3650)
@@ -282,10 +283,12 @@ show_client_help() {
 		Usage: $SCRIPT_NAME client <subcommand> [options]
 
 		Subcommands:
-			add <name>     Add a new client
+			add <n>        Add a new client
 			list           List all clients
-			revoke <name>  Revoke a client certificate
-			renew <name>   Renew a client certificate
+			revoke <n>     Revoke a client certificate (permanent)
+			disable <n>    Temporarily disable a client (keeps certificate)
+			enable <n>     Re-enable a previously disabled client
+			renew <n>      Renew a client certificate
 
 		Run '$SCRIPT_NAME client <subcommand> --help' for more info.
 	EOF
@@ -1062,8 +1065,8 @@ cmd_install() {
 		--tls-sig)
 			[[ -z "${2:-}" ]] && log_fatal "--tls-sig requires an argument"
 			case "$2" in
-			crypt-v2 | crypt | auth) TLS_SIG="$2" ;;
-			*) log_fatal "Invalid TLS mode: $2. Use 'crypt-v2', 'crypt', or 'auth'." ;;
+			crypt-v2 | crypt | auth | none) TLS_SIG="$2" ;;
+			*) log_fatal "Invalid TLS mode: $2. Use 'crypt-v2', 'crypt', 'auth', or 'none'." ;;
 			esac
 			shift 2
 			;;
@@ -1217,6 +1220,12 @@ cmd_client() {
 	revoke)
 		cmd_client_revoke "$@"
 		;;
+	disable)
+		cmd_client_disable "$@"
+		;;
+	enable)
+		cmd_client_enable "$@"
+		;;
 	renew)
 		cmd_client_renew "$@"
 		;;
@@ -1363,6 +1372,107 @@ cmd_client_revoke() {
 	fi
 
 	revokeClient
+}
+
+# Handle client disable command
+cmd_client_disable() {
+	local client_name=""
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-h | --help)
+			cat <<-EOF
+				Temporarily disable a VPN client (keeps certificate intact)
+
+				Usage: $SCRIPT_NAME client disable <name>
+
+				The client's certificate remains valid but the client cannot connect
+				until re-enabled. The CCD file is removed to enforce the restriction
+				(requires ccd-exclusive on the server).
+
+				Examples:
+					$SCRIPT_NAME client disable alice
+			EOF
+			exit 0
+			;;
+		-*)
+			log_fatal "Unknown option: $1"
+			;;
+		*)
+			if [[ -z "$client_name" ]]; then
+				client_name="$1"
+			else
+				log_fatal "Unexpected argument: $1"
+			fi
+			shift
+			;;
+		esac
+	done
+
+	requireOpenVPN
+
+	if [[ -n "$client_name" ]]; then
+		validate_client_name "$client_name"
+		CLIENT="$client_name"
+	fi
+
+	disableClient
+}
+
+# Handle client enable command
+cmd_client_enable() {
+	local client_name=""
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-h | --help)
+			cat <<-EOF
+				Re-enable a previously disabled VPN client
+
+				Usage: $SCRIPT_NAME client enable [name]
+
+				If no name is provided, you will be prompted to select from disabled clients.
+
+				Examples:
+					$SCRIPT_NAME client enable alice
+			EOF
+			exit 0
+			;;
+		-*)
+			log_fatal "Unknown option: $1"
+			;;
+		*)
+			if [[ -z "$client_name" ]]; then
+				client_name="$1"
+			else
+				log_fatal "Unexpected argument: $1"
+			fi
+			shift
+			;;
+		esac
+	done
+
+	requireOpenVPN
+
+	if [[ -n "$client_name" ]]; then
+		validate_client_name "$client_name"
+		# Enable directly without interactive menu
+		local ccd_file="/etc/openvpn/server/ccd/$client_name"
+		if [[ -f "$ccd_file" ]]; then
+			log_warn "Client $client_name is already enabled (CCD file exists)."
+			exit 0
+		fi
+		# Verify client certificate exists and is valid
+		local index_file="/etc/openvpn/server/easy-rsa/pki/index.txt"
+		if ! grep -q "^V.*\/CN=$client_name\$" "$index_file" 2>/dev/null; then
+			log_fatal "No valid certificate found for client: $client_name"
+		fi
+		touch "$ccd_file"
+		log_success "Client $client_name has been re-enabled."
+		exit 0
+	fi
+
+	enableClient
 }
 
 # Handle client renew command
@@ -2420,7 +2530,6 @@ function installQuestions() {
 		TLS_VERSION_MIN="1.2"
 		TLS_GROUPS="X25519:prime256v1:secp384r1:secp521r1"
 		HMAC_ALG="SHA256"
-		TLS_SIG="crypt-v2"
 	else
 		log_menu ""
 		log_prompt "Choose which cipher you want to use for the data channel:"
@@ -2574,9 +2683,46 @@ function installQuestions() {
 		esac
 		log_menu ""
 		log_prompt "You can add an additional layer of security to the control channel."
-		local tls_sig_labels=("tls-crypt-v2 (recommended): Encrypts control channel, unique key per client" "tls-crypt: Encrypts control channel, shared key for all clients" "tls-auth: Authenticates control channel, no encryption")
-		select_with_labels "Control channel security" tls_sig_labels TLS_SIG_MODES "crypt-v2" TLS_SIG
+		log_prompt "Note: tls-crypt-v2 and tls-crypt are NOT compatible with Cisco or MikroTik routers."
+		log_prompt "Choose 'none' if you plan to use this profile on Cisco/MikroTik devices."
+		log_menu "   1) tls-crypt-v2 (recommended): Unique key per client, strongest protection"
+		log_menu "   2) tls-crypt: Shared key, encrypts control channel"
+		log_menu "   3) tls-auth: Shared key, authenticates control channel (no encryption)"
+		log_menu "   4) none: No TLS security (required for Cisco/MikroTik router compatibility)"
+		local tls_sig_choice_ext
+		until [[ $tls_sig_choice_ext =~ ^[1-4]$ ]]; do
+			read -rp "Control channel security [1-4]: " -e -i 1 tls_sig_choice_ext
+		done
+		case $tls_sig_choice_ext in
+		1) TLS_SIG="crypt-v2" ;;
+		2) TLS_SIG="crypt" ;;
+		3) TLS_SIG="auth" ;;
+		4) TLS_SIG="none" ;;
+		esac
 	fi
+
+	# TLS control channel security question for simple mode (CUSTOMIZE_ENC == "n")
+	if [[ $CUSTOMIZE_ENC == "n" ]]; then
+		log_menu ""
+		log_prompt "Choose the TLS control channel security mode:"
+		log_prompt "Note: tls-crypt-v2 and tls-crypt are NOT compatible with Cisco or MikroTik routers."
+		log_prompt "Choose 'none' if you plan to use this VPN profile on Cisco/MikroTik devices."
+		log_menu "   1) tls-crypt-v2 (recommended): Unique key per client, strongest protection"
+		log_menu "   2) tls-crypt: Shared key, encrypts control channel"
+		log_menu "   3) tls-auth: Shared key, authenticates control channel (no encryption)"
+		log_menu "   4) none: No TLS security (required for Cisco/MikroTik router compatibility)"
+		local tls_sig_choice
+		until [[ $tls_sig_choice =~ ^[1-4]$ ]]; do
+			read -rp "TLS control channel security [1-4]: " -e -i 1 tls_sig_choice
+		done
+		case $tls_sig_choice in
+		1) TLS_SIG="crypt-v2" ;;
+		2) TLS_SIG="crypt" ;;
+		3) TLS_SIG="auth" ;;
+		4) TLS_SIG="none" ;;
+		esac
+	fi
+
 	log_menu ""
 	log_prompt "Okay, that was all I needed. We are ready to setup your OpenVPN server now."
 	log_prompt "You will be able to generate a client at the end of the installation."
@@ -2789,6 +2935,10 @@ function installOpenVPN() {
 		auth)
 			# Generate tls-auth key
 			run_cmd_fatal "Generating tls-auth key" openvpn --genkey secret /etc/openvpn/server/tls-auth.key
+			;;
+		none)
+			# No TLS control channel key needed (Cisco/MikroTik compatible mode)
+			log_info "Skipping TLS key generation (none mode selected)"
 			;;
 		esac
 		# Store auth mode for later use
@@ -3028,6 +3178,9 @@ topology subnet" >>/etc/openvpn/server/server.conf
 	auth)
 		echo "tls-auth tls-auth.key 0" >>/etc/openvpn/server/server.conf
 		;;
+	none)
+		# No TLS control channel security directive added (Cisco/MikroTik compatible)
+		;;
 	esac
 
 	# Common server config options
@@ -3048,7 +3201,8 @@ tls-version-min $TLS_VERSION_MIN"
 		[[ $AUTH_MODE == "pki" ]] && echo "remote-cert-tls client"
 		echo "tls-cipher $CC_CIPHER
 tls-ciphersuites $TLS13_CIPHERSUITES
-client-config-dir ccd
+client-config-dir /etc/openvpn/server/ccd
+ccd-exclusive
 status /var/log/openvpn/status.log
 management /var/run/openvpn-server/server.sock unix
 verb 3"
@@ -3784,7 +3938,12 @@ function listClients() {
 
 			local status_text
 			if [[ "$status" == "V" ]]; then
-				status_text="valid"
+				# Check if CCD file exists to determine if enabled or disabled
+				if [[ -f "/etc/openvpn/server/ccd/$client_name" ]]; then
+					status_text="valid"
+				else
+					status_text="disabled"
+				fi
 			elif [[ "$status" == "R" ]]; then
 				status_text="revoked"
 			else
@@ -4058,6 +4217,14 @@ $CLIENT_FINGERPRINT
 
 	log_success "Client $CLIENT added and is valid for $CLIENT_CERT_DURATION_DAYS days."
 
+	# Create CCD (client-config-dir) file to allow the client to connect
+	# Required because ccd-exclusive is enabled: only clients with a CCD file can connect
+	local ccd_file="/etc/openvpn/server/ccd/$CLIENT"
+	if [[ ! -f "$ccd_file" ]]; then
+		touch "$ccd_file"
+		log_info "Created CCD file for $CLIENT (client is enabled)."
+	fi
+
 	# Write the .ovpn config file with proper path and permissions
 	writeClientConfig "$CLIENT"
 
@@ -4105,6 +4272,12 @@ function revokeClient() {
 	run_cmd "Removing client config from /root" rm -f "/root/$CLIENT.ovpn"
 	run_cmd "Removing IP assignment" sed -i "/^$CLIENT,.*/d" /etc/openvpn/server/ipp.txt
 
+	# Remove CCD file so the client cannot reconnect (ccd-exclusive enforcement)
+	local ccd_file="/etc/openvpn/server/ccd/$CLIENT"
+	if [[ -f "$ccd_file" ]]; then
+		run_cmd "Removing CCD file for $CLIENT" rm -f "$ccd_file"
+	fi
+
 	# Disconnect the client if currently connected
 	disconnectClient "$CLIENT"
 
@@ -4127,6 +4300,70 @@ function disconnectClient() {
 	else
 		log_warn "Could not disconnect client (they may not be connected)."
 	fi
+}
+
+# Disable a client temporarily by removing its CCD file
+# The certificate remains valid; the client simply cannot authenticate until re-enabled.
+function disableClient() {
+	log_header "Disable Client"
+	log_prompt "Select the client certificate you want to temporarily disable"
+	selectClient
+
+	local ccd_file="/etc/openvpn/server/ccd/$CLIENT"
+
+	if [[ ! -f "$ccd_file" ]]; then
+		log_warn "Client $CLIENT is already disabled (no CCD file found)."
+		return 0
+	fi
+
+	run_cmd "Removing CCD file for $CLIENT" rm -f "$ccd_file"
+
+	# Disconnect the client immediately if currently connected
+	disconnectClient "$CLIENT"
+
+	log_success "Client $CLIENT has been disabled."
+	log_info "The certificate is still valid. Run this script and choose 'Enable client' to re-enable."
+}
+
+# Re-enable a previously disabled client by recreating its CCD file
+function enableClient() {
+	log_header "Enable Client"
+
+	# Build list of clients that have a valid certificate but no CCD file (disabled clients)
+	local cert_dir="/etc/openvpn/server/easy-rsa/pki/issued"
+	local ccd_dir="/etc/openvpn/server/ccd"
+	local disabled_clients=()
+
+	while IFS= read -r line; do
+		local client_name
+		client_name=$(echo "$line" | sed 's/.*\/CN=//')
+		[[ "$client_name" == server_* ]] && continue
+		if [[ ! -f "$ccd_dir/$client_name" ]]; then
+			disabled_clients+=("$client_name")
+		fi
+	done < <(tail -n +2 /etc/openvpn/server/easy-rsa/pki/index.txt | grep "^V" | grep -v "/CN=server_")
+
+	if [[ ${#disabled_clients[@]} -eq 0 ]]; then
+		log_info "No disabled clients found. All valid clients are currently enabled."
+		return 0
+	fi
+
+	log_prompt "Select the client you want to re-enable:"
+	local i=1
+	for name in "${disabled_clients[@]}"; do
+		log_menu "   $i) $name"
+		((i++))
+	done
+
+	local choice
+	until [[ $choice =~ ^[0-9]+$ ]] && [[ $choice -ge 1 ]] && [[ $choice -le ${#disabled_clients[@]} ]]; do
+		read -rp "Select client [1-${#disabled_clients[@]}]: " choice
+	done
+
+	local selected_client="${disabled_clients[$((choice - 1))]}"
+
+	touch "$ccd_dir/$selected_client"
+	log_success "Client $selected_client has been re-enabled and can now connect."
 }
 
 function renewClient() {
@@ -4531,12 +4768,14 @@ function manageMenu() {
 	log_menu "   1) Add a new user"
 	log_menu "   2) List client certificates"
 	log_menu "   3) Revoke existing user"
-	log_menu "   4) Renew certificate"
-	log_menu "   5) Remove OpenVPN"
-	log_menu "   6) List connected clients"
-	log_menu "   7) Exit"
-	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-7]$ ]]; do
-		read -rp "Select an option [1-7]: " menu_option
+	log_menu "   4) Disable client (temporary, keeps certificate)"
+	log_menu "   5) Enable client"
+	log_menu "   6) Renew certificate"
+	log_menu "   7) Remove OpenVPN"
+	log_menu "   8) List connected clients"
+	log_menu "   9) Exit"
+	until [[ ${MENU_OPTION:-$menu_option} =~ ^[1-9]$ ]]; do
+		read -rp "Select an option [1-9]: " menu_option
 	done
 	menu_option="${MENU_OPTION:-$menu_option}"
 
@@ -4552,15 +4791,21 @@ function manageMenu() {
 		revokeClient
 		;;
 	4)
-		renewMenu
+		disableClient
 		;;
 	5)
-		removeOpenVPN
+		enableClient
 		;;
 	6)
-		listConnectedClients
+		renewMenu
 		;;
 	7)
+		removeOpenVPN
+		;;
+	8)
+		listConnectedClients
+		;;
+	9)
 		exit 0
 		;;
 	esac
