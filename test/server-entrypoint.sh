@@ -211,7 +211,7 @@ else
 	exit 1
 fi
 
-# Copy client config to shared volume for the client container
+# Copy client config to shared volume for initial connectivity tests
 cp /root/testclient.ovpn /shared/client.ovpn
 sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
 echo "Client config copied to /shared/client.ovpn"
@@ -357,6 +357,17 @@ fi
 echo "=== TLS 1.3 Configuration Verified ==="
 
 # =====================================================
+# Wait for initial client tests to complete
+# =====================================================
+echo ""
+echo "=== Waiting for initial client connectivity tests ==="
+while [ ! -f /shared/initial-tests-passed ]; do
+	sleep 2
+	echo "Waiting for initial tests..."
+done
+echo "Initial client tests passed, proceeding with renewal tests"
+
+# =====================================================
 # Test certificate renewal functionality
 # =====================================================
 echo ""
@@ -428,11 +439,6 @@ if [ "$AUTH_MODE" = "pki" ]; then
 		exit 1
 	fi
 fi
-
-# Update shared client config with renewed certificate
-cp /root/testclient.ovpn /shared/client.ovpn
-sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
-echo "Updated client config with renewed certificate"
 
 echo "=== Client Certificate Renewal Tests PASSED ==="
 
@@ -538,10 +544,21 @@ done
 # Allow routing to stabilize after renewal restart
 sleep 3
 
-# Update shared client config after server renewal (fingerprint changed)
 cp /root/testclient.ovpn /shared/client.ovpn
 sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
-echo "Updated client config with new server fingerprint"
+touch /shared/renewal-config-ready
+echo "Updated client config with renewed certificates"
+
+# =====================================================
+# Wait for post-renewal client connectivity tests
+# =====================================================
+echo ""
+echo "=== Waiting for post-renewal client connectivity tests ==="
+while [ ! -f /shared/renewal-tests-passed ]; do
+	sleep 2
+	echo "Waiting for renewal tests..."
+done
+echo "Post-renewal client tests passed"
 
 # =====================================================
 # Verify Unbound DNS resolver (started by systemd via install script)
@@ -748,17 +765,6 @@ fi
 # Allow routing tables to stabilize
 echo "Allowing routing to stabilize..."
 sleep 3
-
-# =====================================================
-# Wait for initial client tests to complete
-# =====================================================
-echo ""
-echo "=== Waiting for initial client connectivity tests ==="
-while [ ! -f /shared/initial-tests-passed ]; do
-	sleep 2
-	echo "Waiting for initial tests..."
-done
-echo "Initial client tests passed, proceeding with revocation tests"
 
 # =====================================================
 # Test certificate revocation functionality
