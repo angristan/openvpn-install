@@ -12,6 +12,29 @@ fi
 
 echo "TUN device ready"
 
+test_dns_resolution() {
+	local label="$1"
+	local success=false
+	echo "$label: Testing DNS resolution via Unbound ($VPN_GATEWAY)..."
+	for i in $(seq 1 10); do
+		DIG_OUTPUT=$(dig @"$VPN_GATEWAY" example.com +short +time=5 2>&1)
+		if [ -n "$DIG_OUTPUT" ] && ! echo "$DIG_OUTPUT" | grep -qi "timed out\|SERVFAIL\|connection refused"; then
+			success=true
+			break
+		fi
+		echo "DNS attempt $i failed:"
+		echo "$DIG_OUTPUT"
+		sleep 2
+	done
+	if [ "$success" = true ]; then
+		echo "PASS: DNS resolution through Unbound works"
+	else
+		echo "FAIL: DNS resolution through Unbound failed after 10 attempts"
+		dig @"$VPN_GATEWAY" example.com +time=5 || true
+		exit 1
+	fi
+}
+
 # Wait for client config to be available
 echo "Waiting for client config..."
 while [ ! -f /shared/client.ovpn ]; do
@@ -110,27 +133,7 @@ if [ "${CLIENT_IPV6:-n}" = "y" ]; then
 fi
 
 # Test 3: DNS resolution through Unbound
-echo "Test 3: Testing DNS resolution via Unbound ($VPN_GATEWAY)..."
-DNS_SUCCESS=false
-DNS_MAX_RETRIES=10
-for i in $(seq 1 $DNS_MAX_RETRIES); do
-	DIG_OUTPUT=$(dig @"$VPN_GATEWAY" example.com +short +time=5 2>&1)
-	if [ -n "$DIG_OUTPUT" ] && ! echo "$DIG_OUTPUT" | grep -qi "timed out\|SERVFAIL\|connection refused"; then
-		DNS_SUCCESS=true
-		break
-	fi
-	echo "DNS attempt $i failed:"
-	echo "$DIG_OUTPUT"
-	sleep 2
-done
-if [ "$DNS_SUCCESS" = true ]; then
-	echo "PASS: DNS resolution through Unbound works"
-	echo "Resolved example.com to: $(dig @"$VPN_GATEWAY" example.com +short +time=5)"
-else
-	echo "FAIL: DNS resolution through Unbound failed after $DNS_MAX_RETRIES attempts"
-	dig @"$VPN_GATEWAY" example.com +time=5 || true
-	exit 1
-fi
+test_dns_resolution "Test 3"
 
 echo ""
 echo "=== Initial connectivity tests PASSED ==="
@@ -176,24 +179,7 @@ while ! ping -c 3 -W 2 "$VPN_GATEWAY" >/dev/null 2>&1; do
 done
 echo "PASS: Can ping VPN gateway after renewal"
 
-echo "Test: DNS resolution after renewal via Unbound ($VPN_GATEWAY)..."
-DNS_SUCCESS=false
-for i in $(seq 1 10); do
-	DIG_OUTPUT=$(dig @"$VPN_GATEWAY" example.com +short +time=5 2>&1)
-	if [ -n "$DIG_OUTPUT" ] && ! echo "$DIG_OUTPUT" | grep -qi "timed out\|SERVFAIL\|connection refused"; then
-		DNS_SUCCESS=true
-		break
-	fi
-	echo "DNS attempt $i failed:"
-	echo "$DIG_OUTPUT"
-	sleep 2
-done
-if [ "$DNS_SUCCESS" = true ]; then
-	echo "PASS: DNS resolution works after renewal"
-else
-	echo "FAIL: DNS resolution failed after renewal"
-	exit 1
-fi
+test_dns_resolution "Test: Post-renewal DNS"
 
 echo ""
 echo "=== Post-renewal connectivity tests PASSED ==="
