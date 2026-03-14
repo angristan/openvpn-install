@@ -9,8 +9,8 @@
 # Configuration constants
 readonly DEFAULT_CERT_VALIDITY_DURATION_DAYS=3650 # 10 years
 readonly DEFAULT_CRL_VALIDITY_DURATION_DAYS=5475  # 15 years
-readonly EASYRSA_VERSION="3.2.5"
-readonly EASYRSA_SHA256="662ee3b453155aeb1dff7096ec052cd83176c460cfa82ac130ef8568ec4df490"
+readonly EASYRSA_VERSION="3.2.6"
+readonly EASYRSA_SHA256="c2572990ce91112eef8d1b8e4a3b58790da95b68501785c621f69121dfbd22d7"
 
 # =============================================================================
 # Logging Configuration
