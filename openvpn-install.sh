@@ -1833,25 +1833,49 @@ function installOpenVPNRepo() {
 	log_info "Setting up official OpenVPN repository..."
 
 	if [[ $OS =~ (debian|ubuntu) ]]; then
-		run_cmd_fatal "Update package lists" apt-get update
+
+		# Remove stale OpenVPN repo (may contain Mint codename like 'zena')
+		if [[ -f /etc/apt/sources.list.d/openvpn-aptrepo.list ]]; then
+			log_warn "Removing existing OpenVPN repository file"
+			rm -f /etc/apt/sources.list.d/openvpn-aptrepo.list
+		fi
+
+		# Base system update (no OpenVPN repo yet)
+		run_cmd_fatal "Updating base package lists" apt-get update
 		run_cmd_fatal "Installing prerequisites" apt-get install -y ca-certificates curl
 
 		# Create keyrings directory
 		run_cmd "Creating keyrings directory" mkdir -p /etc/apt/keyrings
 
-		# Download and install GPG key
-		if ! run_cmd "Downloading OpenVPN GPG key" curl -fsSL https://swupdate.openvpn.net/repos/repo-public.gpg -o /etc/apt/keyrings/openvpn-repo-public.asc; then
+		# Download OpenVPN signing key
+		if ! run_cmd "Downloading OpenVPN GPG key" \
+			curl -fsSL https://swupdate.openvpn.net/repos/repo-public.gpg \
+			-o /etc/apt/keyrings/openvpn-repo-public.asc; then
 			log_fatal "Failed to download OpenVPN repository GPG key"
 		fi
 
-		# Add repository - using stable release
-		if [[ -z "${VERSION_CODENAME}" ]]; then
-			log_fatal "VERSION_CODENAME is not set. Unable to configure OpenVPN repository."
+		# Determine correct repo codename
+		if [[ "$ID" == "linuxmint" ]]; then
+			if [[ -z "$UBUNTU_CODENAME" ]]; then
+				log_fatal "Linux Mint detected but UBUNTU_CODENAME is missing."
+			fi
+			REPO_CODENAME="$UBUNTU_CODENAME"
+		else
+			if [[ -z "$VERSION_CODENAME" ]]; then
+				log_fatal "VERSION_CODENAME is not set."
+			fi
+			REPO_CODENAME="$VERSION_CODENAME"
 		fi
-		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/openvpn-repo-public.asc] https://build.openvpn.net/debian/openvpn/stable ${VERSION_CODENAME} main" >/etc/apt/sources.list.d/openvpn-aptrepo.list
 
-		log_info "Updating package lists with new repository..."
-		run_cmd_fatal "Update package lists" apt-get update
+		log_info "Using OpenVPN repository codename: $REPO_CODENAME"
+
+		# Write OpenVPN repo
+		echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/openvpn-repo-public.asc] \
+		https://build.openvpn.net/debian/openvpn/stable ${REPO_CODENAME} main" \
+			>/etc/apt/sources.list.d/openvpn-aptrepo.list
+
+		# Update with OpenVPN repo enabled
+		run_cmd_fatal "Updating package lists with OpenVPN repository" apt-get update
 
 		log_info "OpenVPN official repository configured"
 
