@@ -301,6 +301,7 @@ show_client_add_help() {
 			--password [pass]   Password-protect client (prompts if no value given)
 			--cert-days <n>     Certificate validity in days (default: 3650)
 			--output <path>     Output path for .ovpn file (default: ~/<name>.ovpn)
+			--regen-client-cfg  Regenerate client config if client already exists
 
 		Examples:
 			$SCRIPT_NAME client add alice
@@ -1255,6 +1256,10 @@ cmd_client_add() {
 			CLIENT_FILEPATH="$2"
 			shift 2
 			;;
+		--regen-client-cfg)
+			REGEN_CLIENT_CFG=1
+			shift
+			;;
 		-h | --help)
 			show_client_add_help
 			exit 0
@@ -1281,6 +1286,7 @@ cmd_client_add() {
 	# Set up variables for newClient function
 	CLIENT="$client_name"
 	CLIENT_CERT_DURATION_DAYS=${CLIENT_CERT_DURATION_DAYS:-$DEFAULT_CERT_VALIDITY_DURATION_DAYS}
+	REGEN_CLIENT_CFG=${REGEN_CLIENT_CFG:-0}
 
 	if [[ $password_flag == true ]]; then
 		PASS=2
@@ -3985,8 +3991,16 @@ function newClient() {
 	fi
 
 	if [[ $CLIENTEXISTS != '0' ]]; then
-		log_error "The specified client CN was already found, please choose another name."
-		exit 1
+		if [[ $REGEN_CLIENT_CFG -eq 1 ]]; then
+			log_info "The specified client CN was already found, regenerating client config:"
+			writeClientConfig "$CLIENT"
+			log_success "The configuration file has been regenerated and written to $GENERATED_CONFIG_PATH."
+			log_info "Download the .ovpn file and import it in your OpenVPN client."
+			exit 0
+		else
+			log_error "The specified client CN was already found, please choose another name."
+			exit 1
+		fi
 	fi
 
 	# In fingerprint mode, clean up any revoked cert files so we can reuse the name
