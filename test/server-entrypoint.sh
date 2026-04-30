@@ -16,6 +16,16 @@ echo "TUN device ready"
 export FORCE_COLOR=1
 VPN_SUBNET_IPV4=10.9.0.0 # Custom subnet to test configurability
 
+echo "Testing --no-color help output..."
+NO_COLOR_OUTPUT="/tmp/no-color-help.log"
+/opt/openvpn-install.sh --no-color --help >"$NO_COLOR_OUTPUT"
+if grep -q $'\033' "$NO_COLOR_OUTPUT"; then
+	echo "FAIL: --no-color help output contains ANSI escape sequences"
+	cat "$NO_COLOR_OUTPUT"
+	exit 1
+fi
+echo "PASS: --no-color help output has no ANSI escape sequences"
+
 # Calculate VPN gateway from subnet (first usable IP)
 VPN_GATEWAY="${VPN_SUBNET_IPV4%.*}.1"
 export VPN_GATEWAY

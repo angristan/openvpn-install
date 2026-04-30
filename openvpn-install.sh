@@ -22,25 +22,26 @@ VERBOSE=${VERBOSE:-0}
 LOG_FILE=${LOG_FILE:-openvpn-install.log}
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-table} # table or json - json suppresses log output
 
-# Color definitions (disabled if not a terminal, unless FORCE_COLOR=1)
+# Color definitions (disabled if not a terminal, unless FORCE_COLOR=1).
+# Keep these mutable so --no-color can disable colors after startup.
 if [[ -t 1 ]] || [[ $FORCE_COLOR == "1" ]]; then
-	readonly COLOR_RESET='\033[0m'
-	readonly COLOR_RED='\033[0;31m'
-	readonly COLOR_GREEN='\033[0;32m'
-	readonly COLOR_YELLOW='\033[0;33m'
-	readonly COLOR_BLUE='\033[0;34m'
-	readonly COLOR_CYAN='\033[0;36m'
-	readonly COLOR_DIM='\033[0;90m'
-	readonly COLOR_BOLD='\033[1m'
+	COLOR_RESET='\033[0m'
+	COLOR_RED='\033[0;31m'
+	COLOR_GREEN='\033[0;32m'
+	COLOR_YELLOW='\033[0;33m'
+	COLOR_BLUE='\033[0;34m'
+	COLOR_CYAN='\033[0;36m'
+	COLOR_DIM='\033[0;90m'
+	COLOR_BOLD='\033[1m'
 else
-	readonly COLOR_RESET=''
-	readonly COLOR_RED=''
-	readonly COLOR_GREEN=''
-	readonly COLOR_YELLOW=''
-	readonly COLOR_BLUE=''
-	readonly COLOR_CYAN=''
-	readonly COLOR_DIM=''
-	readonly COLOR_BOLD=''
+	COLOR_RESET=''
+	COLOR_RED=''
+	COLOR_GREEN=''
+	COLOR_YELLOW=''
+	COLOR_BLUE=''
+	COLOR_CYAN=''
+	COLOR_DIM=''
+	COLOR_BOLD=''
 fi
 
 # Write to log file (no colors, with timestamp)
