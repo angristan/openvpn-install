@@ -128,11 +128,12 @@ fi
 
 echo "Running OpenVPN install script..."
 echo "Command: ${INSTALL_CMD[*]}"
+echo "Running install with HOME unset to match cloud-init user-data environments"
 # Run in subshell because the script calls 'exit 0' after generating client config
 # Capture output to validate logging format, while still displaying it
 # Use || true to prevent set -e from exiting on failure, then check exit code
 INSTALL_OUTPUT="/tmp/install-output.log"
-("${INSTALL_CMD[@]}") 2>&1 | tee "$INSTALL_OUTPUT"
+(env -u HOME "${INSTALL_CMD[@]}") 2>&1 | tee "$INSTALL_OUTPUT"
 INSTALL_EXIT_CODE=${PIPESTATUS[0]}
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
