@@ -80,7 +80,7 @@ RUN printf '%s\n' \
     '[Service]' \
     'Type=oneshot' \
     'Environment=HOME=/root' \
-    'PassEnvironment=AUTH_MODE TLS_SIG TLS_KEY_FILE TLS_VERSION_MIN TLS13_CIPHERSUITES CLIENT_IPV6 VPN_SUBNET_IPV6' \
+    'PassEnvironment=AUTH_MODE TLS_SIG TLS_KEY_FILE TLS_VERSION_MIN TLS13_CIPHERSUITES CLIENT_IPV6 VPN_SUBNET_IPV6 WAIT_TIMEOUT_SIGNAL WAIT_TIMEOUT_CONNECT WAIT_TIMEOUT_REVOKE' \
     'WorkingDirectory=/root' \
     'ExecStart=/entrypoint.sh' \
     'RemainAfterExit=yes' \
