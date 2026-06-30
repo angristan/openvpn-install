@@ -1,6 +1,6 @@
 # checkov:skip=CKV_DOCKER_2:Test container doesn't need healthcheck
 # checkov:skip=CKV_DOCKER_3:OpenVPN client requires root for NET_ADMIN
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 

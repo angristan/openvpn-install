@@ -9,8 +9,8 @@
 # Configuration constants
 readonly DEFAULT_CERT_VALIDITY_DURATION_DAYS=3650 # 10 years
 readonly DEFAULT_CRL_VALIDITY_DURATION_DAYS=5475  # 15 years
-readonly EASYRSA_VERSION="3.2.5"
-readonly EASYRSA_SHA256="662ee3b453155aeb1dff7096ec052cd83176c460cfa82ac130ef8568ec4df490"
+readonly EASYRSA_VERSION="3.2.6"
+readonly EASYRSA_SHA256="c2572990ce91112eef8d1b8e4a3b58790da95b68501785c621f69121dfbd22d7"
 
 # =============================================================================
 # Logging Configuration
@@ -22,25 +22,26 @@ VERBOSE=${VERBOSE:-0}
 LOG_FILE=${LOG_FILE:-openvpn-install.log}
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-table} # table or json - json suppresses log output
 
-# Color definitions (disabled if not a terminal, unless FORCE_COLOR=1)
+# Color definitions (disabled if not a terminal, unless FORCE_COLOR=1).
+# Keep these mutable so --no-color can disable colors after startup.
 if [[ -t 1 ]] || [[ $FORCE_COLOR == "1" ]]; then
-	readonly COLOR_RESET='\033[0m'
-	readonly COLOR_RED='\033[0;31m'
-	readonly COLOR_GREEN='\033[0;32m'
-	readonly COLOR_YELLOW='\033[0;33m'
-	readonly COLOR_BLUE='\033[0;34m'
-	readonly COLOR_CYAN='\033[0;36m'
-	readonly COLOR_DIM='\033[0;90m'
-	readonly COLOR_BOLD='\033[1m'
+	COLOR_RESET='\033[0m'
+	COLOR_RED='\033[0;31m'
+	COLOR_GREEN='\033[0;32m'
+	COLOR_YELLOW='\033[0;33m'
+	COLOR_BLUE='\033[0;34m'
+	COLOR_CYAN='\033[0;36m'
+	COLOR_DIM='\033[0;90m'
+	COLOR_BOLD='\033[1m'
 else
-	readonly COLOR_RESET=''
-	readonly COLOR_RED=''
-	readonly COLOR_GREEN=''
-	readonly COLOR_YELLOW=''
-	readonly COLOR_BLUE=''
-	readonly COLOR_CYAN=''
-	readonly COLOR_DIM=''
-	readonly COLOR_BOLD=''
+	COLOR_RESET=''
+	COLOR_RED=''
+	COLOR_GREEN=''
+	COLOR_YELLOW=''
+	COLOR_BLUE=''
+	COLOR_CYAN=''
+	COLOR_DIM=''
+	COLOR_BOLD=''
 fi
 
 # Write to log file (no colors, with timestamp)
@@ -2860,17 +2861,20 @@ function installOpenVPN() {
 
 	# Install the latest version of easy-rsa from source, if not already installed.
 	if [[ ! -d /etc/openvpn/server/easy-rsa/ ]]; then
-		run_cmd_fatal "Downloading Easy-RSA v${EASYRSA_VERSION}" curl -fL --retry 5 -o ~/easy-rsa.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
+		local easy_rsa_archive
+		easy_rsa_archive=$(mktemp /tmp/easy-rsa.XXXXXX.tgz) || log_fatal "Failed to create temporary Easy-RSA archive"
+
+		run_cmd_fatal "Downloading Easy-RSA v${EASYRSA_VERSION}" curl -fL --retry 5 -o "$easy_rsa_archive" "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
 		log_info "Verifying Easy-RSA checksum..."
-		CHECKSUM_OUTPUT=$(echo "${EASYRSA_SHA256}  $HOME/easy-rsa.tgz" | sha256sum -c 2>&1) || {
+		CHECKSUM_OUTPUT=$(echo "${EASYRSA_SHA256}  $easy_rsa_archive" | sha256sum -c 2>&1) || {
 			_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
-			run_cmd "Cleaning up failed download" rm -f ~/easy-rsa.tgz
+			run_cmd "Cleaning up failed download" rm -f "$easy_rsa_archive"
 			log_fatal "SHA256 checksum verification failed for easy-rsa download!"
 		}
 		_log_to_file "[CHECKSUM] $CHECKSUM_OUTPUT"
 		run_cmd_fatal "Creating Easy-RSA directory" mkdir -p /etc/openvpn/server/easy-rsa
-		run_cmd_fatal "Extracting Easy-RSA" tar xzf ~/easy-rsa.tgz --strip-components=1 --no-same-owner --directory /etc/openvpn/server/easy-rsa
-		run_cmd "Cleaning up archive" rm -f ~/easy-rsa.tgz
+		run_cmd_fatal "Extracting Easy-RSA" tar xzf "$easy_rsa_archive" --strip-components=1 --no-same-owner --directory /etc/openvpn/server/easy-rsa
+		run_cmd "Cleaning up archive" rm -f "$easy_rsa_archive"
 
 		cd /etc/openvpn/server/easy-rsa/ || return
 		case $CERT_TYPE in

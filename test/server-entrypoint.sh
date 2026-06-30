@@ -12,9 +12,50 @@ fi
 
 echo "TUN device ready"
 
+WAIT_TIMEOUT_SIGNAL="${WAIT_TIMEOUT_SIGNAL:-300}"
+WAIT_TIMEOUT_CONNECT="${WAIT_TIMEOUT_CONNECT:-180}"
+WAIT_TIMEOUT_REVOKE="${WAIT_TIMEOUT_REVOKE:-60}"
+
+wait_until() {
+	local description="$1"
+	local timeout="$2"
+	local interval="$3"
+	shift 3
+
+	local start elapsed
+	start=$(date +%s)
+	until "$@"; do
+		elapsed=$(($(date +%s) - start))
+		if [ "$elapsed" -ge "$timeout" ]; then
+			echo "FAIL: Timed out after ${timeout}s waiting for $description"
+			return 1
+		fi
+		echo "Waiting for $description... (${elapsed}/${timeout}s)"
+		sleep "$interval"
+	done
+}
+
+wait_for_file() {
+	local path="$1"
+	local description="$2"
+	local timeout="${3:-$WAIT_TIMEOUT_SIGNAL}"
+
+	wait_until "$description" "$timeout" 2 test -f "$path"
+}
+
 # Configuration for install
 export FORCE_COLOR=1
 VPN_SUBNET_IPV4=10.9.0.0 # Custom subnet to test configurability
+
+echo "Testing --no-color help output..."
+NO_COLOR_OUTPUT="/tmp/no-color-help.log"
+/opt/openvpn-install.sh --no-color --help >"$NO_COLOR_OUTPUT"
+if grep -q $'\033' "$NO_COLOR_OUTPUT"; then
+	echo "FAIL: --no-color help output contains ANSI escape sequences"
+	cat "$NO_COLOR_OUTPUT"
+	exit 1
+fi
+echo "PASS: --no-color help output has no ANSI escape sequences"
 
 # Calculate VPN gateway from subnet (first usable IP)
 VPN_GATEWAY="${VPN_SUBNET_IPV4%.*}.1"
@@ -87,11 +128,12 @@ fi
 
 echo "Running OpenVPN install script..."
 echo "Command: ${INSTALL_CMD[*]}"
+echo "Running install with HOME unset to match cloud-init user-data environments"
 # Run in subshell because the script calls 'exit 0' after generating client config
 # Capture output to validate logging format, while still displaying it
 # Use || true to prevent set -e from exiting on failure, then check exit code
 INSTALL_OUTPUT="/tmp/install-output.log"
-("${INSTALL_CMD[@]}") 2>&1 | tee "$INSTALL_OUTPUT"
+(env -u HOME "${INSTALL_CMD[@]}") 2>&1 | tee "$INSTALL_OUTPUT"
 INSTALL_EXIT_CODE=${PIPESTATUS[0]}
 
 echo "=== Installation complete (exit code: $INSTALL_EXIT_CODE) ==="
@@ -211,7 +253,7 @@ else
 	exit 1
 fi
 
-# Copy client config to shared volume for the client container
+# Copy client config to shared volume for initial connectivity tests
 cp /root/testclient.ovpn /shared/client.ovpn
 sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
 echo "Client config copied to /shared/client.ovpn"
@@ -357,6 +399,14 @@ fi
 echo "=== TLS 1.3 Configuration Verified ==="
 
 # =====================================================
+# Wait for initial client tests to complete
+# =====================================================
+echo ""
+echo "=== Waiting for initial client connectivity tests ==="
+wait_for_file /shared/initial-tests-passed "initial client connectivity tests"
+echo "Initial client tests passed, proceeding with renewal tests"
+
+# =====================================================
 # Test certificate renewal functionality
 # =====================================================
 echo ""
@@ -428,11 +478,6 @@ if [ "$AUTH_MODE" = "pki" ]; then
 		exit 1
 	fi
 fi
-
-# Update shared client config with renewed certificate
-cp /root/testclient.ovpn /shared/client.ovpn
-sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
-echo "Updated client config with renewed certificate"
 
 echo "=== Client Certificate Renewal Tests PASSED ==="
 
@@ -538,10 +583,18 @@ done
 # Allow routing to stabilize after renewal restart
 sleep 3
 
-# Update shared client config after server renewal (fingerprint changed)
 cp /root/testclient.ovpn /shared/client.ovpn
 sed -i 's/^remote .*/remote openvpn-server 1194/' /shared/client.ovpn
-echo "Updated client config with new server fingerprint"
+touch /shared/renewal-config-ready
+echo "Updated client config with renewed certificates"
+
+# =====================================================
+# Wait for post-renewal client connectivity tests
+# =====================================================
+echo ""
+echo "=== Waiting for post-renewal client connectivity tests ==="
+wait_for_file /shared/renewal-tests-passed "post-renewal client connectivity tests"
+echo "Post-renewal client tests passed"
 
 # =====================================================
 # Verify Unbound DNS resolver (started by systemd via install script)
@@ -750,17 +803,6 @@ echo "Allowing routing to stabilize..."
 sleep 3
 
 # =====================================================
-# Wait for initial client tests to complete
-# =====================================================
-echo ""
-echo "=== Waiting for initial client connectivity tests ==="
-while [ ! -f /shared/initial-tests-passed ]; do
-	sleep 2
-	echo "Waiting for initial tests..."
-done
-echo "Initial client tests passed, proceeding with revocation tests"
-
-# =====================================================
 # Test certificate revocation functionality
 # =====================================================
 echo ""
@@ -790,10 +832,7 @@ touch /shared/revoke-client-config-ready
 
 # Wait for client to confirm connection with revoke test client
 echo "Waiting for client to connect with '$REVOKE_CLIENT' certificate..."
-while [ ! -f /shared/revoke-client-connected ]; do
-	sleep 2
-	echo "Waiting for revoke test connection..."
-done
+wait_for_file /shared/revoke-client-connected "revoke test client connection" "$WAIT_TIMEOUT_CONNECT"
 echo "PASS: Client connected with '$REVOKE_CLIENT' certificate"
 
 # =====================================================
@@ -868,14 +907,7 @@ fi
 
 # Wait for client to confirm it was disconnected by the revoke
 echo "Waiting for client to confirm auto-disconnect..."
-DISCONNECT_WAIT=0
-while [ ! -f /shared/revoke-client-disconnected ] && [ $DISCONNECT_WAIT -lt 60 ]; do
-	sleep 2
-	DISCONNECT_WAIT=$((DISCONNECT_WAIT + 2))
-	echo "Waiting for disconnect confirmation... ($DISCONNECT_WAIT/60s)"
-done
-
-if [ -f /shared/revoke-client-disconnected ]; then
+if wait_for_file /shared/revoke-client-disconnected "disconnect confirmation" "$WAIT_TIMEOUT_REVOKE"; then
 	echo "PASS: Client was auto-disconnected by revoke command"
 else
 	echo "FAIL: Client was not disconnected within 60 seconds"
@@ -887,10 +919,7 @@ touch /shared/revoke-try-reconnect
 
 # Wait for client to confirm that connection with revoked cert failed
 echo "Waiting for client to confirm revoked cert connection failure..."
-while [ ! -f /shared/revoke-reconnect-failed ]; do
-	sleep 2
-	echo "Waiting for reconnect failure confirmation..."
-done
+wait_for_file /shared/revoke-reconnect-failed "revoked cert reconnect failure confirmation" "$WAIT_TIMEOUT_CONNECT"
 echo "PASS: Connection with revoked certificate correctly rejected"
 
 echo "=== Certificate Revocation Tests PASSED ==="
@@ -1064,10 +1093,7 @@ touch /shared/new-client-config-ready
 
 # Wait for client to confirm successful connection with new cert
 echo "Waiting for client to connect with new '$REVOKE_CLIENT' certificate..."
-while [ ! -f /shared/new-client-connected ]; do
-	sleep 2
-	echo "Waiting for new cert connection..."
-done
+wait_for_file /shared/new-client-connected "new certificate connection" "$WAIT_TIMEOUT_CONNECT"
 echo "PASS: Client connected with new '$REVOKE_CLIENT' certificate"
 
 echo "=== Reuse of Revoked Client Name Tests PASSED ==="
@@ -1135,10 +1161,7 @@ touch /shared/passphrase-client-config-ready
 
 # Wait for client to confirm connection with passphrase client
 echo "Waiting for client to connect with '$PASSPHRASE_CLIENT' certificate..."
-while [ ! -f /shared/passphrase-client-connected ]; do
-	sleep 2
-	echo "Waiting for passphrase client connection..."
-done
+wait_for_file /shared/passphrase-client-connected "passphrase client connection" "$WAIT_TIMEOUT_CONNECT"
 echo "PASS: Client connected with passphrase-protected certificate"
 
 echo "=== PASSPHRASE Support Tests PASSED ==="
