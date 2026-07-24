@@ -218,6 +218,15 @@ show_install_help() {
 			--protocol <proto>    Protocol: udp or tcp (default: udp)
 			--mtu <size>          Tunnel MTU (default: 1500)
 
+		Routing Options:
+			--tunnel <mode>       Tunnel mode: full or split (default: full)
+			--full-tunnel         Route all client traffic through the VPN (default)
+			--split-tunnel        Route only the networks given via --route/--routes
+			--route <cidr>        Add a network to route through the VPN (repeatable,
+			                      implies --split-tunnel), e.g. 192.168.1.0/24
+			--routes <list>       Comma-separated networks to route through the VPN
+			                      (implies --split-tunnel), e.g. 10.0.0.0/8,fd00::/64
+
 		DNS Options:
 			--dns <provider>      DNS provider (default: cloudflare)
 				Providers: system, unbound, cloudflare, quad9, quad9-uncensored,
@@ -257,6 +266,7 @@ show_install_help() {
 			$SCRIPT_NAME install
 			$SCRIPT_NAME install --port 443 --protocol tcp
 			$SCRIPT_NAME install --dns quad9 --cipher AES-256-GCM
+			$SCRIPT_NAME install --split-tunnel --route 192.168.1.0/24 --route 10.0.0.0/8
 			$SCRIPT_NAME install -i
 	EOF
 }
@@ -506,6 +516,12 @@ set_installation_defaults() {
 	PORT="${PORT:-1194}"
 	PROTOCOL="${PROTOCOL:-udp}"
 
+	# Routing / tunnel mode
+	# full  = redirect all client traffic through the VPN (default)
+	# split = only route the networks listed in VPN_ROUTES through the VPN
+	TUNNEL_MODE="${TUNNEL_MODE:-full}"
+	VPN_ROUTES="${VPN_ROUTES:-}"
+
 	# DNS (use string name)
 	DNS="${DNS:-cloudflare}"
 
@@ -595,6 +611,66 @@ validate_subnet_ipv6() {
 	if ! [[ "$subnet" =~ ^fd[0-9a-fA-F]{2}(:[0-9a-fA-F]{1,4}){2,5}::$ ]]; then
 		log_fatal "Invalid IPv6 subnet: $subnet. Must be a ULA address with at least a /48 prefix, ending with :: (e.g., fd42:42:42::)"
 	fi
+}
+
+# Validate a single CIDR route (IPv4 or IPv6). Exits on error.
+validate_cidr() {
+	local cidr="$1"
+	local addr="${cidr%/*}"
+	local prefix="${cidr##*/}"
+	if [[ "$cidr" != */* ]] || [[ -z "$addr" ]] || [[ -z "$prefix" ]]; then
+		log_fatal "Invalid route: $cidr. Must be CIDR notation (e.g., 192.168.1.0/24 or fd00::/64)."
+	fi
+	if [[ "$addr" == *:* ]]; then
+		# IPv6 route
+		if ! [[ "$addr" =~ ^[0-9a-fA-F:]+$ ]]; then
+			log_fatal "Invalid IPv6 route address in $cidr."
+		fi
+		if ! [[ "$prefix" =~ ^[0-9]+$ ]] || [[ "$prefix" -gt 128 ]]; then
+			log_fatal "Invalid IPv6 route prefix in $cidr. Must be 0-128."
+		fi
+	else
+		# IPv4 route
+		if ! [[ "$addr" =~ ^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})$ ]]; then
+			log_fatal "Invalid IPv4 route address in $cidr. Must be x.x.x.x/prefix."
+		fi
+		local octet
+		for octet in "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}"; do
+			[[ "$octet" -gt 255 ]] && log_fatal "Invalid IPv4 route address in $cidr. Octets must be 0-255."
+		done
+		if ! [[ "$prefix" =~ ^[0-9]+$ ]] || [[ "$prefix" -gt 32 ]]; then
+			log_fatal "Invalid IPv4 route prefix in $cidr. Must be 0-32."
+		fi
+	fi
+}
+
+# Validate a comma/space-separated list of CIDR routes. Exits on error.
+validate_vpn_routes() {
+	local routes="$1"
+	local route
+	for route in ${routes//,/ }; do
+		validate_cidr "$route"
+	done
+}
+
+# Convert an IPv4 prefix length (0-32) to a dotted-decimal netmask.
+# OpenVPN's "push route" directive needs a netmask rather than CIDR notation.
+cidr_to_netmask() {
+	local prefix="$1"
+	local mask="" i
+	for i in 1 2 3 4; do
+		if [[ $prefix -ge 8 ]]; then
+			mask+="255"
+			prefix=$((prefix - 8))
+		elif [[ $prefix -gt 0 ]]; then
+			mask+=$((256 - 2 ** (8 - prefix)))
+			prefix=0
+		else
+			mask+="0"
+		fi
+		[[ $i -lt 4 ]] && mask+="."
+	done
+	echo "$mask"
 }
 
 validate_positive_int() {
@@ -746,6 +822,22 @@ validate_configuration() {
 
 	if [[ $CLIENT_IPV6 == "y" ]] && [[ -n $VPN_SUBNET_IPV6 ]]; then
 		validate_subnet_ipv6 "$VPN_SUBNET_IPV6"
+	fi
+
+	# Validate TUNNEL_MODE
+	case "$TUNNEL_MODE" in
+	full | split) ;;
+	*) log_fatal "Invalid tunnel mode: $TUNNEL_MODE. Must be 'full' or 'split'." ;;
+	esac
+
+	# Validate split-tunnel routes
+	if [[ $TUNNEL_MODE == "split" ]]; then
+		if [[ -z $VPN_ROUTES ]]; then
+			log_fatal "Split tunnel mode requires at least one route. Use --route <cidr> (repeatable) or --routes <cidr,cidr,...>."
+		fi
+		validate_vpn_routes "$VPN_ROUTES"
+	elif [[ -n $VPN_ROUTES ]]; then
+		log_warn "VPN_ROUTES is set but tunnel mode is 'full'; the routes will be ignored."
 	fi
 }
 
@@ -948,6 +1040,38 @@ cmd_install() {
 			[[ -z "${2:-}" ]] && log_fatal "--subnet requires an argument"
 			validate_subnet_ipv4 "$2"
 			VPN_SUBNET_IPV4="$2"
+			shift 2
+			;;
+		--tunnel)
+			[[ -z "${2:-}" ]] && log_fatal "--tunnel requires an argument"
+			case "$2" in
+			full | split) TUNNEL_MODE="$2" ;;
+			*) log_fatal "Invalid tunnel mode: $2. Use 'full' or 'split'." ;;
+			esac
+			shift 2
+			;;
+		--full-tunnel)
+			TUNNEL_MODE="full"
+			shift
+			;;
+		--split-tunnel)
+			TUNNEL_MODE="split"
+			shift
+			;;
+		--route)
+			# Repeatable: append a single CIDR to the route list
+			[[ -z "${2:-}" ]] && log_fatal "--route requires an argument"
+			validate_cidr "$2"
+			TUNNEL_MODE="split"
+			VPN_ROUTES="${VPN_ROUTES:+$VPN_ROUTES,}$2"
+			shift 2
+			;;
+		--routes)
+			# Comma-separated list of CIDRs (replaces the current list)
+			[[ -z "${2:-}" ]] && log_fatal "--routes requires an argument"
+			validate_vpn_routes "$2"
+			TUNNEL_MODE="split"
+			VPN_ROUTES="$2"
 			shift 2
 			;;
 		--port)
@@ -2405,6 +2529,42 @@ function installQuestions() {
 		done
 	fi
 	log_menu ""
+	log_prompt "Choose the tunnel mode:"
+	log_menu "   1) Full tunnel - route ALL client traffic through the VPN (recommended)"
+	log_menu "   2) Split tunnel - route only specific networks through the VPN"
+	local tunnel_mode_choice
+	until [[ $tunnel_mode_choice =~ ^[1-2]$ ]]; do
+		read -rp "Tunnel mode [1-2]: " -e -i 1 tunnel_mode_choice
+	done
+	if [[ $tunnel_mode_choice == "2" ]]; then
+		TUNNEL_MODE="split"
+		log_menu ""
+		log_prompt "Enter the networks (CIDR) that should be routed through the VPN."
+		log_menu "   Separate multiple networks with commas or spaces."
+		log_menu "   Examples: 192.168.1.0/24,10.0.0.0/8 or fd00::/64"
+		local routes_valid=false routes_input routes_arr
+		until [[ $routes_valid == true ]]; do
+			read -rp "VPN routes: " -e routes_input
+			# Normalise separators (commas/whitespace) into a clean comma-separated list
+			read -ra routes_arr <<<"${routes_input//,/ }"
+			VPN_ROUTES=$(
+				IFS=,
+				echo "${routes_arr[*]}"
+			)
+			if [[ -z $VPN_ROUTES ]]; then
+				log_warn "At least one network is required for split tunnel mode."
+				continue
+			fi
+			if (validate_vpn_routes "$VPN_ROUTES") 2>/dev/null; then
+				routes_valid=true
+			else
+				log_warn "One or more entries are not valid CIDR notation. Please try again."
+			fi
+		done
+	else
+		TUNNEL_MODE="full"
+	fi
+	log_menu ""
 	log_prompt "Choose the authentication mode:"
 	log_menu "   1) PKI (Certificate Authority) - Traditional CA-based authentication (recommended for larger setups)"
 	log_menu "   2) Peer Fingerprint - Simplified WireGuard-like authentication using certificate fingerprints"
@@ -2631,6 +2791,8 @@ function installOpenVPN() {
 		log_info "  VPN_SUBNET_IPV6=$VPN_SUBNET_IPV6"
 		log_info "  PORT=$PORT"
 		log_info "  PROTOCOL=$PROTOCOL"
+		log_info "  TUNNEL_MODE=$TUNNEL_MODE"
+		[[ $TUNNEL_MODE == "split" ]] && log_info "  VPN_ROUTES=$VPN_ROUTES"
 		log_info "  DNS=$DNS"
 		[[ -n $MTU ]] && log_info "  MTU=$MTU"
 		log_info "  MULTI_CLIENT=$MULTI_CLIENT"
@@ -3028,16 +3190,36 @@ topology subnet" >>/etc/openvpn/server/server.conf
 		;;
 	esac
 
-	# Redirect gateway settings - always redirect both IPv4 and IPv6 to prevent leaks
-	# For IPv4: redirect-gateway def1 routes all IPv4 through VPN (or drops it if IPv4 not configured)
-	# For IPv6: route-ipv6 + redirect-gateway ipv6 routes all IPv6, or block-ipv6 drops it
-	echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server/server.conf
-	if [[ $CLIENT_IPV6 == "y" ]]; then
-		echo 'push "route-ipv6 2000::/3"' >>/etc/openvpn/server/server.conf
-		echo 'push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
+	# Routing settings
+	if [[ $TUNNEL_MODE == "split" ]]; then
+		# Split tunnel: only push the specified networks. The client keeps its own
+		# default gateway, so general internet traffic does NOT go through the VPN.
+		log_info "Configuring split tunnel routes..."
+		local route route_addr route_prefix route_netmask
+		for route in ${VPN_ROUTES//,/ }; do
+			route_addr="${route%/*}"
+			route_prefix="${route##*/}"
+			if [[ "$route_addr" == *:* ]]; then
+				# IPv6 route (route-ipv6 accepts CIDR notation directly)
+				echo "push \"route-ipv6 $route\"" >>/etc/openvpn/server/server.conf
+			else
+				# IPv4 route (push route needs a dotted-decimal netmask)
+				route_netmask=$(cidr_to_netmask "$route_prefix")
+				echo "push \"route $route_addr $route_netmask\"" >>/etc/openvpn/server/server.conf
+			fi
+		done
 	else
-		# Block IPv6 on clients to prevent IPv6 leaks when VPN only handles IPv4
-		echo 'push "block-ipv6"' >>/etc/openvpn/server/server.conf
+		# Full tunnel: redirect all traffic - always redirect both IPv4 and IPv6 to prevent leaks
+		# For IPv4: redirect-gateway def1 routes all IPv4 through VPN (or drops it if IPv4 not configured)
+		# For IPv6: route-ipv6 + redirect-gateway ipv6 routes all IPv6, or block-ipv6 drops it
+		echo 'push "redirect-gateway def1 bypass-dhcp"' >>/etc/openvpn/server/server.conf
+		if [[ $CLIENT_IPV6 == "y" ]]; then
+			echo 'push "route-ipv6 2000::/3"' >>/etc/openvpn/server/server.conf
+			echo 'push "redirect-gateway ipv6"' >>/etc/openvpn/server/server.conf
+		else
+			# Block IPv6 on clients to prevent IPv6 leaks when VPN only handles IPv4
+			echo 'push "block-ipv6"' >>/etc/openvpn/server/server.conf
+		fi
 	fi
 
 	if [[ -n $MTU ]]; then

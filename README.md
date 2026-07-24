@@ -45,6 +45,7 @@ That said, OpenVPN still makes sense when you need:
 - Uses [official OpenVPN repositories](https://community.openvpn.net/openvpn/wiki/OpenvpnSoftwareRepos) when possible for the latest stable releases
 - Firewall rules and forwarding managed seamlessly (native firewalld and nftables support, iptables fallback)
 - Configurable VPN subnets (IPv4: default `10.8.0.0/24`, IPv6: default `fd42:42:42:42::/112`)
+- Full tunnel (route all traffic) or split tunnel (route only user-specified CIDRs)
 - Configurable tunnel MTU (default: `1500`)
 - If needed, the script can cleanly remove OpenVPN, including configuration and firewall rules
 - Customisable encryption settings, enhanced default settings (see [Security and Encryption](#security-and-encryption) below)
@@ -263,6 +264,12 @@ The `install` command supports many options for customization:
 # Custom VPN subnet
 ./openvpn-install.sh install --subnet-ipv4 10.9.0.0
 
+# Split tunnel: only route specific networks through the VPN
+./openvpn-install.sh install --split-tunnel --route 192.168.1.0/24 --route 10.0.0.0/8
+
+# Split tunnel with a comma-separated list (IPv4 and IPv6)
+./openvpn-install.sh install --routes 10.0.0.0/8,fd00::/64
+
 # Enable dual-stack (IPv4 + IPv6) for clients
 ./openvpn-install.sh install --client-ipv4 --client-ipv6
 
@@ -303,6 +310,14 @@ The `install` command supports many options for customization:
 - `--port-random` - Use random port (49152-65535)
 - `--protocol <udp|tcp>` - Protocol (default: `udp`)
 - `--mtu <size>` - Tunnel MTU (default: `1500`)
+
+**Routing Options:**
+
+- `--tunnel <full|split>` - Tunnel mode (default: `full`). `full` routes all client traffic through the VPN; `split` routes only the networks you specify
+- `--full-tunnel` - Shorthand for `--tunnel full` (default)
+- `--split-tunnel` - Shorthand for `--tunnel split`
+- `--route <cidr>` - Network to route through the VPN, e.g. `192.168.1.0/24` or `fd00::/64`. Repeatable; implies `--split-tunnel`
+- `--routes <list>` - Comma-separated list of networks to route through the VPN; implies `--split-tunnel`
 
 **DNS Options:**
 
