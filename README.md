@@ -94,6 +94,7 @@ To be noted:
 - [Vultr](https://umami.stanislas.cloud/q/1HH9Thp8i): Worldwide locations, IPv6 support, starting at \$2.5/month
 - [Hetzner](https://umami.stanislas.cloud/q/HdzaOJWq7): Worldwide locations, IPv6, 20 TB of traffic, starting at €3.59/month
 - [Digital Ocean](https://umami.stanislas.cloud/q/sEVh1l79B): Worldwide locations, IPv6 support, starting at \$4/month
+- [InterServer](https://www.interserver.net/): US location, IPV6 support, starting at $3/month (20% life time discount using coupon JV-20-LIFE)
 
 ## Usage
 
@@ -382,6 +383,8 @@ More Q&A in [FAQ.md](FAQ.md).
 - [Vultr](https://www.vultr.com/?ref=8948982-8H): Worldwide locations, IPv6 support, starting at \$2.5/month
 - [Hetzner](https://hetzner.cloud/?ref=ywtlvZsjgeDq): Worldwide locations, IPv6, 20 TB of traffic, starting at €3.59/month
 - [Digital Ocean](https://m.do.co/c/ed0ba143fe53): Worldwide locations, IPv6 support, starting at \$4/month
+- [InterServer](https://www.interserver.net/): US location, IPV6 support,starting at $3/month (20% life time discount using coupon JV-20-LIFE)
+
 
 ---
 
