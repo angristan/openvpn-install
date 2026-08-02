@@ -131,10 +131,13 @@ wait_for_revoked_reconnect_rejected() {
 
 test_dns_resolution() {
 	local label="$1"
+	local test_name="github.com"
 	local success=false
+	# This verifies recursive DNS connectivity. Use an unsigned zone so the test
+	# does not depend on DNSSEC key retrieval over GitHub runner networks.
 	echo "$label: Testing DNS resolution via Unbound ($VPN_GATEWAY)..."
 	for i in $(seq 1 10); do
-		DIG_OUTPUT=$(dig @"$VPN_GATEWAY" example.com +short +time=5 2>&1)
+		DIG_OUTPUT=$(dig @"$VPN_GATEWAY" "$test_name" +short +time=5 2>&1)
 		if [ -n "$DIG_OUTPUT" ] && ! echo "$DIG_OUTPUT" | grep -qi "timed out\|SERVFAIL\|connection refused"; then
 			success=true
 			break
@@ -147,7 +150,7 @@ test_dns_resolution() {
 		echo "PASS: DNS resolution through Unbound works"
 	else
 		echo "FAIL: DNS resolution through Unbound failed after 10 attempts"
-		dig @"$VPN_GATEWAY" example.com +time=5 || true
+		dig @"$VPN_GATEWAY" "$test_name" +time=5 || true
 		exit 1
 	fi
 }
