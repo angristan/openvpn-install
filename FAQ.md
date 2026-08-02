@@ -122,7 +122,9 @@ It is disabled by default. The installer configures both OpenVPN and the firewal
 ./openvpn-install.sh install --local-network 192.168.1.0/24
 ```
 
-Repeat `--local-network` to expose more than one server-side network. This feature is mainly for OpenVPN servers installed at home. It is disabled by default so cloud VPC, container, and management networks are not exposed automatically.
+Repeat `--local-network` to expose more than one server-side network. Using `--local-network` alone keeps the default full-tunnel internet routing enabled. Add `--no-route-internet` if only the selected server-side networks should use the VPN.
+
+This feature is mainly for OpenVPN servers installed at home. During interactive installation, enabling LAN access shows directly connected private networks as one editable, comma-separated list. Review the list because it can include cloud VPC or container networks. LAN access remains disabled by default, and non-interactive installation never detects networks automatically.
 
 The installer pushes the route, permits only the selected destination, and adds destination-scoped NAT. LAN computers therefore see the connection as coming from the OpenVPN server and do not need a return route to the VPN subnet.
 

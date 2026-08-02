@@ -318,7 +318,7 @@ The `install` command supports many options for customization:
 - `--protocol <udp|tcp>` - Protocol (default: `udp`)
 - `--mtu <size>` - Tunnel MTU (default: `1500`)
 
-Server-side network access is mainly intended for VPN servers installed at home. Specify each LAN explicitly. The installer does not automatically expose connected cloud, container, or management networks. LAN devices see connections as coming from the VPN server because destination-scoped NAT is enabled.
+Server-side network access is mainly intended for VPN servers installed at home. In interactive mode, the installer suggests directly connected private IPv4 and IPv6 networks as one editable, comma-separated list after you enable LAN access. Review and confirm the list because it can include cloud VPC or container networks. No network is exposed unless you opt in. Non-interactive installs require an explicit `--local-network` for each network. LAN devices see connections as coming from the VPN server because destination-scoped NAT is enabled.
 
 Local networks must use network-aligned IPv4 or IPv6 CIDRs and must not overlap the VPN pools. Client-side and server-side LANs that overlap can still cause routing conflicts.
 

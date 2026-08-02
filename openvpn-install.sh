@@ -708,6 +708,91 @@ is_valid_local_network() {
 	is_valid_ipv4_cidr "$1" || is_valid_ipv6_cidr "$1"
 }
 
+is_private_ipv4_network() {
+	local cidr="$1" address prefix first second
+	is_valid_ipv4_cidr "$cidr" || return 1
+
+	address="${cidr%/*}"
+	prefix=$((10#${cidr##*/}))
+	IFS='.' read -r first second _ <<<"$address"
+
+	case "$first" in
+	10)
+		((prefix >= 8))
+		;;
+	172)
+		((second >= 16 && second <= 31 && prefix >= 12))
+		;;
+	192)
+		((second == 168 && prefix >= 16))
+		;;
+	*)
+		return 1
+		;;
+	esac
+}
+
+is_private_ipv6_network() {
+	local cidr="$1" address prefix
+	local -a hextets
+	is_valid_ipv6_cidr "$cidr" || return 1
+
+	address="${cidr%/*}"
+	prefix=$((10#${cidr##*/}))
+	expand_ipv6_address "$address" hextets || return 1
+	((prefix >= 7 && (hextets[0] & 0xFE00) == 0xFC00))
+}
+
+interface_has_public_ipv4() {
+	local interface="$1" address
+	while read -r _ _ _ address _; do
+		[[ -n $address ]] || continue
+		is_private_ipv4_network "${address%/*}/32" || return 0
+	done < <(ip -4 -o address show dev "$interface" scope global 2>/dev/null || true)
+	return 1
+}
+
+detect_private_local_networks() {
+	local detect_ipv4="${1:-y}" detect_ipv6="${2:-y}" route network interface
+	local -a detected_networks=()
+
+	if [[ $detect_ipv4 == "y" ]]; then
+		while IFS= read -r route; do
+			[[ " $route " == *" via "* ]] && continue
+			network="${route%% *}"
+			is_private_ipv4_network "$network" || continue
+			[[ $route == *" dev "* ]] || continue
+			interface="${route#* dev }"
+			interface="${interface%% *}"
+			interface_has_public_ipv4 "$interface" && continue
+			if [[ -n ${VPN_SUBNET_IPV4:-} ]] && ipv4_cidrs_overlap "$network" "${VPN_SUBNET_IPV4}/24"; then
+				continue
+			fi
+			if ((${#detected_networks[@]} == 0)) || [[ " ${detected_networks[*]} " != *" $network "* ]]; then
+				detected_networks+=("$network")
+			fi
+		done < <(ip -4 -o route show type unicast 2>/dev/null || true)
+	fi
+
+	if [[ $detect_ipv6 == "y" ]]; then
+		while IFS= read -r route; do
+			[[ " $route " == *" via "* ]] && continue
+			network="${route%% *}"
+			is_private_ipv6_network "$network" || continue
+			if [[ -n ${VPN_SUBNET_IPV6:-} ]] && ipv6_cidrs_overlap "$network" "${VPN_SUBNET_IPV6}/112"; then
+				continue
+			fi
+			if ((${#detected_networks[@]} == 0)) || [[ " ${detected_networks[*]} " != *" $network "* ]]; then
+				detected_networks+=("$network")
+			fi
+		done < <(ip -6 -o route show type unicast 2>/dev/null || true)
+	fi
+
+	((${#detected_networks[@]} > 0)) || return 0
+	local IFS=,
+	printf '%s\n' "${detected_networks[*]}"
+}
+
 add_local_network() {
 	local network="${1//[[:space:]]/}"
 	is_valid_local_network "$network" || log_fatal "Invalid local network: $1. Use a network CIDR such as 192.168.1.0/24 or fd00:1::/64."
@@ -2575,11 +2660,17 @@ function installQuestions() {
 	local local_network_access
 	prompt_yes_no "Allow VPN clients to access the server's local network? (mainly for home servers)" "n" local_network_access
 	if [[ $local_network_access == "y" ]]; then
+		local detected_local_networks
+		detected_local_networks=$(detect_private_local_networks "$CLIENT_IPV4" "$CLIENT_IPV6")
 		log_prompt "Enter the server-side networks clients may access."
 		log_prompt "Use comma-separated CIDRs, for example: 192.168.1.0/24,fd00:1::/64"
+		if [[ -n $detected_local_networks ]]; then
+			log_prompt "Detected local networks: $detected_local_networks"
+			log_prompt "Review the list and remove any network that VPN clients should not access."
+		fi
 		until [[ -n $LOCAL_NETWORKS ]]; do
 			local configured_networks network networks_valid=true
-			read -rp "Local networks: " -e configured_networks
+			read -rp "Local networks: " -e -i "$detected_local_networks" configured_networks
 			while IFS= read -r network; do
 				network="${network//[[:space:]]/}"
 				if [[ -z $network ]] || ! is_valid_local_network "$network"; then
@@ -5096,4 +5187,6 @@ function manageMenu() {
 # =============================================================================
 # Main Entry Point
 # =============================================================================
-parse_args "$@"
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	parse_args "$@"
+fi

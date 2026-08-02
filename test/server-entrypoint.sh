@@ -3,6 +3,8 @@ set -e
 
 echo "=== OpenVPN Server Container ==="
 
+/opt/test/local-network-detection.sh /opt/openvpn-install.sh
+
 # Create TUN device if it doesn't exist
 if [ ! -c /dev/net/tun ]; then
 	mkdir -p /dev/net
