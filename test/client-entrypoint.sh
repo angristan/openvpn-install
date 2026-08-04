@@ -131,7 +131,7 @@ wait_for_revoked_reconnect_rejected() {
 
 test_dns_resolution() {
 	local label="$1"
-	local test_name="github.com"
+	local test_name="neverssl.com"
 	local success=false
 	# This verifies recursive DNS connectivity. Use an unsigned zone so the test
 	# does not depend on DNSSEC key retrieval over GitHub runner networks.

@@ -18,7 +18,7 @@ ENV ENABLE_NFTABLES=${ENABLE_NFTABLES}
 # Note: socat is installed by openvpn-install.sh during OpenVPN installation
 RUN if command -v apt-get >/dev/null; then \
         apt-get update && apt-get install -y --no-install-recommends \
-            iproute2 iptables curl procps systemd systemd-sysv dnsutils jq \
+            iproute2 curl procps systemd systemd-sysv dnsutils jq \
         && if [ "$ENABLE_NFTABLES" = "y" ]; then apt-get install -y --no-install-recommends nftables; fi \
         && rm -rf /var/lib/apt/lists/*; \
     elif command -v dnf >/dev/null; then \
@@ -69,14 +69,15 @@ RUN chmod +x /opt/openvpn-install.sh
 COPY test/server-entrypoint.sh /entrypoint.sh
 COPY test/validate-output.sh /opt/test/validate-output.sh
 COPY test/local-network-detection.sh /opt/test/local-network-detection.sh
-RUN chmod +x /entrypoint.sh /opt/test/validate-output.sh /opt/test/local-network-detection.sh
+COPY test/interactive-install-flow.sh /opt/test/interactive-install-flow.sh
+RUN chmod +x /entrypoint.sh /opt/test/validate-output.sh /opt/test/local-network-detection.sh /opt/test/interactive-install-flow.sh
 
 # Create systemd service for the test script
 # PassEnvironment passes Docker env vars (-e) from PID 1 to the service
 RUN printf '%s\n' \
     '[Unit]' \
     'Description=OpenVPN Installation Test' \
-    'After=network.target' \
+    'After=network.target firewalld.service nftables.service' \
     '' \
     '[Service]' \
     'Type=oneshot' \

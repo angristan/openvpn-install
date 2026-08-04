@@ -1854,8 +1854,9 @@ cmd_interactive() {
 	if isOpenVPNInstalled; then
 		manageMenu
 	else
-		installQuestions
-		installOpenVPN
+		# Reuse the install command so interactive installs receive the same
+		# validation and derived network configuration as non-interactive installs.
+		cmd_install --interactive
 	fi
 }
 
@@ -2257,6 +2258,13 @@ function installOpenVPNRepo() {
 	fi
 }
 
+# unbound-anchor returns 1 when it successfully replaces the anchor.
+function refreshUnboundTrustAnchor() {
+	local status=0
+	runuser -u unbound -- unbound-anchor -F || status=$?
+	[[ $status -le 1 ]]
+}
+
 function installUnbound() {
 	log_info "Installing Unbound DNS resolver..."
 
@@ -2272,6 +2280,21 @@ function installUnbound() {
 			run_cmd_fatal "Installing Unbound" zypper install -y unbound
 		elif [[ $OS == "arch" ]]; then
 			run_cmd_fatal "Installing Unbound" pacman -Syu --noconfirm unbound
+		fi
+	fi
+
+	# Some distributions ship the DNSSEC root trust anchor updater separately.
+	if ! command -v unbound-anchor >/dev/null; then
+		if [[ $OS =~ (debian|ubuntu) ]]; then
+			run_cmd_fatal "Installing Unbound trust anchor updater" apt-get install -y unbound-anchor
+		elif [[ $OS =~ (centos|oracle) ]]; then
+			run_cmd_fatal "Installing Unbound trust anchor updater" yum install -y unbound-anchor
+		elif [[ $OS =~ (fedora|amzn2023) ]]; then
+			run_cmd_fatal "Installing Unbound trust anchor updater" dnf install -y unbound-anchor
+		elif [[ $OS == "opensuse" ]]; then
+			run_cmd_fatal "Installing Unbound trust anchor updater" zypper install -y unbound-anchor
+		elif [[ $OS == "arch" ]]; then
+			run_cmd_fatal "Installing Unbound trust anchor updater" pacman -S --noconfirm unbound
 		fi
 	fi
 
@@ -2342,6 +2365,7 @@ function installUnbound() {
 		fi
 	} >/etc/unbound/unbound.conf.d/openvpn.conf
 
+	run_cmd_fatal "Refreshing Unbound root trust anchor" refreshUnboundTrustAnchor
 	run_cmd "Enabling Unbound service" systemctl enable unbound
 	run_cmd "Starting Unbound service" systemctl restart unbound
 
@@ -2426,6 +2450,17 @@ function detect_server_ips() {
 		IP="$IP_IPV6"
 	else
 		IP="$IP_IPV4"
+	fi
+}
+
+# Select the active firewall manager, with iptables as the fallback.
+function detect_firewall_backend() {
+	if systemctl is-active --quiet firewalld; then
+		echo firewalld
+	elif systemctl is-active --quiet nftables; then
+		echo nftables
+	else
+		echo iptables
 	fi
 }
 
@@ -3047,6 +3082,19 @@ function installOpenVPN() {
 		fi
 	fi
 
+	# Select the firewall backend before installing dependencies so native
+	# firewalld and nftables systems do not need the iptables package.
+	FIREWALL_BACKEND=$(detect_firewall_backend)
+	FIREWALLD_PORT_ZONE=""
+	if [[ $FIREWALL_BACKEND == 'firewalld' ]]; then
+		if [[ -n $NIC ]]; then
+			FIREWALLD_PORT_ZONE=$(firewall-cmd --get-zone-of-interface="$NIC" 2>/dev/null || true)
+		fi
+		if [[ -z $FIREWALLD_PORT_ZONE || $FIREWALLD_PORT_ZONE == 'no zone' ]]; then
+			FIREWALLD_PORT_ZONE=$(firewall-cmd --get-default-zone)
+		fi
+	fi
+
 	# If OpenVPN isn't installed yet, install it. This script is more-or-less
 	# idempotent on multiple runs, but will only install OpenVPN from upstream
 	# the first time.
@@ -3057,21 +3105,26 @@ function installOpenVPN() {
 		installOpenVPNRepo
 
 		log_info "Installing OpenVPN and dependencies..."
-		# socat is used for communicating with the OpenVPN management interface (client disconnect on revoke)
+		# iptables is only required by the fallback backend. socat communicates
+		# with the OpenVPN management interface for client disconnect on revoke.
+		local -a firewall_packages=()
+		if [[ $FIREWALL_BACKEND == 'iptables' ]]; then
+			firewall_packages+=(iptables)
+		fi
 		if [[ $OS =~ (debian|ubuntu) ]]; then
-			run_cmd_fatal "Installing OpenVPN" apt-get install -y openvpn iptables openssl curl ca-certificates tar dnsutils socat
+			run_cmd_fatal "Installing OpenVPN" apt-get install -y openvpn "${firewall_packages[@]}" openssl curl ca-certificates tar dnsutils socat
 		elif [[ $OS == 'centos' ]]; then
-			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat 'policycoreutils-python*'
+			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn "${firewall_packages[@]}" openssl ca-certificates curl tar bind-utils socat 'policycoreutils-python*'
 		elif [[ $OS == 'oracle' ]]; then
-			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat policycoreutils-python-utils
+			run_cmd_fatal "Installing OpenVPN" yum install -y openvpn "${firewall_packages[@]}" openssl ca-certificates curl tar bind-utils socat policycoreutils-python-utils
 		elif [[ $OS == 'amzn2023' ]]; then
-			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat
+			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn "${firewall_packages[@]}" openssl ca-certificates curl tar bind-utils socat
 		elif [[ $OS == 'fedora' ]]; then
-			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat policycoreutils-python-utils
+			run_cmd_fatal "Installing OpenVPN" dnf install -y openvpn "${firewall_packages[@]}" openssl ca-certificates curl tar bind-utils socat policycoreutils-python-utils
 		elif [[ $OS == 'opensuse' ]]; then
-			run_cmd_fatal "Installing OpenVPN" zypper install -y openvpn iptables openssl ca-certificates curl tar bind-utils socat
+			run_cmd_fatal "Installing OpenVPN" zypper install -y openvpn "${firewall_packages[@]}" openssl ca-certificates curl tar bind-utils socat
 		elif [[ $OS == 'arch' ]]; then
-			run_cmd_fatal "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn iptables openssl ca-certificates curl tar bind socat
+			run_cmd_fatal "Installing OpenVPN" pacman --needed --noconfirm -Syu openvpn "${firewall_packages[@]}" openssl ca-certificates curl tar bind socat
 		fi
 
 		# Verify ChaCha20-Poly1305 compatibility if selected
@@ -3493,15 +3546,9 @@ verb 3"
 	} >>/etc/openvpn/server/server.conf
 
 	# Record installer-owned policy so firewall rules can be removed exactly.
-	if systemctl is-active --quiet firewalld; then
-		FIREWALL_BACKEND=firewalld
-	elif systemctl is-active --quiet nftables; then
-		FIREWALL_BACKEND=nftables
-	else
-		FIREWALL_BACKEND=iptables
-	fi
 	{
 		echo "FIREWALL_BACKEND=$FIREWALL_BACKEND"
+		echo "FIREWALLD_PORT_ZONE=$FIREWALLD_PORT_ZONE"
 		echo "ROUTE_INTERNET=$ROUTE_INTERNET"
 		echo "CLIENT_TO_CLIENT=$CLIENT_TO_CLIENT"
 		echo "LOCAL_NETWORKS=$LOCAL_NETWORKS"
@@ -3628,7 +3675,7 @@ verb 3"
 		# destination rules to forwarded traffic; zone rich rules alone only
 		# govern traffic addressed to the server.
 		log_info "firewalld detected, using firewall-cmd..."
-		run_cmd_fatal "Adding OpenVPN port to firewalld" firewall-cmd --permanent --add-port="$PORT/$PROTOCOL"
+		run_cmd_fatal "Adding OpenVPN port to firewalld zone $FIREWALLD_PORT_ZONE" firewall-cmd --permanent --zone="$FIREWALLD_PORT_ZONE" --add-port="$PORT/$PROTOCOL"
 		run_cmd_fatal "Creating OpenVPN firewalld zone" firewall-cmd --permanent --new-zone=openvpn-install
 		run_cmd_fatal "Creating OpenVPN firewalld policy" firewall-cmd --permanent --new-policy=openvpn-egress
 		run_cmd_fatal "Setting OpenVPN policy ingress" firewall-cmd --permanent --policy=openvpn-egress --add-ingress-zone=openvpn-install
@@ -5022,6 +5069,7 @@ function removeOpenVPN() {
 		if [[ -f $install_config ]]; then
 			has_policy_manifest=y
 			FIREWALL_BACKEND=$(grep '^FIREWALL_BACKEND=' "$install_config" | cut -d= -f2-)
+			FIREWALLD_PORT_ZONE=$(grep '^FIREWALLD_PORT_ZONE=' "$install_config" | cut -d= -f2- || true)
 			ROUTE_INTERNET=$(grep '^ROUTE_INTERNET=' "$install_config" | cut -d= -f2-)
 			CLIENT_TO_CLIENT=$(grep '^CLIENT_TO_CLIENT=' "$install_config" | cut -d= -f2-)
 			LOCAL_NETWORKS=$(grep '^LOCAL_NETWORKS=' "$install_config" | cut -d= -f2-)
@@ -5041,7 +5089,14 @@ function removeOpenVPN() {
 		# Remove firewall rules
 		log_info "Removing firewall rules..."
 		if systemctl is-active --quiet firewalld && { [[ $has_policy_manifest == 'y' && $FIREWALL_BACKEND == 'firewalld' ]] || { [[ $has_policy_manifest == 'n' ]] && firewall-cmd --list-ports | grep -q "$PORT/$PROTOCOL_BASE"; }; }; then
-			run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL_BASE"
+			if [[ $has_policy_manifest == 'y' ]]; then
+				if [[ -z $FIREWALLD_PORT_ZONE ]]; then
+					FIREWALLD_PORT_ZONE=$(firewall-cmd --get-default-zone)
+				fi
+				run_cmd "Removing OpenVPN port from firewalld zone $FIREWALLD_PORT_ZONE" firewall-cmd --permanent --zone="$FIREWALLD_PORT_ZONE" --remove-port="$PORT/$PROTOCOL_BASE"
+			else
+				run_cmd "Removing OpenVPN port from firewalld" firewall-cmd --permanent --remove-port="$PORT/$PROTOCOL_BASE"
+			fi
 			if [[ $has_policy_manifest == 'y' ]]; then
 				firewall-cmd --permanent --delete-policy=openvpn-egress 2>/dev/null || true
 				firewall-cmd --permanent --delete-zone=openvpn-install 2>/dev/null || true
