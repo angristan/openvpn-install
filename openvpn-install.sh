@@ -2294,12 +2294,16 @@ function installUnbound() {
 
 		# IPv4 VPN interface (only if clients get IPv4)
 		if [[ $CLIENT_IPV4 == 'y' ]]; then
+			# Infer gateway from subnet
+			VPN_GATEWAY_IPV4="${VPN_SUBNET_IPV4%.*}.1"
 			echo "    interface: $VPN_GATEWAY_IPV4"
 			echo "    access-control: $VPN_SUBNET_IPV4/24 allow"
 		fi
 
 		# IPv6 VPN interface (only if clients get IPv6)
 		if [[ $CLIENT_IPV6 == 'y' ]]; then
+			# Infer gateway from subnet
+			VPN_GATEWAY_IPV6="${VPN_SUBNET_IPV6}1"
 			echo "    interface: $VPN_GATEWAY_IPV6"
 			echo "    access-control: ${VPN_SUBNET_IPV6}/112 allow"
 		fi
