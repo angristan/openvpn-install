@@ -1854,8 +1854,7 @@ cmd_interactive() {
 	if isOpenVPNInstalled; then
 		manageMenu
 	else
-		installQuestions
-		installOpenVPN
+		cmd_install --interactive
 	fi
 }
 

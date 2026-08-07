@@ -3,6 +3,7 @@ set -e
 
 echo "=== OpenVPN Server Container ==="
 
+/opt/test/interactive-install-routing.sh /opt/openvpn-install.sh
 /opt/test/local-network-detection.sh /opt/openvpn-install.sh
 
 # Create TUN device if it doesn't exist
