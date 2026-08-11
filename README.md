@@ -704,4 +704,4 @@ This project is under the [MIT Licence](https://raw.githubusercontent.com/Angris
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=angristan/openvpn-install&type=Date)](https://star-history.com/#angristan/openvpn-install&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=angristan/openvpn-install&type=Date)](https://star-history.dera.page/#angristan/openvpn-install&Date)
