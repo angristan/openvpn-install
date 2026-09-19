@@ -177,8 +177,20 @@ Run `./openvpn-install.sh <command> --help` for command-specific options.
 # Add a password-protected client
 ./openvpn-install.sh client add bob --password
 
+# Add a client with a custom certificate validity period
+./openvpn-install.sh client add alice --cert-days 3650
+
+# Add a client and save the .ovpn file to a custom path
+./openvpn-install.sh client add alice --output /path/to/clients/alice.ovpn
+
 # Revoke a client
 ./openvpn-install.sh client revoke alice
+
+# Revoke a client without confirmation
+./openvpn-install.sh client revoke alice --force
+
+# Revoke a client and remove its .ovpn file from a custom directory
+./openvpn-install.sh client revoke alice --force --output-dir /path/to/clients
 
 # Renew a client certificate
 ./openvpn-install.sh client renew bob --cert-days 365

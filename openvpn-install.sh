@@ -337,11 +337,13 @@ show_client_revoke_help() {
 		Usage: $SCRIPT_NAME client revoke <name> [options]
 
 		Options:
-			-f, --force   Skip confirmation prompt
+			-f, --force          Skip confirmation prompt
+			--output-dir <path>  Remove client config from this directory
 
 		Examples:
 			$SCRIPT_NAME client revoke alice
 			$SCRIPT_NAME client revoke bob --force
+			$SCRIPT_NAME client revoke charlie --force --output-dir /custom/openvpn
 	EOF
 }
 
@@ -1671,12 +1673,18 @@ cmd_client_list() {
 cmd_client_revoke() {
 	local client_name=""
 	local force=false
+	local output_dir=""
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 		-f | --force)
 			force=true
 			shift
+			;;
+		--output-dir)
+			[[ -z "${2:-}" ]] && log_fatal "--output-dir requires an argument"
+			output_dir="$2"
+			shift 2
 			;;
 		-h | --help)
 			show_client_revoke_help
@@ -1701,6 +1709,7 @@ cmd_client_revoke() {
 	requireOpenVPN
 
 	CLIENT="$client_name"
+	CLIENT_REVOKE_OUTPUT_DIR="$output_dir"
 	if [[ $force == true ]]; then
 		REVOKE_CONFIRM=y
 	fi
@@ -4703,6 +4712,10 @@ function revokeClient() {
 
 	run_cmd "Removing client config from /home" find /home/ -maxdepth 2 -name "$CLIENT.ovpn" -delete
 	run_cmd "Removing client config from /root" rm -f "/root/$CLIENT.ovpn"
+	if [[ -n "$CLIENT_REVOKE_OUTPUT_DIR" ]]; then
+		run_cmd "Removing client config from $CLIENT_REVOKE_OUTPUT_DIR" \
+			rm -f "$CLIENT_REVOKE_OUTPUT_DIR/$CLIENT.ovpn"
+	fi
 	run_cmd "Removing IP assignment" sed -i "/^$CLIENT,.*/d" /etc/openvpn/server/ipp.txt
 
 	# Disconnect the client if currently connected
