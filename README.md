@@ -163,6 +163,7 @@ Global Options:
   --log <path>  Log file path (default: openvpn-install.log)
   --no-log      Disable file logging
   --no-color    Disable colored output
+  --retry <sec> Wait up to <sec> for apt/dpkg locks (default: 300; 0 disables)
   -h, --help    Show help
 ```
 

@@ -21,6 +21,8 @@ readonly EASYRSA_SHA256="c2572990ce91112eef8d1b8e4a3b58790da95b68501785c621f6912
 VERBOSE=${VERBOSE:-0}
 LOG_FILE=${LOG_FILE:-openvpn-install.log}
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-table} # table or json - json suppresses log output
+# Seconds to wait for apt/dpkg locks (cloud-init unattended-upgrades, etc.). 0 disables.
+APT_LOCK_WAIT_SECONDS=${APT_LOCK_WAIT_SECONDS:-300}
 
 # Color definitions (disabled if not a terminal, unless FORCE_COLOR=1).
 # Keep these mutable so --no-color can disable colors after startup.
@@ -122,34 +124,109 @@ log_menu() {
 	fi
 }
 
+# Return 0 if apt/dpkg appears to hold a lock (Debian/Ubuntu).
+package_manager_locked() {
+	if command -v fuser >/dev/null 2>&1; then
+		fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && return 0
+		fuser /var/lib/apt/lists/lock >/dev/null 2>&1 && return 0
+		fuser /var/lib/dpkg/lock >/dev/null 2>&1 && return 0
+	fi
+	pgrep -x apt-get >/dev/null 2>&1 && return 0
+	pgrep -x apt >/dev/null 2>&1 && return 0
+	pgrep -x dpkg >/dev/null 2>&1 && return 0
+	pgrep -x unattended-upgr >/dev/null 2>&1 && return 0
+	return 1
+}
+
+# Wait until apt/dpkg locks are free, or until APT_LOCK_WAIT_SECONDS elapses.
+# Used when cloud-init / unattended-upgrades hold the lock during install (#1486).
+wait_for_package_manager_lock() {
+	local max_wait="${APT_LOCK_WAIT_SECONDS:-0}"
+	[[ "$max_wait" =~ ^[0-9]+$ ]] || max_wait=0
+	[[ "$max_wait" -eq 0 ]] && return 0
+
+	local waited=0
+	local interval=5
+	local logged=0
+
+	while package_manager_locked; do
+		if [[ $waited -ge $max_wait ]]; then
+			log_error "Timed out waiting for package manager lock after ${max_wait}s"
+			return 1
+		fi
+		if [[ $logged -eq 0 ]]; then
+			log_info "Waiting for package manager lock (up to ${max_wait}s)..."
+			logged=1
+		fi
+		sleep "$interval"
+		waited=$((waited + interval))
+	done
+
+	# Brief settle so a just-released lock is fully usable
+	if [[ $logged -eq 1 ]]; then
+		sleep 2
+		log_info "Package manager lock released after ${waited}s"
+	fi
+	return 0
+}
+
 # Run a command with optional output suppression
 # Usage: run_cmd "description" command [args...]
 run_cmd() {
 	local desc="$1"
 	shift
+	local is_apt=0
+	[[ "${1:-}" == "apt-get" || "${1:-}" == "apt" ]] && is_apt=1
+
+	if [[ $is_apt -eq 1 ]]; then
+		if ! wait_for_package_manager_lock; then
+			log_error "$desc failed: package manager lock still held"
+			return 100
+		fi
+	fi
+
 	# Display the command being run
 	echo -e "${COLOR_DIM}> $*${COLOR_RESET}"
 	_log_to_file "[CMD] $*"
-	if [[ $VERBOSE -eq 1 ]]; then
-		if [[ -n "$LOG_FILE" ]]; then
-			"$@" 2>&1 | tee -a "$LOG_FILE"
-		else
-			"$@"
+
+	local max_wait="${APT_LOCK_WAIT_SECONDS:-0}"
+	[[ "$max_wait" =~ ^[0-9]+$ ]] || max_wait=0
+	local waited=0
+	local interval=10
+	local ret=0
+	local output=""
+	local tmpfile=""
+
+	while true; do
+		tmpfile=$(mktemp)
+		"$@" >"$tmpfile" 2>&1
+		ret=$?
+		output=$(cat "$tmpfile")
+		if [[ $VERBOSE -eq 1 && -n "$output" ]]; then
+			echo "$output"
 		fi
-	else
-		if [[ -n "$LOG_FILE" ]]; then
-			"$@" >>"$LOG_FILE" 2>&1
-		else
-			"$@" >/dev/null 2>&1
+		if [[ -n "$LOG_FILE" && -n "$output" ]]; then
+			echo "$output" >>"$LOG_FILE"
 		fi
-	fi
-	local ret=$?
-	if [[ $ret -eq 0 ]]; then
-		log_debug "$desc completed successfully"
-	else
+		rm -f "$tmpfile"
+
+		if [[ $ret -eq 0 ]]; then
+			log_debug "$desc completed successfully"
+			return 0
+		fi
+
+		# Retry apt when the failure looks like a lock race (#1486)
+		if [[ $is_apt -eq 1 && $max_wait -gt 0 && $waited -lt $max_wait ]] &&
+			echo "$output" | grep -Eqi 'Could not get lock|Unable to lock|is locked by another process'; then
+			log_info "apt still locked; retrying in ${interval}s (${waited}s/${max_wait}s)..."
+			sleep "$interval"
+			waited=$((waited + interval))
+			continue
+		fi
+
 		log_error "$desc failed with exit code $ret"
-	fi
-	return $ret
+		return $ret
+	done
 }
 
 # Run a command that must succeed, exit on failure
@@ -188,6 +265,7 @@ show_help() {
 			--log <path>  Log file path (default: openvpn-install.log)
 			--no-log      Disable file logging
 			--no-color    Disable colored output
+			--retry <sec> Wait up to <sec> for apt/dpkg locks (default: 300; 0 disables)
 			-h, --help    Show help
 
 		Run '$SCRIPT_NAME <command> --help' for command-specific help.
@@ -251,6 +329,7 @@ show_install_help() {
 
 		Other Options:
 			--multi-client        Allow same cert on multiple devices
+			--retry <seconds>     Wait up to N seconds for apt locks (default: 300; 0 disables)
 
 		Initial Client Options:
 			--client <name>       Initial client name (default: client)
@@ -1444,6 +1523,12 @@ cmd_install() {
 			no_client=true
 			shift
 			;;
+		--retry)
+			[[ -z "${2:-}" ]] && log_fatal "--retry requires an argument"
+			[[ "$2" =~ ^[0-9]+$ ]] || log_fatal "--retry must be a non-negative integer (seconds)"
+			APT_LOCK_WAIT_SECONDS="$2"
+			shift 2
+			;;
 		-h | --help)
 			show_install_help
 			exit 0
@@ -1887,6 +1972,12 @@ parse_args() {
 			COLOR_DIM=''
 			COLOR_BOLD=''
 			shift
+			;;
+		--retry)
+			[[ -z "${2:-}" ]] && log_fatal "--retry requires an argument"
+			[[ "$2" =~ ^[0-9]+$ ]] || log_fatal "--retry must be a non-negative integer (seconds)"
+			APT_LOCK_WAIT_SECONDS="$2"
+			shift 2
 			;;
 		-h | --help)
 			show_help
