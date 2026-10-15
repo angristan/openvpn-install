@@ -567,7 +567,7 @@ The script supports the following ciphers:
 
 And defaults to `AES-128-GCM`.
 
-OpenVPN 2.4 added a feature called "NCP": _Negotiable Crypto Parameters_. It means you can provide a cipher suite like with HTTPS. It is set to `AES-256-GCM:AES-128-GCM` by default and overrides the `--cipher` parameter when used with an OpenVPN 2.4 client. For the sake of simplicity, the script sets `--cipher` (fallback for non-NCP clients), `--data-ciphers` (modern OpenVPN 2.5+ naming), and `--ncp-ciphers` (legacy alias for OpenVPN 2.4 compatibility) to the cipher chosen above.
+OpenVPN 2.4 added a feature called "NCP": _Negotiable Crypto Parameters_. It means you can provide a cipher suite like with HTTPS. It is set to `AES-256-GCM:AES-128-GCM` by default and overrides the `--cipher` parameter when used with an OpenVPN 2.4 client. For the sake of simplicity, the script sets `--cipher` (fallback for older clients) and `--data-ciphers` (OpenVPN 2.5+ naming) to the cipher chosen above. Client configs omit the legacy `--ncp-ciphers` alias so OpenVPN 2.5+ does not warn about the rename; servers still emit it only when OpenVPN is older than 2.5.
 
 ### Control channel
 

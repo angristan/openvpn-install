@@ -3260,10 +3260,17 @@ function installOpenVPN() {
 		echo "user $OPENVPN_USER
 group $OPENVPN_GROUP" >>/etc/openvpn/server/server.conf
 	fi
-	echo "persist-key
+	# persist-key is ignored on OpenVPN 2.7+ (keys are always persisted)
+	if openvpnVersionAtLeast "2.7"; then
+		echo "persist-tun
+keepalive 10 120
+topology subnet" >>/etc/openvpn/server/server.conf
+	else
+		echo "persist-key
 persist-tun
 keepalive 10 120
 topology subnet" >>/etc/openvpn/server/server.conf
+	fi
 
 	# IPv4 server directive - always assign IPv4 to clients for proper routing
 	# Even for IPv6-only mode, we need IPv4 addresses so redirect-gateway def1 can block IPv4 leaks
@@ -3478,9 +3485,10 @@ key $SERVER_NAME.key
 auth $HMAC_ALG
 cipher $CIPHER
 ignore-unknown-option data-ciphers
-data-ciphers $CIPHER
-ncp-ciphers $CIPHER
-tls-server
+data-ciphers $CIPHER"
+		# ncp-ciphers is the OpenVPN 2.4 name; 2.5+ treats it as data-ciphers and warns
+		openvpnVersionAtLeast "2.5" || echo "ncp-ciphers $CIPHER"
+		echo "tls-server
 tls-version-min $TLS_VERSION_MIN"
 		[[ $AUTH_MODE == "pki" ]] && echo "remote-cert-tls client"
 		echo "tls-cipher $CC_CIPHER
@@ -3941,7 +3949,6 @@ WantedBy=multi-user.target" >/etc/systemd/system/iptables-openvpn.service
 dev tun
 resolv-retry infinite
 nobind
-persist-key
 persist-tun"
 		[[ $AUTH_MODE == "pki" ]] && echo "remote-cert-tls server
 verify-x509-name $SERVER_NAME name"
@@ -3950,7 +3957,6 @@ auth-nocache
 cipher $CIPHER
 ignore-unknown-option data-ciphers
 data-ciphers $CIPHER
-ncp-ciphers $CIPHER
 tls-client
 tls-version-min $TLS_VERSION_MIN
 tls-cipher $CC_CIPHER
